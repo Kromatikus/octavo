@@ -1,3 +1,5 @@
+<p align="center"><img src="sneak-staff-n2.png" alt="Octavo: dual octahedra seed shells and the 16-staff by 8-beat hex grid of the hello-world ciphertext" width="100%"></p>
+
 # Sneak staff-core N2 (8-bit cells)
 
 ## Current live revision — beat-6 bow fix (2026-11-09)
