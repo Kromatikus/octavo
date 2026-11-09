@@ -1,5 +1,5 @@
 Sneak staff-core N2 (Octavo) — beat-0 pressure-rotation fix: beat-0 readers use p / rotl8(p,3) / rotl8(p,5); BOW_STROKES unchanged.
-Homemade; NOT for real secrets. Use AES-GCM-SIV, age, or libsodium. Picture retained, not redrawn (stale; shows previous revision's hello-world cells).
+Homemade; NOT for real secrets. Use AES-GCM-SIV, age, or libsodium. Picture redrawn for this revision (current).
 seed: /workspace/sneak1024-seed.txt (unchanged)
 live sneak_n2.py SHA-256: 25cfe812ac6a5d5c22a26ba17440843f417dd44e060498850a78b68964612ff0
 key_sig (16 bytes): 1946c5ac57f19d045eeacd9e5ed823fb

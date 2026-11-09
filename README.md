@@ -1,6 +1,45 @@
 <p align="center"><img src="sneak-staff-n2.png" alt="Octavo: dual octahedra seed shells and the 16-staff by 8-beat hex grid of the hello-world ciphertext" width="100%"></p>
 
-**Octavo** is an experimental homemade 1024-bit cipher (files are named `sneak_n2`). It is **not for real secrets**; use AES-GCM-SIV, age, or libsodium. See [ATTACKS.md](ATTACKS.md) for the full attack history and [`attacks_octavo_beat6/`](attacks_octavo_beat6/REPORT.md) for the latest report.
+# Octavo
+
+**Octavo** is an experimental homemade block cipher with a 1024-bit block and a 1024-bit key, built like a piece of music: 16 staffs of 8 beats, mixed by keyed S-boxes, field "bar" pairs, overlapping triplets, a bow-pressure ARX layer and a cross-staff mix. Every message is authenticated (SIV-style nonce plus an HMAC-SHA256 tag). The picture above draws the key as two octahedra and the hello-world ciphertext as a hex grid. The code files are still named `sneak_n2`, its working name.
+
+> **Not for real secrets.** Octavo has had no independent expert review. For real data use AES-GCM-SIV, [age](https://age-encryption.org) or [libsodium](https://doc.libsodium.org). See [SECURITY.md](SECURITY.md).
+
+## Quick start
+
+Pure Python 3, no dependencies.
+
+```python
+import os
+from sneak_n2 import encrypt, decrypt
+
+key = os.urandom(128)                  # 1024-bit key
+blob = encrypt(b"meet at noon", key)   # 195-byte blob: SN2 | pickup | nonce | ciphertext | tag
+print(decrypt(blob, key))              # b'meet at noon'
+```
+
+Messages are limited to one block (127 bytes). `sneak1024-seed.txt` is the public demo key used for `hello-world.txt`; never use it for anything else. Run `python3 quick_check.py` for a portable sanity check. The full `test_sneak_n2.py` suite also compares against older revisions kept on the author's machine, so it won't run as-is on a fresh clone.
+
+## What's here
+
+| File | What it is |
+|---|---|
+| `sneak_n2.py` | The cipher |
+| `SPEC.md` | Full design spec and the reasoning behind each layer |
+| `ATTACKS.md` | All ten attack rounds, what each found and what was fixed |
+| `attacks_octavo_beat6/` | The latest full attack report, with replay scripts |
+| `fix_beat0rot_verification/` | Verification of the latest fix |
+| `render_n2.py` | Draws the picture |
+
+## Try to break it
+
+Attacks are welcome. The most promising open leads are listed in [the latest report](attacks_octavo_beat6/REPORT.md) and include the shared beat-0 rotations (now hardened but not yet re-attacked), layer-level linear relations, and the partial proof on beat 2. Open an issue with a reproducing script, and credible results get credited in `ATTACKS.md`.
+
+The rest of this README is the author's detailed revision log.
+
+---
+
 # Sneak staff-core N2 (8-bit cells)
 
 ## Current live revision — beat-0 pressure rotation fix (2026-11-09)
