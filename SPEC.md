@@ -1,6 +1,77 @@
+## Current live revision — packaging (2026-11-09)
+
+Packaging only: the 16-round function, S-boxes, schedule, mixes, bow, rehair and
+cross-staff layers are unchanged from the beat-0 pressure-rotation revision below.
+Still homemade. **Not for real secrets.** Use AES-GCM-SIV, age or libsodium.
+
+Triggered by the independent review in [issue #1](https://github.com/Kromatikus/octavo/issues/1)
+(@liqdmetal): no cipher break reported, but a fresh clone could not run the suite
+or the advertised quick start.
+
+### Seed path
+
+`SEED_PATH` is `sneak1024-seed.txt` next to this module (`os.path.dirname(abspath(__file__))`).
+`load_seed()` with no argument uses that file, and falls back to
+`/workspace/sneak1024-seed.txt` only if the module-relative file is missing.
+The runtime absolute value of `SEED_PATH` is listed in `_ATTEST_SKIP` and is
+**not** hashed into `mix_description`, so two installs of the same source produce
+the same `key_signature`.
+
+### Key signature (cached, embedded)
+
+`mix_description()` is still the canonical JSON of parameters plus length-framed
+function sources and reachable module data. It is computed from source when
+`inspect.getsource` works.
+
+`EXPECTED_MIX_SHA256` is `sha256(mix_description())` stored in the module. It is
+also in `_ATTEST_SKIP`, so the constant is not part of what it names
+(chicken-and-egg). At import:
+
+1. If source is readable, compute the digest and compare it to `EXPECTED_MIX_SHA256`.
+   A mismatch raises `RuntimeError`.
+2. If source is not readable (a `.pyc`-only install), use the embedded digest.
+
+`key_signature(seed)` is `StaffSponge(b"G", seed, bytes.fromhex(digest)).take(16)`.
+The sponge nonce is the 32-byte digest, not the full JSON. That is a packaging
+change to the commitment encoding; the round function is untouched. Encrypt and
+decrypt therefore no longer re-parse source on every call.
+
+`MIX_CODE_ROOTS` includes `mix_description` so the description helpers and the
+data they name stay in the closure. In-process monkeypatches after import still
+change a fresh `mix_description()`, but they do **not** move the cached
+`key_signature`. A changed *file* (with `EXPECTED_MIX_SHA256` left as
+`TO_BE_FILLED` or updated) computes a new digest at import and so a new
+`key_signature`.
+
+### Blob format version
+
+Blobs are 196 bytes:
+
+```
+version (1 byte, FMT_VERSION = 1) || SN2 || pickup (16) || nonce (16) || ct (128) || tag (32)
+```
+
+Offsets: version `[0:4]` (the version byte plus `SN2`), pickup `[4:20]`, nonce
+`[20:36]`, ciphertext `[36:164]`, tag `[164:196]`.
+
+`decrypt` checks the first byte before the length and before the tag. A blob
+whose first byte is not `1` — including every older 195-byte `SN2...` blob —
+raises `UnsupportedVersion("unsupported version")`. The HMAC authenticates
+`clef || key_sig || version || SN2 || pickup || nonce || ct`. Sponge domain
+strings remain `b"SN2/"`.
+
+### Weak seeds
+
+`_seed_bytes` rejects a 128-byte seed with fewer than 32 distinct nonzero bytes
+(`ValueError: weak seed: need at least 32 distinct nonzero bytes`). Integer
+`1` and the all-zero key are rejected. The published demo seed has 100 distinct
+nonzero bytes and is accepted.
+
+---
+
 # Sneak staff-core N2: live specification
 
-## Current live revision — beat-0 pressure rotation fix (2026-11-09)
+## Previous revision — beat-0 pressure rotation fix (2026-11-09)
 
 This section supersedes everything below for the bow, including the beat-6 section that
 follows. Still N2 / SN2 (project name: Octavo), still homemade, **not for real secrets** (use
