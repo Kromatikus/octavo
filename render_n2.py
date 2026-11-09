@@ -302,7 +302,7 @@ for i,t_ in enumerate(leg_pairs):
     cmap=[BARCOL[0],BARCOL[1],MCOL,BARCOL[2],MCOL,BARCOL[3],BARCOL[4]]
     d.text((tx0+col_*900,gy1+68+row_*34),t_,font=legf,fill=cmap[i])
 bow_lines=[
-    "bow-pressure strokes (i,j,p): (0,1,2)(2,3,4)(4,5,0)(6,7,0)(1,2,3)(3,4,5)(5,6,0)",
+    "bow-pressure strokes (i,j,p): (0,1,2)(2,3,4)(4,5,0)(6,7,0)(1,2,3)(3,4,5)(5,6,0)  ·  beat-0 readers rotl 0/3/5",
     "odd restack latin pairs (0,1)(2,3)(4,5)(6,7)  ·  triplets T0–T5  ·  cross-staff: opposite → radial → adjacent → bridge",
 ]
 for j,bow_line in enumerate(bow_lines):
@@ -310,7 +310,7 @@ for j,bow_line in enumerate(bow_lines):
 # titles
 t='Octavo (sneak staff-core N2)  ·  8-bit cells  ·  pickup · clef & encore  ·  key signature'
 bb=d.textbbox((0,0),t,font=titf); d.text(((W-bb[2])/2,36),t,font=titf,fill=ink)
-t='keyed SM4-affine S-boxes · latin B0 + field bar pairs · six triplets · bow-pressure · latin odd restack · cross-staff mix · open 8-beat staffs · SIV nonce from clef‖pickup‖msg · HMAC tag over clef‖key_sig‖SN2‖pickup‖nonce‖ct · grid IS ciphertext'
+t='keyed SM4-affine S-boxes · latin B0 + field bar pairs · six triplets · bow-pressure (beat-0 readers rotl 0/3/5) · latin odd restack · cross-staff mix · open 8-beat staffs · SIV nonce from clef‖pickup‖msg · HMAC tag over clef‖key_sig‖SN2‖pickup‖nonce‖ct · grid IS ciphertext'
 bb=d.textbbox((0,0),t,font=subf); d.text(((W-bb[2])/2,128),t,font=subf,fill=muted)
 warn='NOT for real secrets — use AES-GCM-SIV, age, or libsodium'
 bb=d.textbbox((0,0),warn,font=headf); d.text(((W-bb[2])/2,178),warn,font=headf,fill=red)

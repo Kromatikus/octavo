@@ -10,6 +10,6 @@ Contents: Octavo as in octavo001 plus the beat-0 pressure rotation fix: BOW_STRO
 - hello-world pickup 7d4b4694011a7ab66e7f5f24c235c3f8, nonce 8855fdf3a1cb2cc843c4d1250f484697
 - Verification: fix_beat0rot_verification/ (0 singletons on all beats; 2^21-base even-beat scan)
 - Latest attack report: attacks_octavo_beat6/ (made on the previous revision)
-- sneak-staff-n2.png shows the previous revision's hello-world cells (stale).
+- sneak-staff-n2.png redrawn after the snapshot for this revision (current).
 
 Homemade, NOT for real secrets. Use AES-GCM-SIV, age, or libsodium.

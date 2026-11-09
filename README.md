@@ -8,10 +8,10 @@
 This section supersedes everything below for the bow, including the beat-6 section that
 follows. Still N2 / SN2 (project name: Octavo), still homemade, **not for real secrets** (use
 AES-GCM-SIV, age or libsodium). `BOW_STROKES` is unchanged; one new constant and two function
-bodies changed. No table name, sponge domain, blob format or API changed. No PNG, renderer,
-seed, frozen snapshot, attack folder, baseline, GitHub clone or demo-nonce was changed; the
-picture (`sneak-staff-n2.png`) is **stale** and still shows the previous revision's hello-world
-cells.
+bodies changed. No table name, sponge domain, blob format or API changed. Seed, frozen
+snapshot, attack folder, baseline and demo-nonce were unchanged. The picture
+(`sneak-staff-n2.png`) and `render_n2.py` were **redrawn** for this revision (current
+hello-world cells; bow legend notes beat-0 readers rotl 0/3/5).
 
 **What the attack found** (`attacks_octavo_beat6/REPORT.md`, issue 1). After the beat-6 fix,
 three strokes (`(4,5,0)`, `(6,7,0)`, `(5,6,0)`) all read beat 0, which nothing writes after
@@ -64,7 +64,8 @@ the bow's beat-0 output is unchanged).
 - Tests: **237/237 passed** (229 before + new checks for `BOW_PRESSURE_ROT`, distinct beat-0
   views, differential spot check, previous sample on tag, coverage of the new constant, and an
   updated negative control that also restores all-zero pressure-rot). Full suite ~10 min.
-- Picture / `render_n2.py` untouched (stale; shows previous revision's hello-world cells).
+- Picture / `render_n2.py` **redrawn** for this revision (current hello-world cells; bow
+  legend includes beat-0 readers rotl 0/3/5).
 
 **Honest costs / limits.**
 - Still homemade. For real secrets use AES-GCM-SIV, age, or libsodium.
@@ -72,8 +73,7 @@ the bow's beat-0 output is unchanged).
   structure (integrals/cubes) remains whenever beat 0 is constant; removing it would break the
   singleton proofs.
 - Beat 2 still has only a partial written proof.
-- The picture was **not** redrawn; it shows the previous revision's hello-world cells.
-- Older blobs (including the public GitHub sample until it is updated) fail on the tag.
+- Older blobs (including the previous public GitHub sample) fail on the tag.
 
 ---
 
