@@ -1,0 +1,49 @@
+{
+  "started": "2026-11-08 05:26:43 PM EST (America/New_York)",
+  "finished": "2026-11-08 05:27:26 PM EST (America/New_York)",
+  "results": {
+    "2": {
+      "total": 36,
+      "max_zero": 11,
+      "cells": [
+        {
+          "cell": 30,
+          "hits": 18
+        },
+        {
+          "cell": 61,
+          "hits": 18
+        }
+      ],
+      "witness": {
+        "cell": 30,
+        "x": "d859238c166a17fa3d6d7bb9cc5554fdaecc7d372021b92d44dc3defa3f55b69f104827f1efd5cda55bb99a1567fdedcf85f5748b049fff0cbdaaa504b080583f3e7a38cbcfc9dd38d8b3a79dadc5558abcac25b3f13f87782705792b05647e7f7f28db50746e33bfaf8c06338f54b12200fcb0b8f04737e9a98737599460a00",
+        "y": "d859238c166a17fa3d6d7bb9cc5554fdaecc7d372021b92d44dc3defa3f56869f104827f1efd5cda55bb99a1567fdedcf85f5748b049fff0cbdaaa504b080583f3e7a38cbcfc9dd38d8b3a79dadc5558abcac25b3f13f87782705792b05647e7f7f28db50746e33bfaf8c06338f54b12200fcb0b8f04737e9a98737599460a00",
+        "zero_bytes": 10,
+        "zero_positions": [
+          64,
+          65,
+          66,
+          67,
+          68,
+          69,
+          70,
+          71,
+          80,
+          116
+        ],
+        "verified_live": true
+      },
+      "pairs": 524288,
+      "expected_random": 0.026798223862404155
+    },
+    "3": {
+      "total": 0,
+      "max_zero": 6,
+      "cells": [],
+      "witness": null,
+      "pairs": 524288,
+      "expected_random": 0.026798223862404155
+    }
+  }
+}

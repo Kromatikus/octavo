@@ -1,0 +1,7 @@
+2026-11-08 06:53:57 PM EST (America/New_York)
+Protected files before/after: 1226/1226
+Changed: []
+Added outside attacks_three_fixes/: []
+Removed: []
+live sneak_n2.py sha256: 46274b690e3d3ae53649b810591681b94f53983c72f6fb9789a19c8670003f45
+PASS: all protected content byte-identical.

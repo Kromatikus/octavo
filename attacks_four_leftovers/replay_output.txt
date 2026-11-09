@@ -1,0 +1,1 @@
+PASS: recorded hello, B0 wrap/old differential, four bow+rehair witnesses, field cancellation, mix2, cross-only 2-to-4 cancellation. Source: 991ae8f61ee53ec899003b57bc143d70dc9fcdb37de6bd2b334a18f020ebdf5f

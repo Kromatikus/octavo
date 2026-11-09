@@ -1,0 +1,27 @@
+accelerator cross-check: 256 round evaluations OK
+--- 1 round(s) ---
+    byte_dependence {'pairs': 5504, 'of': 16384, 'full': False}
+    bit_avalanche {'pairs': 4096, 'mean': 169.91, 'sd': 31.36, 'min': 24, 'max': 247, 'worst_bit_rate_dev': 0.4421, 'expected_dev_4sigma': 0.0312}
+    zero_diff_bytes {'pairs': 65536, 'mean_zero_bytes_per_pair': 85.3246, 'expected': 0.5, 'chi2_128pos': 955272275.0, 'chi2_df': 127, 'max_pos': 53393, 'min_pos': 36847, 'expected_per_pos': 256.0}
+    delta80_cell18 {'pairs': 65536, 'max_pos_count_of_0x80': 494, 'expected_per_pos': 256.0, 'zero_rate_mean': 0.76655, 'chi2_outbyte38_diff_hist': 268.5, 'chi2_df': 255}
+--- 2 round(s) ---
+    byte_dependence {'pairs': 16384, 'of': 16384, 'full': True}
+    bit_avalanche {'pairs': 4096, 'mean': 512.04, 'sd': 16.32, 'min': 310, 'max': 568, 'worst_bit_rate_dev': 0.0273, 'expected_dev_4sigma': 0.0312}
+    zero_diff_bytes {'pairs': 65536, 'mean_zero_bytes_per_pair': 0.5149, 'expected': 0.5, 'chi2_128pos': 206.0, 'chi2_df': 127, 'max_pos': 314, 'min_pos': 218, 'expected_per_pos': 256.0}
+    delta80_cell18 {'pairs': 65536, 'max_pos_count_of_0x80': 304, 'expected_per_pos': 256.0, 'zero_rate_mean': 0.00395, 'chi2_outbyte38_diff_hist': 213.3, 'chi2_df': 255}
+--- 3 round(s) ---
+    byte_dependence {'pairs': 16384, 'of': 16384, 'full': True}
+    bit_avalanche {'pairs': 4096, 'mean': 511.83, 'sd': 16.13, 'min': 459, 'max': 565, 'worst_bit_rate_dev': 0.0266, 'expected_dev_4sigma': 0.0312}
+    zero_diff_bytes {'pairs': 65536, 'mean_zero_bytes_per_pair': 0.5025, 'expected': 0.5, 'chi2_128pos': 149.2, 'chi2_df': 127, 'max_pos': 301, 'min_pos': 219, 'expected_per_pos': 256.0}
+    delta80_cell18 {'pairs': 65536, 'max_pos_count_of_0x80': 294, 'expected_per_pos': 256.0, 'zero_rate_mean': 0.00389, 'chi2_outbyte38_diff_hist': 296.5, 'chi2_df': 255}
+--- 4 round(s) ---
+    byte_dependence {'pairs': 16384, 'of': 16384, 'full': True}
+    bit_avalanche {'pairs': 4096, 'mean': 512.22, 'sd': 15.65, 'min': 457, 'max': 564, 'worst_bit_rate_dev': 0.0234, 'expected_dev_4sigma': 0.0312}
+    zero_diff_bytes {'pairs': 65536, 'mean_zero_bytes_per_pair': 0.502, 'expected': 0.5, 'chi2_128pos': 156.4, 'chi2_df': 127, 'max_pos': 310, 'min_pos': 215, 'expected_per_pos': 256.0}
+    delta80_cell18 {'pairs': 65536, 'max_pos_count_of_0x80': 307, 'expected_per_pos': 256.0, 'zero_rate_mean': 0.00391, 'chi2_outbyte38_diff_hist': 242.1, 'chi2_df': 255}
+--- 16 round(s) ---
+    byte_dependence {'pairs': 16384, 'of': 16384, 'full': True}
+    bit_avalanche {'pairs': 4096, 'mean': 512.78, 'sd': 16.17, 'min': 458, 'max': 575, 'worst_bit_rate_dev': 0.0225, 'expected_dev_4sigma': 0.0312}
+    zero_diff_bytes {'pairs': 65536, 'mean_zero_bytes_per_pair': 0.4996, 'expected': 0.5, 'chi2_128pos': 131.8, 'chi2_df': 127, 'max_pos': 298, 'min_pos': 219, 'expected_per_pos': 256.0}
+    delta80_cell18 {'pairs': 65536, 'max_pos_count_of_0x80': 294, 'expected_per_pos': 256.0, 'zero_rate_mean': 0.00388, 'chi2_outbyte38_diff_hist': 260.2, 'chi2_df': 255}
+chi2 df=127: 99.9% critical ~181; df=255: 99.9% critical ~330. Bit avalanche random: mean 512, sd 16. 1 round: incomplete dependence + the 3-byte truncated differential (attack_highbit_trail.py). Anything at r>=2 below is only what these tests see.

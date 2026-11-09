@@ -1,0 +1,463 @@
+{
+  "started": "2026-11-09 09:29:53 AM EST (America/New_York)",
+  "live_sha": "922a29d89be68b29a2be08873ff5a99a7cf264afebe1ece0387aa0f4fe56fe10",
+  "strokes": [
+    [
+      0,
+      1,
+      2
+    ],
+    [
+      2,
+      3,
+      4
+    ],
+    [
+      4,
+      5,
+      0
+    ],
+    [
+      6,
+      7,
+      0
+    ],
+    [
+      1,
+      2,
+      3
+    ],
+    [
+      3,
+      4,
+      5
+    ],
+    [
+      5,
+      6,
+      0
+    ]
+  ],
+  "A_random_even_2^21": {
+    "0": {
+      "cases": 534773760,
+      "hits": 0,
+      "one_pair_both": 0,
+      "pairs_hist": [
+        0,
+        0,
+        10030498,
+        1208387,
+        523534875
+      ],
+      "witnesses": []
+    },
+    "2": {
+      "cases": 534773760,
+      "hits": 0,
+      "one_pair_both": 0,
+      "pairs_hist": [
+        0,
+        0,
+        311924,
+        90458763,
+        444003073
+      ],
+      "witnesses": []
+    },
+    "4": {
+      "cases": 534773760,
+      "hits": 0,
+      "one_pair_both": 0,
+      "pairs_hist": [
+        0,
+        0,
+        44247,
+        24130543,
+        510598970
+      ],
+      "witnesses": []
+    }
+  },
+  "B_random_all_beats_2^18": {
+    "0": {
+      "cases": 66846720,
+      "hits": 0,
+      "one_pair_both": 0,
+      "pairs_hist": [
+        0,
+        0,
+        1252114,
+        150702,
+        65443904
+      ],
+      "witnesses": []
+    },
+    "1": {
+      "cases": 66846720,
+      "hits": 0,
+      "one_pair_both": 0,
+      "pairs_hist": [
+        0,
+        33841,
+        1220826,
+        179832,
+        65412221
+      ],
+      "witnesses": []
+    },
+    "2": {
+      "cases": 66846720,
+      "hits": 0,
+      "one_pair_both": 0,
+      "pairs_hist": [
+        0,
+        0,
+        38785,
+        11313168,
+        55494767
+      ],
+      "witnesses": []
+    },
+    "3": {
+      "cases": 66846720,
+      "hits": 0,
+      "one_pair_both": 0,
+      "pairs_hist": [
+        0,
+        55398,
+        1651097,
+        65140225,
+        0
+      ],
+      "witnesses": []
+    },
+    "4": {
+      "cases": 66846720,
+      "hits": 0,
+      "one_pair_both": 0,
+      "pairs_hist": [
+        0,
+        0,
+        5644,
+        3016885,
+        63824191
+      ],
+      "witnesses": []
+    },
+    "5": {
+      "cases": 66846720,
+      "hits": 0,
+      "one_pair_both": 0,
+      "pairs_hist": [
+        0,
+        53789,
+        1636976,
+        65155955,
+        0
+      ],
+      "witnesses": []
+    },
+    "6": {
+      "cases": 66846720,
+      "hits": 0,
+      "one_pair_both": 0,
+      "pairs_hist": [
+        0,
+        0,
+        66846720,
+        0,
+        0
+      ],
+      "witnesses": []
+    },
+    "7": {
+      "cases": 66846720,
+      "hits": 0,
+      "one_pair_both": 0,
+      "pairs_hist": [
+        0,
+        306811,
+        66539909,
+        0,
+        0
+      ],
+      "witnesses": []
+    }
+  },
+  "C_rotation_symmetric_bases_2^18": {
+    "0": {
+      "cases": 66846720,
+      "hits": 0,
+      "one_pair_both": 0,
+      "pairs_hist": [
+        0,
+        0,
+        2170489,
+        1825499,
+        62850732
+      ],
+      "witnesses": []
+    },
+    "1": {
+      "cases": 66846720,
+      "hits": 0,
+      "one_pair_both": 0,
+      "pairs_hist": [
+        0,
+        91823,
+        2137523,
+        2046709,
+        62570665
+      ],
+      "witnesses": []
+    },
+    "2": {
+      "cases": 66846720,
+      "hits": 0,
+      "one_pair_both": 0,
+      "pairs_hist": [
+        0,
+        0,
+        92059,
+        26228714,
+        40525947
+      ],
+      "witnesses": []
+    },
+    "3": {
+      "cases": 66846720,
+      "hits": 0,
+      "one_pair_both": 0,
+      "pairs_hist": [
+        0,
+        103489,
+        2672924,
+        64070307,
+        0
+      ],
+      "witnesses": []
+    },
+    "4": {
+      "cases": 66846720,
+      "hits": 0,
+      "one_pair_both": 0,
+      "pairs_hist": [
+        0,
+        0,
+        20654,
+        11128694,
+        55697372
+      ],
+      "witnesses": []
+    },
+    "5": {
+      "cases": 66846720,
+      "hits": 0,
+      "one_pair_both": 0,
+      "pairs_hist": [
+        0,
+        98830,
+        2404201,
+        64343689,
+        0
+      ],
+      "witnesses": []
+    },
+    "6": {
+      "cases": 66846720,
+      "hits": 0,
+      "one_pair_both": 0,
+      "pairs_hist": [
+        0,
+        0,
+        66846720,
+        0,
+        0
+      ],
+      "witnesses": []
+    },
+    "7": {
+      "cases": 66846720,
+      "hits": 0,
+      "one_pair_both": 0,
+      "pairs_hist": [
+        0,
+        525906,
+        66320814,
+        0,
+        0
+      ],
+      "witnesses": []
+    }
+  },
+  "D_low_weight_bases": {
+    "bases": 6128,
+    "scan": {
+      "0": {
+        "cases": 1562640,
+        "hits": 0,
+        "one_pair_both": 0,
+        "pairs_hist": [
+          0,
+          0,
+          409515,
+          75397,
+          1077728
+        ],
+        "witnesses": []
+      },
+      "1": {
+        "cases": 1562640,
+        "hits": 0,
+        "one_pair_both": 0,
+        "pairs_hist": [
+          0,
+          20635,
+          389305,
+          139343,
+          1013357
+        ],
+        "witnesses": []
+      },
+      "2": {
+        "cases": 1562640,
+        "hits": 0,
+        "one_pair_both": 0,
+        "pairs_hist": [
+          0,
+          0,
+          3998,
+          1402153,
+          156489
+        ],
+        "witnesses": []
+      },
+      "3": {
+        "cases": 1562640,
+        "hits": 0,
+        "one_pair_both": 0,
+        "pairs_hist": [
+          0,
+          7501,
+          218444,
+          1336695,
+          0
+        ],
+        "witnesses": []
+      },
+      "4": {
+        "cases": 1562640,
+        "hits": 0,
+        "one_pair_both": 0,
+        "pairs_hist": [
+          0,
+          0,
+          2767,
+          910136,
+          649737
+        ],
+        "witnesses": []
+      },
+      "5": {
+        "cases": 1562640,
+        "hits": 0,
+        "one_pair_both": 0,
+        "pairs_hist": [
+          0,
+          6731,
+          44492,
+          1511417,
+          0
+        ],
+        "witnesses": []
+      },
+      "6": {
+        "cases": 1562640,
+        "hits": 0,
+        "one_pair_both": 0,
+        "pairs_hist": [
+          0,
+          0,
+          1562640,
+          0,
+          0
+        ],
+        "witnesses": []
+      },
+      "7": {
+        "cases": 1562640,
+        "hits": 0,
+        "one_pair_both": 0,
+        "pairs_hist": [
+          0,
+          38832,
+          1523808,
+          0,
+          0
+        ],
+        "witnesses": []
+      }
+    }
+  },
+  "E_additive_deltas_2^19": {
+    "0": {
+      "cases": 133693440,
+      "hits": 0,
+      "one_pair_both": 0
+    },
+    "2": {
+      "cases": 133693440,
+      "hits": 0,
+      "one_pair_both": 0
+    },
+    "4": {
+      "cases": 133693440,
+      "hits": 0,
+      "one_pair_both": 0
+    }
+  },
+  "F_forced_changes": {
+    "always_changed_bow_outputs_by_input_beat": {
+      "0": [
+        0,
+        1,
+        2
+      ],
+      "1": [
+        0
+      ],
+      "2": [],
+      "3": [],
+      "4": [
+        5,
+        6
+      ],
+      "5": [],
+      "6": [
+        5,
+        7
+      ],
+      "7": [
+        5
+      ]
+    },
+    "beat2_case_split": {
+      "b0_unchanged": 2579488,
+      "b0_unch_and_3_4_both": 2579488,
+      "b0_changed": 14132192,
+      "b0_changed_pairs_hist": [
+        0,
+        0,
+        0,
+        245084,
+        13887108
+      ]
+    },
+    "cases_per_beat": 16711680
+  },
+  "live_confirmation": [],
+  "fast_bow_validated_vs_live_bow_pressure": 2000,
+  "seconds": 188.3,
+  "finished": "2026-11-09 09:33:01 AM EST (America/New_York)"
+}

@@ -1,0 +1,192 @@
+{
+  "started": "2026-11-09 08:25:36 AM EST (America/New_York)",
+  "live_sha": "aa975c951dce9200f6dc2812b59bde90b47b7bd28f13acef6bbbbd65da2aab6d",
+  "lat": {
+    "tables": 64,
+    "max_abs_lat_each": [
+      16
+    ],
+    "max_corr": "32/256 = 2^-3",
+    "sm4_base": 16,
+    "spectrum_identical_across_tables": true
+  },
+  "trail_bound": [
+    {
+      "rounds": 1,
+      "min_active": 8,
+      "corr_le_log2": -24,
+      "data_log2": 48
+    },
+    {
+      "rounds": 2,
+      "min_active": 20,
+      "corr_le_log2": -60,
+      "data_log2": 120
+    },
+    {
+      "rounds": 3,
+      "min_active": 32,
+      "corr_le_log2": -96,
+      "data_log2": 192
+    },
+    {
+      "rounds": 4,
+      "min_active": 44,
+      "corr_le_log2": -132,
+      "data_log2": 264
+    },
+    {
+      "rounds": 8,
+      "min_active": 92,
+      "corr_le_log2": -276,
+      "data_log2": 552
+    },
+    {
+      "rounds": 16,
+      "min_active": 188,
+      "corr_le_log2": -564,
+      "data_log2": 1128
+    }
+  ],
+  "empirical_single_bit": [
+    {
+      "rounds": 1,
+      "samples": 262144,
+      "max_abs_corr": 0.00926,
+      "max_sigma": 4.74,
+      "expected_null_max_sigma": 5.27,
+      "count_over_5sigma": 0,
+      "expected_over_5sigma": 0.6,
+      "mean_abs": 0.001558,
+      "null_mean_abs": 0.001558,
+      "argmax": "in 101.6 -> out 113.2",
+      "argmax_fresh_2e20": -0.00087,
+      "argmax_fresh_sigma": -0.89
+    },
+    {
+      "rounds": 2,
+      "samples": 131072,
+      "max_abs_corr": 0.01361,
+      "max_sigma": 4.93,
+      "expected_null_max_sigma": 5.27,
+      "count_over_5sigma": 0,
+      "expected_over_5sigma": 0.6,
+      "mean_abs": 0.002204,
+      "null_mean_abs": 0.002204,
+      "argmax": "in 74.3 -> out 68.2",
+      "argmax_fresh_2e20": -0.0008,
+      "argmax_fresh_sigma": -0.82
+    }
+  ],
+  "lsb_plane_parity": [
+    {
+      "rounds": 1,
+      "samples": 65536,
+      "corr": 0.00311,
+      "sigma": 0.8
+    },
+    {
+      "rounds": 2,
+      "samples": 65536,
+      "corr": 0.00766,
+      "sigma": 1.96
+    }
+  ],
+  "triplet_bit0_linear": {
+    "exact": true,
+    "matrix_rows": [
+      [
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        1,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0
+      ],
+      [
+        1,
+        1,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      [
+        1,
+        1,
+        0,
+        1,
+        0,
+        1,
+        1,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        0,
+        1,
+        1,
+        1,
+        0,
+        1
+      ]
+    ],
+    "samples": 20000
+  },
+  "bow_bias": {
+    "samples": 4194304,
+    "new_corr": 0.03885,
+    "old_corr": 0.03885,
+    "sigma": 0.000488,
+    "bow_plus_rehair_max_single_bit_corr": 0.0037,
+    "bow_plus_rehair_sigma": 0.0009765625,
+    "note": "rehair S-boxes cap any single-bit relation at the S-box LAT level or below"
+  },
+  "seconds": 149.7,
+  "finished": "2026-11-09 08:28:06 AM EST (America/New_York)"
+}

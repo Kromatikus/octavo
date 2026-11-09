@@ -1,0 +1,12 @@
+sparse {'rounds': 1, 'pairs': 262144, 'hits_ge8_unchanged': 0, 'max_unchanged': 7, 'mean_unchanged': 0.4976, 'random_mean': 0.5, 'witness': {'cell': 116, 'delta': 57, 'unchanged': 7}}
+sparse {'rounds': 2, 'pairs': 262144, 'hits_ge8_unchanged': 0, 'max_unchanged': 6, 'mean_unchanged': 0.5003, 'random_mean': 0.5, 'witness': {'cell': 45, 'delta': 145, 'unchanged': 6}}
+sparse {'rounds': 3, 'pairs': 131072, 'hits_ge8_unchanged': 0, 'max_unchanged': 5, 'mean_unchanged': 0.4983, 'random_mean': 0.5, 'witness': {'cell': 15, 'delta': 177, 'unchanged': 5}}
+sparse {'rounds': 4, 'pairs': 65536, 'hits_ge8_unchanged': 0, 'max_unchanged': 6, 'mean_unchanged': 0.5, 'random_mean': 0.5, 'witness': {'cell': 66, 'delta': 239, 'unchanged': 6}}
+sparse {'rounds': 16, 'pairs': 16384, 'hits_ge8_unchanged': 0, 'max_unchanged': 5, 'mean_unchanged': 0.4946, 'random_mean': 0.5, 'witness': {'cell': 0, 'delta': 48, 'unchanged': 5}}
+aval [{'rounds': 1, 'pairs': 4096, 'mean': 511.87, 'min': 451, 'max': 569, 'std': 15.96, 'ideal': '512 +- 16'}, {'rounds': 2, 'pairs': 4096, 'mean': 512.08, 'min': 446, 'max': 562, 'std': 15.86, 'ideal': '512 +- 16'}, {'rounds': 16, 'pairs': 4096, 'mean': 511.96, 'min': 452, 'max': 573, 'std': 16.15, 'ideal': '512 +- 16'}] [{'rounds': 1, 'samples_per_input_bit': 256, 'max_abs_dev': 0.1641, 'max_z': 5.25, 'expected_null_max_z': 5.27, 'mean_abs_dev': 0.0249, 'null_mean_abs_dev': 0.0249}, {'rounds': 2, 'samples_per_input_bit': 256, 'max_abs_dev': 0.1562, 'max_z': 5.0, 'expected_null_max_z': 5.27, 'mean_abs_dev': 0.0249, 'null_mean_abs_dev': 0.0249}]
+trunc new {'S': 1, 'weave+butterfly+shell': 16, 'bars': 22, 'trips': 28, 'bow': 29, 'rehair': 29, 'cross (=S2 inputs)': 114, 'rehair2': 122, 'round out': 121}
+trunc old {'S': 1, 'weave+butterfly+shell': 16, 'bars': 22, 'trips': 29, 'bow': 29, 'rehair': 29, 'cross (=S2 inputs)': 116, 'rehair2': 122, 'round out': 122}
+bow+rehair bestdiff new [(0, -14.0), (1, -14.0), (2, -14.0), (3, -13.0), (4, -14.0), (5, -13.0), (6, -13.0), (7, -13.0)]
+bow+rehair bestdiff old [(0, -14.0), (1, -13.0), (2, -14.0), (3, -13.0), (4, -14.0), (5, -14.0), (6, -14.0), (7, -13.0)]
+1r bias 108
+attack_differential saved

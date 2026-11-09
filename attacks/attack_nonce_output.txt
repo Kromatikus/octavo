@@ -1,0 +1,11 @@
+=== N2 nonce reuse (same seed + same nonce for every message below) ===
+[equality] identical messages -> identical ct: True
+[equality] messages differing in 1 byte -> identical ct: False (distinct, as expected)
+[equality] whole 115-byte blob identical for equal (msg,nonce): True (so reuse reveals repeats)
+[keystream] ct1^ct2 == pt1^pt2 (stream-cipher structure): 0/300  (0 => NOT a keystream; it is a keyed permutation)
+[keystream] ct-xor Hamming weight for two random messages: mean 255.7/512 (random ~256)
+[diffusion] 1-byte plaintext change under reused nonce: ct distance mean 255.3/512, min 225 (full-permutation ~256)
+[guesser] with an encryption oracle (fixed nonce), confirming a guessed plaintext works: matched [b'launch code: 7731', b'launch code: 7731'] (expected: only the correct guess; this is the generic deterministic-encryption leak, NOT a seedless break)
+[guesser] 3-digit PIN recovered by oracle enumeration under reused nonce: 427 (1000 queries; a fresh nonce per message prevents this)
+[ciphertext-only] given only two ciphertexts under a reused nonce (no oracle, no seed): no method found to recover either plaintext or their XOR; the block is a secret keyed permutation, not a keystream.
+[verdict] nonce reuse leaks message EQUALITY and enables oracle-confirmation of guesses (both generic to deterministic encryption). It is NOT keystream reuse. encrypt() draws a fresh os.urandom(16) nonce, so this needs deliberate misuse.

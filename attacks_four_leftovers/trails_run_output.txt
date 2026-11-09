@@ -1,0 +1,6 @@
+1-round search cells 32 2026-11-08 09:50:11 PM EST (America/New_York)
+1-round search cells 64 2026-11-08 09:50:34 PM EST (America/New_York)
+1-round search cells 96 2026-11-08 09:50:56 PM EST (America/New_York)
+1-round search cells 128 2026-11-08 09:51:18 PM EST (America/New_York)
+1-round strongest 14 121 16
+attack_trails saved

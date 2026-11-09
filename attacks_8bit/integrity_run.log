@@ -1,0 +1,19 @@
+Live 8-bit, five bars, second coloring; blob length 179 demo roundtrip True
+Fixed public-nonce Schedule memoized in memory only; original decrypt and tag comparison unchanged. Random nonces use original full Schedule.
+random_179_200000 {'AuthError': 200000} decrypt_grid calls cumulative 0
+SN2_random_nonce_1000 {'AuthError': 1000} decrypt_grid calls cumulative 0
+SN2_real_nonce_10000 {'AuthError': 10000} decrypt_grid calls cumulative 0
+bitflip_version {'AuthError': 24} decrypt_grid calls cumulative 0
+bitflip_nonce {'AuthError': 128} decrypt_grid calls cumulative 0
+bitflip_ct {'AuthError': 1024} decrypt_grid calls cumulative 0
+bitflip_tag {'AuthError': 256} decrypt_grid calls cumulative 0
+bytechange_nonce {'AuthError': 3000} decrypt_grid calls cumulative 0
+bytechange_ct {'AuthError': 3000} decrypt_grid calls cumulative 0
+bytechange_tag {'AuthError': 3000} decrypt_grid calls cumulative 0
+splice {'AuthError': 4} decrypt_grid calls cumulative 0
+truncate {'AuthError': 179} decrypt_grid calls cumulative 0
+extend {'AuthError': 32} decrypt_grid calls cumulative 0
+seedless_random_tags_20000 {'AuthError': 20000} decrypt_grid calls cumulative 0
+Outsider tests total 241647 decrypt_grid calls 0
+Key-holder malformed block DecodeError
+Source verifies compare_digest tag before decrypt_grid: True

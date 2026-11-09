@@ -1,0 +1,7 @@
+2026-11-09 07:38:03 AM EST (America/New_York)
+Protected files before/after: 2547/2547
+Changed: []
+Added outside attacks_linear_algebraic/: []
+Removed: []
+live sneak_n2.py sha256: 0eb6052f7ef1e48a952c5530983acead5932be469693134b65f2b21aaf5092c1
+PASS: all protected content byte-identical.

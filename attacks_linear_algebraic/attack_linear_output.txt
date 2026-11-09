@@ -1,0 +1,1627 @@
+2026-11-09 07:28:51 AM EST (America/New_York)
+{
+  "started": "2026-11-09 07:25:35 AM EST (America/New_York)",
+  "live_sha": "0eb6052f7ef1e48a952c5530983acead5932be469693134b65f2b21aaf5092c1",
+  "batch_validated_round_calls": 96,
+  "sbox_lat": {
+    "sm4_base_max_abs_LAT": 32,
+    "sm4_spectrum": {
+      "0": 4080,
+      "4": 12240,
+      "8": 9180,
+      "12": 10200,
+      "16": 8670,
+      "20": 6120,
+      "24": 9180,
+      "28": 4080,
+      "32": 1275
+    },
+    "tables_checked": 64,
+    "all_max_corr_2^-3": true,
+    "all_spectrum_equal_SM4": true,
+    "per_table": [
+      {
+        "schedule": "hello",
+        "round": 0,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "hello",
+        "round": 0,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "hello",
+        "round": 1,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "hello",
+        "round": 1,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "hello",
+        "round": 2,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "hello",
+        "round": 2,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "hello",
+        "round": 3,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "hello",
+        "round": 3,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "hello",
+        "round": 4,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "hello",
+        "round": 4,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "hello",
+        "round": 5,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "hello",
+        "round": 5,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "hello",
+        "round": 6,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "hello",
+        "round": 6,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "hello",
+        "round": 7,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "hello",
+        "round": 7,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "hello",
+        "round": 8,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "hello",
+        "round": 8,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "hello",
+        "round": 9,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "hello",
+        "round": 9,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "hello",
+        "round": 10,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "hello",
+        "round": 10,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "hello",
+        "round": 11,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "hello",
+        "round": 11,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "hello",
+        "round": 12,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "hello",
+        "round": 12,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "hello",
+        "round": 13,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "hello",
+        "round": 13,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "hello",
+        "round": 14,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "hello",
+        "round": 14,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "hello",
+        "round": 15,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "hello",
+        "round": 15,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 0,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 0,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 1,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 1,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 2,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 2,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 3,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 3,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 4,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 4,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 5,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 5,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 6,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 6,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 7,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 7,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 8,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 8,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 9,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 9,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 10,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 10,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 11,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 11,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 12,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 12,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 13,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 13,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 14,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 14,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 15,
+        "table": "S",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      },
+      {
+        "schedule": "demo",
+        "round": 15,
+        "table": "S2",
+        "max_abs_LAT": 32,
+        "max_corr": 0.125,
+        "log2_max_corr": -3.0,
+        "entries_at_max": 1275,
+        "spectrum_equals_SM4": true,
+        "zero_mask_rows_ok": true
+      }
+    ],
+    "note": "LAT entry 32 = |#agree-128|*2 => correlation 32/256 = 2^-3 (bias 2^-4). Keyed tables are affine-equivalent to SM4, so the spectrum is identical; key choice only moves where the 2^-3 entries sit."
+  },
+  "layers": {
+    "field_pairs": {
+      "B1 bar 2": {
+        "cells": [
+          1,
+          2
+        ],
+        "matrix": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            2
+          ]
+        ],
+        "exact_linear_corr": 1.0,
+        "linear_branch": 3,
+        "diff_branch": 3
+      },
+      "M2 beats 3-4": {
+        "cells": [
+          2,
+          3
+        ],
+        "matrix": [
+          [
+            3,
+            5
+          ],
+          [
+            1,
+            2
+          ]
+        ],
+        "exact_linear_corr": 1.0,
+        "linear_branch": 3,
+        "diff_branch": 3
+      },
+      "B2 center": {
+        "cells": [
+          3,
+          4
+        ],
+        "matrix": [
+          [
+            1,
+            3
+          ],
+          [
+            1,
+            4
+          ]
+        ],
+        "exact_linear_corr": 1.0,
+        "linear_branch": 3,
+        "diff_branch": 3
+      },
+      "M3 beats 5-6": {
+        "cells": [
+          4,
+          5
+        ],
+        "matrix": [
+          [
+            5,
+            2
+          ],
+          [
+            2,
+            1
+          ]
+        ],
+        "exact_linear_corr": 1.0,
+        "linear_branch": 3,
+        "diff_branch": 3
+      },
+      "B3 bar 6": {
+        "cells": [
+          5,
+          6
+        ],
+        "matrix": [
+          [
+            2,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "exact_linear_corr": 1.0,
+        "linear_branch": 3,
+        "diff_branch": 3
+      },
+      "B4 end": {
+        "cells": [
+          6,
+          7
+        ],
+        "matrix": [
+          [
+            3,
+            1
+          ],
+          [
+            2,
+            1
+          ]
+        ],
+        "exact_linear_corr": 1.0,
+        "linear_branch": 3,
+        "diff_branch": 3
+      },
+      "mix2 (butterfly/shell/cross/latin field step)": {
+        "matrix": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            2
+          ]
+        ],
+        "exact_linear_corr": 1.0,
+        "linear_branch": 3,
+        "diff_branch": 3
+      }
+    },
+    "latin_pair": {
+      "formula": "corr = LAT_S(a1,b1)/256 * LAT_S2(a2,b2)/256, (a1,a2)=(L^T)^-1(input mask), L=mix2 field step",
+      "brute_force_checks": 300,
+      "max_abs_deviation": 0.0,
+      "best_one_output_cell_corr": 0.125,
+      "best_two_output_cells_corr": 0.015625,
+      "active_sboxes_equals_active_output_cells": true,
+      "note": "Output mask on u-prime only forces a2=0 (S2 inactive) => |corr|<=2^-3; both outputs masked => <=2^-6. The field step L has linear branch 3, but which input cells are masked does not change the S-box count, which equals the number of masked output cells."
+    },
+    "triplets_mod_2k": {
+      "bit0": {
+        "exact": true,
+        "verified_on_20000_random_grids": true,
+        "corr": 1.0,
+        "lsb_rows_in_masks": [
+          "11100000",
+          "10110000",
+          "01111000",
+          "00001100",
+          "11011110",
+          "11010111",
+          "00001011",
+          "11011101"
+        ],
+        "note": "bit 0 of each triplet output is the XOR of bit 0 of the inputs with odd coefficients; the whole 6-triplet staff layer is an exact GF(2)-linear map on the LSB plane."
+      },
+      "bit1_exhaustive_mod_4": [
+        {
+          "output": "cell 0 bit 1",
+          "best_abs_corr": 0.5,
+          "log2": -1.0,
+          "num_masks_at_best": 4
+        },
+        {
+          "output": "cell 1 bit 1",
+          "best_abs_corr": 0.5,
+          "log2": -1.0,
+          "num_masks_at_best": 4
+        },
+        {
+          "output": "cell 2 bit 1",
+          "best_abs_corr": 0.25,
+          "log2": -2.0,
+          "num_masks_at_best": 16
+        },
+        {
+          "output": "cell 3 bit 1",
+          "best_abs_corr": 0.5,
+          "log2": -1.0,
+          "num_masks_at_best": 4
+        },
+        {
+          "output": "cell 4 bit 1",
+          "best_abs_corr": 0.125,
+          "log2": -3.0,
+          "num_masks_at_best": 64
+        },
+        {
+          "output": "cell 5 bit 1",
+          "best_abs_corr": 0.125,
+          "log2": -3.0,
+          "num_masks_at_best": 64
+        },
+        {
+          "output": "cell 6 bit 1",
+          "best_abs_corr": 0.5,
+          "log2": -1.0,
+          "num_masks_at_best": 4
+        },
+        {
+          "output": "cell 7 bit 1",
+          "best_abs_corr": 0.125,
+          "log2": -3.0,
+          "num_masks_at_best": 64
+        }
+      ],
+      "bit2_exhaustive_mod_8": [
+        {
+          "output": "cell 0 bit 2",
+          "best_abs_corr": 0.25,
+          "log2": -2.0,
+          "num_masks_at_best": 8
+        },
+        {
+          "output": "cell 1 bit 2",
+          "best_abs_corr": 0.1875,
+          "log2": -2.415037499278844,
+          "num_masks_at_best": 16
+        },
+        {
+          "output": "cell 2 bit 2",
+          "best_abs_corr": 0.15625,
+          "log2": -2.678071905112638,
+          "num_masks_at_best": 16
+        },
+        {
+          "output": "cell 3 bit 2",
+          "best_abs_corr": 0.1875,
+          "log2": -2.415037499278844,
+          "num_masks_at_best": 16
+        },
+        {
+          "output": "cell 4 bit 2",
+          "best_abs_corr": 0.06640625,
+          "log2": -3.9125371587496605,
+          "num_masks_at_best": 64
+        },
+        {
+          "output": "cell 5 bit 2",
+          "best_abs_corr": 0.09375,
+          "log2": -3.415037499278844,
+          "num_masks_at_best": 32
+        },
+        {
+          "output": "cell 6 bit 2",
+          "best_abs_corr": 0.09375,
+          "log2": -3.415037499278844,
+          "num_masks_at_best": 64
+        },
+        {
+          "output": "cell 7 bit 2",
+          "best_abs_corr": 0.06640625,
+          "log2": -3.9125371587496605,
+          "num_masks_at_best": 64
+        }
+      ]
+    },
+    "bow_single_bit": {
+      "samples": 1048576,
+      "noise_floor_1_over_sqrtN": 0.0009765625,
+      "top_single_bit_relations": [
+        {
+          "in_cell": 6,
+          "in_bit": 0,
+          "out_cell": 7,
+          "out_bit": 4,
+          "corr": 0.03986167907714844
+        },
+        {
+          "in_cell": 6,
+          "in_bit": 0,
+          "out_cell": 7,
+          "out_bit": 3,
+          "corr": 0.019681930541992188
+        },
+        {
+          "in_cell": 6,
+          "in_bit": 0,
+          "out_cell": 7,
+          "out_bit": 2,
+          "corr": 0.019628524780273438
+        },
+        {
+          "in_cell": 6,
+          "in_bit": 1,
+          "out_cell": 7,
+          "out_bit": 5,
+          "corr": 0.019481658935546875
+        },
+        {
+          "in_cell": 6,
+          "in_bit": 0,
+          "out_cell": 7,
+          "out_bit": 1,
+          "corr": 0.019365310668945312
+        },
+        {
+          "in_cell": 6,
+          "in_bit": 0,
+          "out_cell": 7,
+          "out_bit": 7,
+          "corr": 0.016954421997070312
+        },
+        {
+          "in_cell": 6,
+          "in_bit": 0,
+          "out_cell": 7,
+          "out_bit": 6,
+          "corr": 0.015775680541992188
+        },
+        {
+          "in_cell": 6,
+          "in_bit": 0,
+          "out_cell": 7,
+          "out_bit": 5,
+          "corr": 0.015592575073242188
+        }
+      ],
+      "count_abs_corr_ge_0_1": 0,
+      "count_abs_corr_ge_0_01": 9
+    }
+  },
+  "cross_layer": {
+    "differential C": {
+      "min_total_weight_found": 6,
+      "witness": {
+        "support": [
+          0,
+          1
+        ],
+        "x": [
+          1,
+          250,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          251,
+          0,
+          0,
+          0,
+          251,
+          0,
+          0,
+          0,
+          251,
+          0,
+          0,
+          0,
+          251,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "differential C^-1": {
+      "min_total_weight_found": 6,
+      "witness": {
+        "support": [
+          0,
+          4
+        ],
+        "x": [
+          1,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          101,
+          200,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          200,
+          100,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "linear C^T": {
+      "min_total_weight_found": 6,
+      "witness": {
+        "support": [
+          0,
+          4
+        ],
+        "x": [
+          1,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          0,
+          0,
+          0,
+          0,
+          3,
+          3,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          3,
+          3,
+          0,
+          0
+        ]
+      }
+    },
+    "linear (C^T)^-1": {
+      "min_total_weight_found": 6,
+      "witness": {
+        "support": [
+          0,
+          1
+        ],
+        "x": [
+          1,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "y": [
+          101,
+          0,
+          0,
+          0,
+          200,
+          0,
+          0,
+          0,
+          200,
+          0,
+          0,
+          0,
+          100,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "diff_branch_number": 6,
+    "linear_branch_number": 6,
+    "exact": true,
+    "note": "Searched every input of weight <=3 in both directions, so any codeword of total weight <=7 is found; a minimum <=7 is therefore exact.",
+    "matrix_beat_t": [
+      [
+        1,
+        1,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0
+      ],
+      [
+        1,
+        2,
+        1,
+        1,
+        1,
+        2,
+        1,
+        1,
+        1,
+        2,
+        1,
+        1,
+        1,
+        2,
+        1,
+        1
+      ],
+      [
+        1,
+        2,
+        2,
+        2,
+        1,
+        2,
+        2,
+        2,
+        1,
+        2,
+        2,
+        2,
+        1,
+        2,
+        2,
+        2
+      ],
+      [
+        0,
+        0,
+        1,
+        2,
+        0,
+        0,
+        1,
+        2,
+        0,
+        0,
+        1,
+        2,
+        0,
+        0,
+        1,
+        2
+      ],
+      [
+        1,
+        1,
+        0,
+        0,
+        2,
+        2,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        2,
+        2,
+        0,
+        0
+      ],
+      [
+        1,
+        2,
+        1,
+        1,
+        2,
+        4,
+        2,
+        2,
+        1,
+        2,
+        1,
+        1,
+        2,
+        4,
+        2,
+        2
+      ],
+      [
+        1,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4,
+        4,
+        1,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4,
+        4
+      ],
+      [
+        0,
+        0,
+        1,
+        2,
+        0,
+        0,
+        2,
+        4,
+        0,
+        0,
+        1,
+        2,
+        0,
+        0,
+        2,
+        4
+      ],
+      [
+        1,
+        1,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        2,
+        2,
+        0,
+        0,
+        2,
+        2,
+        0,
+        0
+      ],
+      [
+        1,
+        2,
+        1,
+        1,
+        1,
+        2,
+        1,
+        1,
+        2,
+        4,
+        2,
+        2,
+        2,
+        4,
+        2,
+        2
+      ],
+      [
+        1,
+        2,
+        2,
+        2,
+        1,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4,
+        4,
+        2,
+        4,
+        4,
+        4
+      ],
+      [
+        0,
+        0,
+        1,
+        2,
+        0,
+        0,
+        1,
+        2,
+        0,
+        0,
+        2,
+        4,
+        0,
+        0,
+        2,
+        4
+      ],
+      [
+        1,
+        1,
+        0,
+        0,
+        2,
+        2,
+        0,
+        0,
+        2,
+        2,
+        0,
+        0,
+        4,
+        4,
+        0,
+        0
+      ],
+      [
+        1,
+        2,
+        1,
+        1,
+        2,
+        4,
+        2,
+        2,
+        2,
+        4,
+        2,
+        2,
+        4,
+        8,
+        4,
+        4
+      ],
+      [
+        1,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4,
+        4,
+        2,
+        4,
+        4,
+        4,
+        4,
+        8,
+        8,
+        8
+      ],
+      [
+        0,
+        0,
+        1,
+        2,
+        0,
+        0,
+        2,
+        4,
+        0,
+        0,
+        2,
+        4,
+        0,
+        0,
+        4,
+        8
+      ]
+    ],
+    "seconds": 133.8
+  },
+  "trail_bound": {
+    "model": "Relaxed (sound lower bound for single trails): S-box layers S, S2 and both rehair Latin layers counted exactly (rehair active S-boxes = masked rehair output cells); triplets+bow treated as an ARBITRARY staff-local bijection (any mask pattern, correlation up to 1); B0 Latin S-boxes, weave/butterfly/shell/field bars counted as free (0 active). Each cross layer acts per beat as a 16x16 GF(2^8) map with linear branch number Bx, so (masked rehair-out cells)+(masked S2 cells) >= Bx and (masked rehair2-out cells)+(masked next-round S cells) >= Bx.",
+    "Bx_linear": 6,
+    "max_sbox_corr_log2": -3,
+    "rounds": {
+      "1": {
+        "min_active_sboxes_lower_bound": 8,
+        "trail_corr_upper_bound_log2": -24,
+        "data_needed_log2_approx": 48
+      },
+      "2": {
+        "min_active_sboxes_lower_bound": 20,
+        "trail_corr_upper_bound_log2": -60,
+        "data_needed_log2_approx": 120
+      },
+      "3": {
+        "min_active_sboxes_lower_bound": 32,
+        "trail_corr_upper_bound_log2": -96,
+        "data_needed_log2_approx": 192
+      },
+      "4": {
+        "min_active_sboxes_lower_bound": 44,
+        "trail_corr_upper_bound_log2": -132,
+        "data_needed_log2_approx": 264
+      },
+      "8": {
+        "min_active_sboxes_lower_bound": 92,
+        "trail_corr_upper_bound_log2": -276,
+        "data_needed_log2_approx": 552
+      },
+      "16": {
+        "min_active_sboxes_lower_bound": 188,
+        "trail_corr_upper_bound_log2": -564,
+        "data_needed_log2_approx": 1128
+      }
+    },
+    "caveats": [
+      "Single-trail bound only; linear hulls can add many trails (typically a modest gain, not hundreds of bits, but not proven here).",
+      "Relaxation is loose: real triplets/bow cannot realise every pattern, so real trails are at least this weak.",
+      "Bound assumes each active S-box costs at most 2^-3 (true: every keyed table has max |LAT| 32/256)."
+    ]
+  },
+  "empirical": {
+    "1_round": {
+      "samples": 262144,
+      "noise_floor": 0.001953125,
+      "expected_max_of_2pow20_null": 0.010538223734720357,
+      "observed_max_abs": 0.00978851318359375,
+      "max_over_noise": 5.01171875,
+      "argmax": {
+        "in_cell": 39,
+        "in_bit": 3,
+        "out_cell": 22,
+        "out_bit": 7,
+        "corr": 0.00978851318359375
+      },
+      "count_over_5sigma": 1,
+      "expected_over_5sigma": 0.59768832,
+      "mean_abs": 0.0015580919571220875,
+      "expected_mean_abs": 0.0015583682828180965,
+      "lsb_plane_all_parity_corr": -0.0041656494140625,
+      "seconds": 14.5
+    },
+    "2_round": {
+      "samples": 131072,
+      "noise_floor": 0.002762135864009951,
+      "expected_max_of_2pow20_null": 0.014903298928963577,
+      "observed_max_abs": 0.0140228271484375,
+      "max_over_noise": 5.076805718050291,
+      "argmax": {
+        "in_cell": 37,
+        "in_bit": 6,
+        "out_cell": 77,
+        "out_bit": 3,
+        "corr": 0.0140228271484375
+      },
+      "count_over_5sigma": 2,
+      "expected_over_5sigma": 0.59768832,
+      "mean_abs": 0.002202981209848076,
+      "expected_mean_abs": 0.002203865560733423,
+      "lsb_plane_all_parity_corr": 0.0052337646484375,
+      "seconds": 11.7
+    },
+    "positive_control_single_sbox": {
+      "in_mask": 1,
+      "out_mask": 8,
+      "predicted_abs": 0.125,
+      "measured": 0.12244415283203125,
+      "samples": 262144
+    }
+  },
+  "reach": {
+    "white_box_fixed_schedule": "Relaxed single-trail bound: <=2^-24 after 1 round, 2^-60 after 2, 2^-96 after 3 (data ~2^48, 2^120, 2^192). Rounds whose bound still needs <=2^1024 data (full codebook): 14; rounds within a 2^80 data budget: 1. Real trails are weaker than this relaxed bound.",
+    "real_api": "Every message gets a fresh schedule (synthetic nonce from SHA-256 over clef||pickup||block), so an outside attacker gets ONE block per schedule; statistical linear attacks need many blocks under one schedule and do not apply to the API as written. The white-box fixed-schedule numbers are a pessimistic lab model."
+  },
+  "finished": "2026-11-09 07:28:51 AM EST (America/New_York)"
+}

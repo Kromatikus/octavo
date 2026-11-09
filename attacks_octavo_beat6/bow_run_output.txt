@@ -1,0 +1,11 @@
+replica new bow 1148 rehair 0 | old bow 1083 rehair 0
+extended new bow 6866 rehair 0 min 2 | old 6637 2 1
+two-beat singleton max rate new 0.0 old 0.0
+bestdiff new [(0, -8.12), (1, -6.54), (2, -12.42), (3, -8.3), (4, -12.0), (5, -8.3), (6, -5.56), (7, -4.89)]
+bestdiff old [(0, -7.96), (1, -6.84), (2, -13.0), (3, -8.19), (4, -13.0), (5, -8.19), (6, -7.54), (7, -4.75)]
+lin new 0.038919925689697266 13 [{'in': 'cell6.bit0', 'out': 'cell7.bit4', 'corr': 0.03892}, {'in': 'cell6.bit0', 'out': 'cell7.bit1', 'corr': 0.0202}, {'in': 'cell6.bit0', 'out': 'cell7.bit2', 'corr': 0.01998}]
+lin old 0.03983116149902344 9 [{'in': 'cell6.bit0', 'out': 'cell7.bit4', 'corr': 0.03983}, {'in': 'cell6.bit0', 'out': 'cell7.bit1', 'corr': 0.01935}, {'in': 'cell6.bit0', 'out': 'cell7.bit2', 'corr': 0.01902}]
+2bit new [{'in': 'c0b0^c1b7', 'out': 'c0b0', 'corr': -0.14472}, {'in': 'c0b1^c1b7', 'out': 'c0b1', 'corr': -0.07404}, {'in': 'c0b2^c1b6', 'out': 'c0b2', 'corr': -0.03793}] old [{'in': 'c0b0^c1b4', 'out': 'c0b0', 'corr': -0.14546}, {'in': 'c0b1^c1b5', 'out': 'c0b1', 'corr': -0.07221}, {'in': 'c0b2^c1b3', 'out': 'c0b2', 'corr': -0.03692}]
+shared {'fact': 'strokes (4,5,0), (6,7,0) and (5,6,0) read the same byte s[0] after stroke 1, so all three use identical (r1,r2)', 'readers_of_beat0_after_stroke1': [(4, 5, 0), (6, 7, 0), (5, 6, 0)], 'beat0_written_after_stroke1': False, 'r1_hist': [37, 37, 37, 37, 36, 36, 36], 'r2_hist': [40, 40, 40, 40, 32, 32, 32], 'complementary_r1_plus_r2_eq_8_prob': 0.14453125, 'r1_eq_r2_prob': 0.25}
+beat7 cond {"new": {"beat7^0x01": {"active_cells_hist": [0, 2673, 3550, 59313, 0, 0, 0, 0, 0], "beats_0_4_unchanged_frac": 1.0, "most_common_out_diff_prob": 0.017669677734375}, "beat7^0x80": {"active_cells_hist": [0, 2916, 2882, 59738, 0, 0, 0, 0, 0], "beats_0_4_unchanged_frac": 1.0, "most_common_out_diff_prob": 0.018310546875}, "beat7^0x40": {"active_cells_hist": [0, 2656, 3531, 59349, 0, 0, 0, 0, 0], "beat
+attack_bow saved

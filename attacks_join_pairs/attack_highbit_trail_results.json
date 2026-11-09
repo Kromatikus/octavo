@@ -1,0 +1,266 @@
+{
+  "one_round_truncated": {
+    "18": {
+      "S2_cells_hit_by_0x80": [
+        38
+      ],
+      "predicted_output_cells": [
+        37,
+        38,
+        39
+      ],
+      "results": {
+        "random_delta": {
+          "pairs": 200000,
+          "min_active": 3,
+          "hist_le8": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+            "3": 774,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 0,
+            "8": 0
+          },
+          "confined_to_predicted": 774,
+          "confined_rate": 0.00387,
+          "log2_rate": -8.01
+        },
+        "whitebox_best_delta": {
+          "pairs": 200000,
+          "min_active": 3,
+          "hist_le8": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+            "3": 3137,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 0,
+            "8": 0
+          },
+          "confined_to_predicted": 3137,
+          "confined_rate": 0.015685,
+          "log2_rate": -5.99
+        }
+      }
+    },
+    "37": {
+      "S2_cells_hit_by_0x80": [
+        37
+      ],
+      "predicted_output_cells": [
+        36,
+        37,
+        38,
+        39
+      ],
+      "results": {
+        "random_delta": {
+          "pairs": 200000,
+          "min_active": 4,
+          "hist_le8": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+            "3": 0,
+            "4": 784,
+            "5": 0,
+            "6": 0,
+            "7": 0,
+            "8": 0
+          },
+          "confined_to_predicted": 784,
+          "confined_rate": 0.00392,
+          "log2_rate": -7.99
+        },
+        "whitebox_best_delta": {
+          "pairs": 200000,
+          "min_active": 4,
+          "hist_le8": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+            "3": 0,
+            "4": 3120,
+            "5": 0,
+            "6": 0,
+            "7": 0,
+            "8": 0
+          },
+          "confined_to_predicted": 3120,
+          "confined_rate": 0.0156,
+          "log2_rate": -6.0
+        }
+      }
+    },
+    "9": {
+      "S2_cells_hit_by_0x80": [
+        50
+      ],
+      "predicted_output_cells": [
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55
+      ],
+      "results": {
+        "random_delta": {
+          "pairs": 200000,
+          "min_active": 4,
+          "hist_le8": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+            "3": 0,
+            "4": 18,
+            "5": 13,
+            "6": 0,
+            "7": 755,
+            "8": 0
+          },
+          "confined_to_predicted": 786,
+          "confined_rate": 0.00393,
+          "log2_rate": -7.99
+        },
+        "whitebox_best_delta": {
+          "pairs": 200000,
+          "min_active": 4,
+          "hist_le8": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+            "3": 0,
+            "4": 53,
+            "5": 87,
+            "6": 0,
+            "7": 3092,
+            "8": 0
+          },
+          "confined_to_predicted": 3232,
+          "confined_rate": 0.01616,
+          "log2_rate": -5.95
+        }
+      }
+    },
+    "0": {
+      "S2_cells_hit_by_0x80": [
+        2,
+        24,
+        25,
+        26,
+        27,
+        28
+      ],
+      "predicted_output_cells": null,
+      "results": {
+        "random_delta": {
+          "pairs": 200000,
+          "min_active": 11,
+          "hist_le8": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 0,
+            "8": 0
+          },
+          "confined_to_predicted": null,
+          "confined_rate": null,
+          "log2_rate": null
+        },
+        "whitebox_best_delta": {
+          "pairs": 200000,
+          "min_active": 11,
+          "hist_le8": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 0,
+            "8": 0
+          },
+          "confined_to_predicted": null,
+          "confined_rate": null,
+          "log2_rate": null
+        }
+      }
+    },
+    "64": {
+      "S2_cells_hit_by_0x80": [
+        17,
+        33,
+        41,
+        42,
+        43,
+        44
+      ],
+      "predicted_output_cells": null,
+      "results": {
+        "random_delta": {
+          "pairs": 200000,
+          "min_active": 19,
+          "hist_le8": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 0,
+            "8": 0
+          },
+          "confined_to_predicted": null,
+          "confined_rate": null,
+          "log2_rate": null
+        },
+        "whitebox_best_delta": {
+          "pairs": 200000,
+          "min_active": 17,
+          "hist_le8": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 0,
+            "8": 0
+          },
+          "confined_to_predicted": null,
+          "confined_rate": null,
+          "log2_rate": null
+        }
+      }
+    }
+  },
+  "ddt_S0_to_0x80_best": {
+    "delta": "0x64",
+    "count": 4
+  },
+  "random_baseline": "For a random 1024-bit permutation, P(output diff confined to 3 given bytes) ~ 2^-(125*8) = 2^-1000.",
+  "two_round_estimate": {
+    "start": 18,
+    "round1_S_inputs_active": 3,
+    "need_all_to_output_0x80": true,
+    "round1_S2_active": 12,
+    "round2_output_cells": 26,
+    "log2p_whitebox_estimate": -30.0,
+    "log2p_blackbox_estimate": -32.0,
+    "status": "estimated only, not demonstrated (needs ~2^30+ pairs)"
+  }
+}

@@ -1,0 +1,96 @@
+2026-11-09 09:38:54 AM EST (America/New_York)
+{
+  "started": "2026-11-09 09:38:29 AM EST (America/New_York)",
+  "first_pass_top5": [
+    [
+      103,
+      104,
+      154,
+      26,
+      41
+    ],
+    [
+      103,
+      72,
+      175,
+      83,
+      100
+    ],
+    [
+      102,
+      48,
+      207,
+      66,
+      67
+    ],
+    [
+      101,
+      112,
+      200,
+      103,
+      136
+    ],
+    [
+      101,
+      48,
+      207,
+      109,
+      191
+    ]
+  ],
+  "null_note": "Binomial(16384,1/256): mean 64, sd 8; max over 32768 tests ~96-100",
+  "fresh_remeasure": [
+    {
+      "in_cell": 104,
+      "delta": 154,
+      "out_cell": 26,
+      "value": 41,
+      "first": 103,
+      "fresh_count_2^16": 228,
+      "fresh_expected": 256,
+      "fresh_sigma": -1.75
+    },
+    {
+      "in_cell": 72,
+      "delta": 175,
+      "out_cell": 83,
+      "value": 100,
+      "first": 103,
+      "fresh_count_2^16": 251,
+      "fresh_expected": 256,
+      "fresh_sigma": -0.31
+    },
+    {
+      "in_cell": 48,
+      "delta": 207,
+      "out_cell": 66,
+      "value": 67,
+      "first": 102,
+      "fresh_count_2^16": 269,
+      "fresh_expected": 256,
+      "fresh_sigma": 0.81
+    },
+    {
+      "in_cell": 112,
+      "delta": 200,
+      "out_cell": 103,
+      "value": 136,
+      "first": 101,
+      "fresh_count_2^16": 262,
+      "fresh_expected": 256,
+      "fresh_sigma": 0.38
+    },
+    {
+      "in_cell": 48,
+      "delta": 207,
+      "out_cell": 109,
+      "value": 191,
+      "first": 101,
+      "fresh_count_2^16": 232,
+      "fresh_expected": 256,
+      "fresh_sigma": -1.5
+    }
+  ],
+  "seconds": 34.6,
+  "finished": "2026-11-09 09:38:54 AM EST (America/New_York)"
+}

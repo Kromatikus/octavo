@@ -1,0 +1,52 @@
+Live round_enc ends: S2 -> bar_mix (encore). Boundary map per staff: y=S2(x) -> z=Bars(y) -> S_{r+1}(z ^ rk).
+Encore bar_mix matrix (row=output beat, col=input beat, mod 256):
+   [1, 5, 0, 0, 0, 0, 0, 0]
+   [1, 6, 1, 0, 0, 0, 0, 0]
+   [1, 6, 2, 0, 0, 0, 0, 0]
+   [0, 0, 0, 1, 3, 0, 0, 0]
+   [0, 0, 0, 1, 4, 0, 0, 0]
+   [0, 0, 0, 0, 0, 2, 1, 0]
+   [0, 0, 0, 0, 0, 3, 3, 1]
+   [0, 0, 0, 0, 0, 2, 2, 1]
+Nonzero inputs per output beat [2, 3, 3, 2, 2, 2, 3, 3] | outputs fed per input beat [3, 3, 2, 2, 2, 3, 3, 2] | min row support 2 (1 would mean a per-cell fused table)
+Bar mix connected blocks within a staff [[0, 1, 2], [3, 4], [5, 6, 7]] -> beat pairs (2,3) and (4,5) are never joined by any bar line
+Output beats whose LSB depends on exactly ONE input cell [2, 4, 5, 7]
+2-adic blindness: output j low k bits ignore input i when coef has 2^k factor {0: {'inputs': [0, 1], 'low_bits_blind_to': {}}, 1: {'inputs': [0, 1, 2], 'low_bits_blind_to': {1: 1}}, 2: {'inputs': [0, 1, 2], 'low_bits_blind_to': {1: 1, 2: 1}}, 3: {'inputs': [3, 4], 'low_bits_blind_to': {}}, 4: {'inputs': [3, 4], 'low_bits_blind_to': {4: 2}}, 5: {'inputs': [5, 6], 'low_bits_blind_to': {5: 1}}, 6: {'inputs': [5, 6, 7], 'low_bits_blind_to': {}}, 7: {'inputs': [5, 6, 7], 'low_bits_blind_to': {5: 1, 6: 1}}}
+Single S2-output cell change (random nonzero XOR) -> number of next-round S inputs changed, histogram over 15x32x128 {1: 169, 2: 30633, 3: 30638}
+Boundary r=1->2 face 0: next-S output at beat j with x_j fixed and one partner varied (fraction changed) {0: {'partner': 1, 'fraction_changed': 0.9971}, 1: {'partner': 0, 'fraction_changed': 0.9954}, 2: {'partner': 0, 'fraction_changed': 0.9951}, 3: {'partner': 4, 'fraction_changed': 0.9944}, 4: {'partner': 3, 'fraction_changed': 0.9973}, 5: {'partner': 6, 'fraction_changed': 0.9949}, 6: {'partner': 5, 'fraction_changed': 0.9951}, 7: {'partner': 5, 'fraction_changed': 0.9929}} => no per-cell boundary table exists
+Single-cell XOR differences through the encore that stay ONE cell: count with p>0 6 | deterministic (p=1) [(1, '0x80'), (2, '0x80'), (4, '0x40'), (4, '0x80'), (4, '0xc0'), (5, '0x80')]
+Top survival probabilities [(1, '0x80', 1.0), (2, '0x80', 1.0), (4, '0x40', 1.0), (4, '0x80', 1.0), (4, '0xc0', 1.0), (5, '0x80', 1.0)]
+Super-box {3,4} {'boundary': 1, 'face': 0, 'ddt_max_single_cell_inputs': 24, 'at': ('x4', 85, 2816), 'mean_single_cell_out_frac': 0.005882, 'max_single_cell_out_frac': 0.03125}
+Super-box {3,4} {'boundary': 1, 'face': 9, 'ddt_max_single_cell_inputs': 24, 'at': ('x4', 85, 2816), 'mean_single_cell_out_frac': 0.005882, 'max_single_cell_out_frac': 0.03125}
+Super-box {3,4} {'boundary': 2, 'face': 0, 'ddt_max_single_cell_inputs': 20, 'at': ('x4', 26, 52736), 'mean_single_cell_out_frac': 0.005882, 'max_single_cell_out_frac': 0.03125}
+Super-box {3,4} {'boundary': 2, 'face': 9, 'ddt_max_single_cell_inputs': 20, 'at': ('x4', 26, 52736), 'mean_single_cell_out_frac': 0.005882, 'max_single_cell_out_frac': 0.03125}
+Super-box {3,4} {'boundary': 3, 'face': 0, 'ddt_max_single_cell_inputs': 22, 'at': ('x4', 70, 768), 'mean_single_cell_out_frac': 0.005882, 'max_single_cell_out_frac': 0.03125}
+Super-box {3,4} {'boundary': 3, 'face': 9, 'ddt_max_single_cell_inputs': 22, 'at': ('x4', 70, 768), 'mean_single_cell_out_frac': 0.005882, 'max_single_cell_out_frac': 0.03125}
+Super-box {3,4} {'boundary': 4, 'face': 0, 'ddt_max_single_cell_inputs': 16, 'at': ('x3', 60, 4324), 'mean_single_cell_out_frac': 0.005882, 'max_single_cell_out_frac': 0.023438}
+Super-box {3,4} {'boundary': 4, 'face': 9, 'ddt_max_single_cell_inputs': 16, 'at': ('x4', 58, 63744), 'mean_single_cell_out_frac': 0.005882, 'max_single_cell_out_frac': 0.023438}
+Super-box {3,4} {'boundary': 5, 'face': 0, 'ddt_max_single_cell_inputs': 24, 'at': ('x4', 124, 22528), 'mean_single_cell_out_frac': 0.005882, 'max_single_cell_out_frac': 0.03125}
+Super-box {3,4} {'boundary': 5, 'face': 9, 'ddt_max_single_cell_inputs': 24, 'at': ('x4', 124, 22528), 'mean_single_cell_out_frac': 0.005882, 'max_single_cell_out_frac': 0.03125}
+Super-box {3,4} {'boundary': 6, 'face': 0, 'ddt_max_single_cell_inputs': 16, 'at': ('x4', 9, 1536), 'mean_single_cell_out_frac': 0.005882, 'max_single_cell_out_frac': 0.023438}
+Super-box {3,4} {'boundary': 6, 'face': 9, 'ddt_max_single_cell_inputs': 16, 'at': ('x4', 9, 1536), 'mean_single_cell_out_frac': 0.005882, 'max_single_cell_out_frac': 0.023438}
+Super-box {3,4} {'boundary': 7, 'face': 0, 'ddt_max_single_cell_inputs': 16, 'at': ('x3', 97, 35920), 'mean_single_cell_out_frac': 0.005882, 'max_single_cell_out_frac': 0.023438}
+Super-box {3,4} {'boundary': 7, 'face': 9, 'ddt_max_single_cell_inputs': 16, 'at': ('x4', 12, 6144), 'mean_single_cell_out_frac': 0.005882, 'max_single_cell_out_frac': 0.023438}
+Super-box {3,4} {'boundary': 8, 'face': 0, 'ddt_max_single_cell_inputs': 20, 'at': ('x4', 81, 5888), 'mean_single_cell_out_frac': 0.005882, 'max_single_cell_out_frac': 0.03125}
+Super-box {3,4} {'boundary': 8, 'face': 9, 'ddt_max_single_cell_inputs': 20, 'at': ('x4', 81, 5888), 'mean_single_cell_out_frac': 0.005882, 'max_single_cell_out_frac': 0.03125}
+Super-box {3,4} {'boundary': 9, 'face': 0, 'ddt_max_single_cell_inputs': 16, 'at': ('x4', 12, 55972), 'mean_single_cell_out_frac': 0.005882, 'max_single_cell_out_frac': 0.03125}
+Super-box {3,4} {'boundary': 9, 'face': 9, 'ddt_max_single_cell_inputs': 16, 'at': ('x3', 2, 4104), 'mean_single_cell_out_frac': 0.005882, 'max_single_cell_out_frac': 0.03125}
+Super-box {3,4} {'boundary': 10, 'face': 0, 'ddt_max_single_cell_inputs': 16, 'at': ('x3', 53, 60283), 'mean_single_cell_out_frac': 0.005882, 'max_single_cell_out_frac': 0.03125}
+Super-box {3,4} {'boundary': 10, 'face': 9, 'ddt_max_single_cell_inputs': 16, 'at': ('x3', 165, 5953), 'mean_single_cell_out_frac': 0.005882, 'max_single_cell_out_frac': 0.03125}
+Super-box {3,4} {'boundary': 11, 'face': 0, 'ddt_max_single_cell_inputs': 20, 'at': ('x4', 98, 31744), 'mean_single_cell_out_frac': 0.005882, 'max_single_cell_out_frac': 0.03125}
+Super-box {3,4} {'boundary': 11, 'face': 9, 'ddt_max_single_cell_inputs': 20, 'at': ('x4', 98, 31744), 'mean_single_cell_out_frac': 0.005882, 'max_single_cell_out_frac': 0.03125}
+Super-box {3,4} {'boundary': 12, 'face': 0, 'ddt_max_single_cell_inputs': 18, 'at': ('x4', 109, 35072), 'mean_single_cell_out_frac': 0.005882, 'max_single_cell_out_frac': 0.023438}
+Super-box {3,4} {'boundary': 12, 'face': 9, 'ddt_max_single_cell_inputs': 18, 'at': ('x4', 109, 35072), 'mean_single_cell_out_frac': 0.005882, 'max_single_cell_out_frac': 0.023438}
+Super-box {3,4} {'boundary': 13, 'face': 0, 'ddt_max_single_cell_inputs': 16, 'at': ('x3', 143, 8660), 'mean_single_cell_out_frac': 0.005882, 'max_single_cell_out_frac': 0.023438}
+Super-box {3,4} {'boundary': 13, 'face': 9, 'ddt_max_single_cell_inputs': 16, 'at': ('x4', 67, 56931), 'mean_single_cell_out_frac': 0.005882, 'max_single_cell_out_frac': 0.023438}
+Super-box {3,4} {'boundary': 14, 'face': 0, 'ddt_max_single_cell_inputs': 16, 'at': ('x3', 147, 10747), 'mean_single_cell_out_frac': 0.005882, 'max_single_cell_out_frac': 0.03125}
+Super-box {3,4} {'boundary': 14, 'face': 9, 'ddt_max_single_cell_inputs': 16, 'at': ('x3', 27, 55942), 'mean_single_cell_out_frac': 0.005882, 'max_single_cell_out_frac': 0.03125}
+Super-box {3,4} {'boundary': 15, 'face': 0, 'ddt_max_single_cell_inputs': 22, 'at': ('x4', 30, 40192), 'mean_single_cell_out_frac': 0.005882, 'max_single_cell_out_frac': 0.03125}
+Super-box {3,4} {'boundary': 15, 'face': 9, 'ddt_max_single_cell_inputs': 22, 'at': ('x4', 30, 40192), 'mean_single_cell_out_frac': 0.005882, 'max_single_cell_out_frac': 0.03125}
+Matched random 16-bit permutation baseline (same 510 single-cell input diffs) DDT max [18, 18, 16, 16] | uniform 1-active output fraction ~ 0.007782
+Super-box single-cell-input DDT max range 16 24 /65536
+Cells where the old per-cell fused table S_{r+1}(S2_r(x)^k) disagrees with the live boundary (15 boundaries x 128 cells) 1914 /1920
+Verdict: no single-cell fused S-box remains (min row support 2). Fusion moved up to per-staff super-boxes on blocks [[0, 1, 2], [3, 4], [5, 6, 7]] with no bar joining beats 2-3 or 4-5; low bits and some 0x40/0x80/0xC0 differences still pass the encore as one cell.

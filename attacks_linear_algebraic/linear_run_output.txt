@@ -1,0 +1,9 @@
+LAT done True
+pairs done
+triplets done
+bow done
+cross done 6 6
+trail bound {1: {'min_active_sboxes_lower_bound': 8, 'trail_corr_upper_bound_log2': -24, 'data_needed_log2_approx': 48}, 2: {'min_active_sboxes_lower_bound': 20, 'trail_corr_upper_bound_log2': -60, 'data_needed_log2_approx': 120}, 3: {'min_active_sboxes_lower_bound': 32, 'trail_corr_upper_bound_log2': -96, 'data_needed_log2_approx': 192}, 4: {'min_active_sboxes_lower_bound': 44, 'trail_corr_upper_bound_log2': -132, 'data_needed_log2_approx': 264}, 8: {'min_active_sboxes_lower_bound': 92, 'trail_corr_upper_bound_log2': -276, 'data_needed_log2_approx': 552}, 16: {'min_active_sboxes_lower_bound': 188, 'trail_corr_upper_bound_log2': -564, 'data_needed_log2_approx': 1128}}
+empirical 1 {'samples': 262144, 'noise_floor': 0.001953125, 'expected_max_of_2pow20_null': 0.010538223734720357, 'observed_max_abs': 0.00978851318359375, 'max_over_noise': 5.01171875, 'argmax': {'in_cell': 39, 'in_bit': 3, 'out_cell': 22, 'out_bit': 7, 'corr': 0.00978851318359375}, 'count_over_5sigma': 1, 'expected_over_5sigma': 0.59768832, 'mean_abs': 0.0015580919571220875, 'expected_mean_abs': 0.0015583682828180965, 'lsb_plane_all_parity_corr': -0.0041656494140625, 'seconds': 14.5}
+empirical 2 {'samples': 131072, 'noise_floor': 0.002762135864009951, 'expected_max_of_2pow20_null': 0.014903298928963577, 'observed_max_abs': 0.0140228271484375, 'max_over_noise': 5.076805718050291, 'argmax': {'in_cell': 37, 'in_bit': 6, 'out_cell': 77, 'out_bit': 3, 'corr': 0.0140228271484375}, 'count_over_5sigma': 2, 'expected_over_5sigma': 0.59768832, 'mean_abs': 0.002202981209848076, 'expected_mean_abs': 0.002203865560733423, 'lsb_plane_all_parity_corr': 0.0052337646484375, 'seconds': 11.7}
+attack_linear saved

@@ -1,0 +1,149 @@
+{
+  "started": "2026-11-08 06:48:25 PM EST (America/New_York)",
+  "fixed_schedule_nonce": "db8839e79ca2a40a9a68932502a72982",
+  "white_box": "Raw blocks with one fixed known-seed schedule (current hello-world nonce); not the public randomized encrypt(). Whitening cancels in XOR differences.",
+  "crosschecks": 64,
+  "p_random_ge8_zero_bytes": 5.111355564575988e-08,
+  "rounds": {
+    "1": {
+      "byte_dependence": {
+        "pairs_seen": 6144,
+        "of": 16384,
+        "bases_per_input": 32,
+        "min_outputs_per_input": 40,
+        "min_inputs_per_output": 40
+      },
+      "bit_avalanche": {
+        "pairs": 8192,
+        "mean": 191.985,
+        "sd": 29.518,
+        "min": 130,
+        "max": 286,
+        "ideal_mean": 512,
+        "ideal_sd": 16,
+        "worst_bit_rate_deviation": 0.3562
+      },
+      "zero_difference_random_single_cell": {
+        "pairs": 65536,
+        "mean_zero_bytes": 80.205,
+        "random_mean": 0.5,
+        "ge8_zero_pairs": 65536,
+        "expected_random": 0.0033497779828005193,
+        "max_zero": 91,
+        "witness_note": "1-round witness is structural (diffusion incomplete) and expected"
+      }
+    },
+    "2": {
+      "byte_dependence": {
+        "pairs_seen": 16384,
+        "of": 16384,
+        "bases_per_input": 32,
+        "min_outputs_per_input": 128,
+        "min_inputs_per_output": 128
+      },
+      "bit_avalanche": {
+        "pairs": 8192,
+        "mean": 512.14,
+        "sd": 15.865,
+        "min": 450,
+        "max": 587,
+        "ideal_mean": 512,
+        "ideal_sd": 16,
+        "worst_bit_rate_deviation": 0.0197
+      },
+      "zero_difference_random_single_cell": {
+        "pairs": 65536,
+        "mean_zero_bytes": 0.5023,
+        "random_mean": 0.5,
+        "ge8_zero_pairs": 0,
+        "expected_random": 0.0033497779828005193,
+        "max_zero": 5,
+        "witness_note": null
+      }
+    },
+    "3": {
+      "byte_dependence": {
+        "pairs_seen": 16384,
+        "of": 16384,
+        "bases_per_input": 32,
+        "min_outputs_per_input": 128,
+        "min_inputs_per_output": 128
+      },
+      "bit_avalanche": {
+        "pairs": 8192,
+        "mean": 511.71,
+        "sd": 15.981,
+        "min": 439,
+        "max": 568,
+        "ideal_mean": 512,
+        "ideal_sd": 16,
+        "worst_bit_rate_deviation": 0.0195
+      },
+      "zero_difference_random_single_cell": {
+        "pairs": 65536,
+        "mean_zero_bytes": 0.5054,
+        "random_mean": 0.5,
+        "ge8_zero_pairs": 0,
+        "expected_random": 0.0033497779828005193,
+        "max_zero": 6,
+        "witness_note": null
+      }
+    },
+    "4": {
+      "byte_dependence": {
+        "pairs_seen": 16384,
+        "of": 16384,
+        "bases_per_input": 32,
+        "min_outputs_per_input": 128,
+        "min_inputs_per_output": 128
+      },
+      "bit_avalanche": {
+        "pairs": 8192,
+        "mean": 512.239,
+        "sd": 16.02,
+        "min": 448,
+        "max": 577,
+        "ideal_mean": 512,
+        "ideal_sd": 16,
+        "worst_bit_rate_deviation": 0.0181
+      },
+      "zero_difference_random_single_cell": {
+        "pairs": 65536,
+        "mean_zero_bytes": 0.5041,
+        "random_mean": 0.5,
+        "ge8_zero_pairs": 0,
+        "expected_random": 0.0033497779828005193,
+        "max_zero": 5,
+        "witness_note": null
+      }
+    },
+    "16": {
+      "byte_dependence": {
+        "pairs_seen": 16384,
+        "of": 16384,
+        "bases_per_input": 32,
+        "min_outputs_per_input": 128,
+        "min_inputs_per_output": 128
+      },
+      "bit_avalanche": {
+        "pairs": 8192,
+        "mean": 511.787,
+        "sd": 15.941,
+        "min": 452,
+        "max": 569,
+        "ideal_mean": 512,
+        "ideal_sd": 16,
+        "worst_bit_rate_deviation": 0.0228
+      },
+      "zero_difference_random_single_cell": {
+        "pairs": 65536,
+        "mean_zero_bytes": 0.4987,
+        "random_mean": 0.5,
+        "ge8_zero_pairs": 0,
+        "expected_random": 0.0033497779828005193,
+        "max_zero": 6,
+        "witness_note": null
+      }
+    }
+  }
+}

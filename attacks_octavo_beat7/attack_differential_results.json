@@ -1,0 +1,410 @@
+{
+  "started": "2026-11-09 08:22:14 AM EST (America/New_York)",
+  "live_sha": "aa975c951dce9200f6dc2812b59bde90b47b7bd28f13acef6bbbbd65da2aab6d",
+  "batch_validated_round_calls": 96,
+  "sparse": [
+    {
+      "rounds": 1,
+      "pairs": 262144,
+      "hits_ge8_unchanged": 0,
+      "max_unchanged": 6,
+      "mean_unchanged": 0.5001,
+      "random_mean": 0.5,
+      "witness": {
+        "cell": 70,
+        "delta": 166,
+        "unchanged": 6
+      }
+    },
+    {
+      "rounds": 2,
+      "pairs": 262144,
+      "hits_ge8_unchanged": 0,
+      "max_unchanged": 6,
+      "mean_unchanged": 0.4987,
+      "random_mean": 0.5,
+      "witness": {
+        "cell": 11,
+        "delta": 104,
+        "unchanged": 6
+      }
+    },
+    {
+      "rounds": 3,
+      "pairs": 131072,
+      "hits_ge8_unchanged": 0,
+      "max_unchanged": 6,
+      "mean_unchanged": 0.4999,
+      "random_mean": 0.5,
+      "witness": {
+        "cell": 2,
+        "delta": 189,
+        "unchanged": 6
+      }
+    },
+    {
+      "rounds": 4,
+      "pairs": 65536,
+      "hits_ge8_unchanged": 0,
+      "max_unchanged": 5,
+      "mean_unchanged": 0.5005,
+      "random_mean": 0.5,
+      "witness": {
+        "cell": 11,
+        "delta": 74,
+        "unchanged": 5
+      }
+    },
+    {
+      "rounds": 16,
+      "pairs": 16384,
+      "hits_ge8_unchanged": 0,
+      "max_unchanged": 5,
+      "mean_unchanged": 0.5008,
+      "random_mean": 0.5,
+      "witness": {
+        "cell": 84,
+        "delta": 80,
+        "unchanged": 5
+      }
+    }
+  ],
+  "avalanche": [
+    {
+      "rounds": 1,
+      "pairs": 4096,
+      "mean": 512.09,
+      "min": 449,
+      "max": 570,
+      "std": 15.93,
+      "ideal": "512 +- 16"
+    },
+    {
+      "rounds": 2,
+      "pairs": 4096,
+      "mean": 511.98,
+      "min": 449,
+      "max": 572,
+      "std": 16.29,
+      "ideal": "512 +- 16"
+    },
+    {
+      "rounds": 16,
+      "pairs": 4096,
+      "mean": 511.85,
+      "min": 449,
+      "max": 569,
+      "std": 16.19,
+      "ideal": "512 +- 16"
+    }
+  ],
+  "sac": [
+    {
+      "rounds": 1,
+      "samples_per_input_bit": 256,
+      "max_abs_dev": 0.1484,
+      "max_z": 4.75,
+      "expected_null_max_z": 5.27,
+      "mean_abs_dev": 0.0249,
+      "null_mean_abs_dev": 0.0249
+    },
+    {
+      "rounds": 2,
+      "samples_per_input_bit": 256,
+      "max_abs_dev": 0.1602,
+      "max_z": 5.12,
+      "expected_null_max_z": 5.27,
+      "mean_abs_dev": 0.0249,
+      "null_mean_abs_dev": 0.0249
+    }
+  ],
+  "truncated_round0_single_byte": {
+    "samples": "128 cells x 4096 random (base,delta)",
+    "layouts": {
+      "new": {
+        "S": {
+          "min_active_cells": 1,
+          "mean_active_cells": 1.0,
+          "min_active_staffs": 1
+        },
+        "weave+butterfly+shell": {
+          "min_active_cells": 16,
+          "mean_active_cells": 16.0,
+          "min_active_staffs": 6
+        },
+        "bars": {
+          "min_active_cells": 22,
+          "mean_active_cells": 41.58,
+          "min_active_staffs": 6
+        },
+        "trips": {
+          "min_active_cells": 31,
+          "mean_active_cells": 49.29,
+          "min_active_staffs": 6
+        },
+        "bow": {
+          "min_active_cells": 41,
+          "mean_active_cells": 53.02,
+          "min_active_staffs": 6
+        },
+        "rehair": {
+          "min_active_cells": 43,
+          "mean_active_cells": 53.76,
+          "min_active_staffs": 6
+        },
+        "cross (=S2 inputs)": {
+          "min_active_cells": 118,
+          "mean_active_cells": 127.5,
+          "min_active_staffs": 16
+        },
+        "rehair2": {
+          "min_active_cells": 122,
+          "mean_active_cells": 127.5,
+          "min_active_staffs": 16
+        },
+        "round out": {
+          "min_active_cells": 121,
+          "mean_active_cells": 127.5,
+          "min_active_staffs": 16
+        }
+      },
+      "old": {
+        "S": {
+          "min_active_cells": 1,
+          "mean_active_cells": 1.0,
+          "min_active_staffs": 1
+        },
+        "weave+butterfly+shell": {
+          "min_active_cells": 16,
+          "mean_active_cells": 16.0,
+          "min_active_staffs": 6
+        },
+        "bars": {
+          "min_active_cells": 22,
+          "mean_active_cells": 41.58,
+          "min_active_staffs": 6
+        },
+        "trips": {
+          "min_active_cells": 32,
+          "mean_active_cells": 49.29,
+          "min_active_staffs": 6
+        },
+        "bow": {
+          "min_active_cells": 41,
+          "mean_active_cells": 53.02,
+          "min_active_staffs": 6
+        },
+        "rehair": {
+          "min_active_cells": 44,
+          "mean_active_cells": 53.76,
+          "min_active_staffs": 6
+        },
+        "cross (=S2 inputs)": {
+          "min_active_cells": 116,
+          "mean_active_cells": 127.5,
+          "min_active_staffs": 16
+        },
+        "rehair2": {
+          "min_active_cells": 122,
+          "mean_active_cells": 127.5,
+          "min_active_staffs": 16
+        },
+        "round out": {
+          "min_active_cells": 121,
+          "mean_active_cells": 127.5,
+          "min_active_staffs": 16
+        }
+      }
+    }
+  },
+  "trail_bound": {
+    "ddt_max_sampled_tables": [
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4,
+      4
+    ],
+    "per_sbox_prob": "4/256 = 2^-6",
+    "rows": [
+      {
+        "rounds": 1,
+        "min_active_sboxes": 8,
+        "max_trail_prob_log2": -48
+      },
+      {
+        "rounds": 2,
+        "min_active_sboxes": 20,
+        "max_trail_prob_log2": -120
+      },
+      {
+        "rounds": 3,
+        "min_active_sboxes": 32,
+        "max_trail_prob_log2": -192
+      },
+      {
+        "rounds": 4,
+        "min_active_sboxes": 44,
+        "max_trail_prob_log2": -264
+      },
+      {
+        "rounds": 8,
+        "min_active_sboxes": 92,
+        "max_trail_prob_log2": -552
+      },
+      {
+        "rounds": 16,
+        "min_active_sboxes": 188,
+        "max_trail_prob_log2": -1128
+      }
+    ],
+    "note": "Same relaxed model as attacks_linear_algebraic: triplets+bow treated as an arbitrary staff-local bijection, so the bow change cannot weaken this bound. Single-trail bound; differentials (clustering) not bounded."
+  },
+  "bow_rehair_best_differential": {
+    "new": [
+      {
+        "beat": 0,
+        "count": 1,
+        "of": 16384,
+        "delta": 1,
+        "prob_log2": -14.0
+      },
+      {
+        "beat": 1,
+        "count": 1,
+        "of": 16384,
+        "delta": 1,
+        "prob_log2": -14.0
+      },
+      {
+        "beat": 2,
+        "count": 1,
+        "of": 16384,
+        "delta": 1,
+        "prob_log2": -14.0
+      },
+      {
+        "beat": 3,
+        "count": 2,
+        "of": 16384,
+        "delta": 255,
+        "prob_log2": -13.0
+      },
+      {
+        "beat": 4,
+        "count": 1,
+        "of": 16384,
+        "delta": 1,
+        "prob_log2": -14.0
+      },
+      {
+        "beat": 5,
+        "count": 1,
+        "of": 16384,
+        "delta": 1,
+        "prob_log2": -14.0
+      },
+      {
+        "beat": 6,
+        "count": 1,
+        "of": 16384,
+        "delta": 1,
+        "prob_log2": -14.0
+      },
+      {
+        "beat": 7,
+        "count": 2,
+        "of": 16384,
+        "delta": 1,
+        "prob_log2": -13.0
+      }
+    ],
+    "old": [
+      {
+        "beat": 0,
+        "count": 1,
+        "of": 16384,
+        "delta": 1,
+        "prob_log2": -14.0
+      },
+      {
+        "beat": 1,
+        "count": 2,
+        "of": 16384,
+        "delta": 11,
+        "prob_log2": -13.0
+      },
+      {
+        "beat": 2,
+        "count": 1,
+        "of": 16384,
+        "delta": 1,
+        "prob_log2": -14.0
+      },
+      {
+        "beat": 3,
+        "count": 2,
+        "of": 16384,
+        "delta": 132,
+        "prob_log2": -13.0
+      },
+      {
+        "beat": 4,
+        "count": 1,
+        "of": 16384,
+        "delta": 1,
+        "prob_log2": -14.0
+      },
+      {
+        "beat": 5,
+        "count": 2,
+        "of": 16384,
+        "delta": 4,
+        "prob_log2": -13.0
+      },
+      {
+        "beat": 6,
+        "count": 1,
+        "of": 16384,
+        "delta": 1,
+        "prob_log2": -14.0
+      },
+      {
+        "beat": 7,
+        "count": 2,
+        "of": 16384,
+        "delta": 1,
+        "prob_log2": -13.0
+      }
+    ]
+  },
+  "one_round_cell_delta_bias": {
+    "pairs": 16384,
+    "input_cells": [
+      0,
+      8,
+      16,
+      24,
+      32,
+      40,
+      48,
+      56,
+      64,
+      72,
+      80,
+      88,
+      96,
+      104,
+      112,
+      120
+    ],
+    "max_count": 102,
+    "expected": 64,
+    "note": "max over 128 output cells x 256 values; null max for Binomial(16384,1/256) across 32768 tests ~ 64+4.5*8 ~ 100"
+  },
+  "seconds": 237.8,
+  "finished": "2026-11-09 08:26:11 AM EST (America/New_York)"
+}

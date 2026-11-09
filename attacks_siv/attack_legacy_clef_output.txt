@@ -1,0 +1,11 @@
+Current tag transcript: HMAC(mac_key, clef || SN2 || nonce || ct); clef = StaffSponge(C, seed, 0^16).take(16), not in blob
+Archived old hello-world from /tmp/sneak_n2_8bit_precolor2 {'archived_blob_len': 179, 'old_decrypts_to': 'hello world', 'same_mac_key': True, 'old_tag_equals_current_tag': False, 'current_result': 'AuthError:tag mismatch'}
+precolor2 2048 valid old blobs (fixed nonce) {'AuthError:tag mismatch': 2048} old-lib roundtrip 64 /64 2.8 s
+precolor2 512 valid old blobs from old public encrypt() (random nonces) {'AuthError:tag mismatch': 512}
+Archived old hello-world from /tmp/sneak_n2_pre_clef_encore_siv {'archived_blob_len': 179, 'old_decrypts_to': 'hello world', 'same_mac_key': True, 'old_tag_equals_current_tag': False, 'current_result': 'AuthError:tag mismatch'}
+pre_clef_encore_siv 2048 valid old blobs (fixed nonce) {'AuthError:tag mismatch': 2048} old-lib roundtrip 64 /64 3.5 s
+pre_clef_encore_siv 512 valid old blobs from old public encrypt() (random nonces) {'AuthError:tag mismatch': 512}
+Previous report wrong-plaintext witnesses replayed against current code 7 {'AuthError:tag mismatch': 7}
+Clef (white-box, 16 bytes) starts with b"SN2"? False
+Current blobs into old decoders (stale-decoder direction) {'precolor2:AuthError': 256, 'pre_clef_encore_siv:AuthError': 256}
+Conclusion: replaying authenticated legacy blobs now fails at the tag. This is NOT a fresh forgery test; it shows the clef changes the MAC transcript. Old and current MAC keys are still identical; separation rests only on the clef prefix.

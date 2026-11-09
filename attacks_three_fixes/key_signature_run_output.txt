@@ -1,0 +1,10 @@
+pair B0 matrix ((1,5),(1,6)) -> ((1,5),(1,7)) True AuthError: tag mismatch DecodeError: tag valid but block malformed
+skip pair B0 (BARS[1:]) True AuthError: tag mismatch DecodeError: tag valid but block malformed
+triplet T0 row0 (5,1,1)->(5,1,3) True AuthError: tag mismatch DecodeError: tag valid but block malformed
+skip triplet T0 (TRIPLETS[1:]) True AuthError: tag mismatch DecodeError: tag valid but block malformed
+mix2 matrix ((1,1),(1,2)) -> ((1,1),(1,3)) True AuthError: tag mismatch DecodeError: tag valid but block malformed
+bow parameter BOW_ROT_BASE 1->2 True AuthError: tag mismatch DecodeError: tag valid but block malformed
+skip both B0 and T0 (pickup-era leftover shape) True AuthError: tag mismatch DecodeError: tag valid but block malformed
+isolated AuthError: tag mismatch
+code-only DecodeError: tag valid but block malformed
+attack_key_signature saved

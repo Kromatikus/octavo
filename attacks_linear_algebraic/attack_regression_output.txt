@@ -1,0 +1,286 @@
+2026-11-09 07:35:18 AM EST (America/New_York)
+{
+  "started": "2026-11-09 07:32:24 AM EST (America/New_York)",
+  "live_sha": "0eb6052f7ef1e48a952c5530983acead5932be469693134b65f2b21aaf5092c1",
+  "integrity": {
+    "hello_decrypts": true,
+    "hello_pickup": "76908595dcdc8f11ff9e045ac25c080c",
+    "single_bit_flips": 1560,
+    "flip_outcomes": {
+      "AuthError: bad version prefix": 24,
+      "AuthError: tag mismatch": 1536
+    },
+    "previous_sample_pickup": "24d554eb3d22f0b6412d7da59e504df1",
+    "previous_sample": "AuthError: tag mismatch",
+    "splices_with_previous": {
+      "AuthError: tag mismatch": 14
+    },
+    "wrong_lengths": {
+      "AuthError: bad blob length": 198
+    },
+    "random_SN2_blobs": {
+      "AuthError: tag mismatch": 100
+    },
+    "any_accepted": false,
+    "seconds": 54.2
+  },
+  "sparse_scans": [
+    {
+      "rounds": 1,
+      "pairs": 262144,
+      "ge8_unchanged_hits": 0,
+      "max_unchanged": 6,
+      "mean_unchanged": 0.5008621215820312,
+      "random_mean": 0.5,
+      "witness_max": {
+        "cell": 67,
+        "delta": 189,
+        "unchanged_bytes": 6
+      },
+      "random_expect_hits": 0.02097152
+    },
+    {
+      "rounds": 2,
+      "pairs": 262144,
+      "ge8_unchanged_hits": 0,
+      "max_unchanged": 6,
+      "mean_unchanged": 0.4972114562988281,
+      "random_mean": 0.5,
+      "witness_max": {
+        "cell": 23,
+        "delta": 45,
+        "unchanged_bytes": 6
+      },
+      "random_expect_hits": 0.02097152
+    },
+    {
+      "rounds": 3,
+      "pairs": 131072,
+      "ge8_unchanged_hits": 0,
+      "max_unchanged": 6,
+      "mean_unchanged": 0.5011062622070312,
+      "random_mean": 0.5,
+      "witness_max": {
+        "cell": 50,
+        "delta": 104,
+        "unchanged_bytes": 6
+      },
+      "random_expect_hits": 0.01048576
+    },
+    {
+      "rounds": 4,
+      "pairs": 65536,
+      "ge8_unchanged_hits": 0,
+      "max_unchanged": 5,
+      "mean_unchanged": 0.5025482177734375,
+      "random_mean": 0.5,
+      "witness_max": {
+        "cell": 24,
+        "delta": 202,
+        "unchanged_bytes": 5
+      },
+      "random_expect_hits": 0.00524288
+    },
+    {
+      "rounds": 16,
+      "pairs": 16384,
+      "ge8_unchanged_hits": 0,
+      "max_unchanged": 5,
+      "mean_unchanged": 0.506591796875,
+      "random_mean": 0.5,
+      "witness_max": {
+        "cell": 43,
+        "delta": 153,
+        "unchanged_bytes": 5
+      },
+      "random_expect_hits": 0.00131072
+    }
+  ],
+  "avalanche": {
+    "1_round": {
+      "pairs": 4096,
+      "mean_bits_changed": 512.356201171875,
+      "min": 449,
+      "max": 567,
+      "ideal": 512,
+      "sd": 15.803475241526145
+    },
+    "16_round": {
+      "pairs": 4096,
+      "mean_bits_changed": 512.43505859375,
+      "min": 458,
+      "max": 577,
+      "ideal": 512,
+      "sd": 15.998693226557732
+    }
+  },
+  "singletons": {
+    "b0_latin": {
+      "demo_round0_test_tables": [
+        0,
+        0
+      ],
+      "hello_schedule_all_16_rounds": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ]
+      ],
+      "cases_per_table": 33423360
+    },
+    "b0_all_zero": true,
+    "bow_restack": {
+      "cases": 522240,
+      "singletons": 5,
+      "witnesses": [
+        {
+          "staff": [
+            26,
+            26,
+            26,
+            26,
+            26,
+            26,
+            26,
+            26
+          ],
+          "beat": 7,
+          "delta": 36,
+          "changed_output_beats": [
+            7
+          ]
+        },
+        {
+          "staff": [
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53
+          ],
+          "beat": 7,
+          "delta": 225,
+          "changed_output_beats": [
+            7
+          ]
+        },
+        {
+          "staff": [
+            117,
+            117,
+            117,
+            117,
+            117,
+            117,
+            117,
+            117
+          ],
+          "beat": 7,
+          "delta": 78,
+          "changed_output_beats": [
+            6
+          ]
+        },
+        {
+          "staff": [
+            142,
+            151,
+            20,
+            118,
+            251,
+            3,
+            37,
+            161
+          ],
+          "beat": 7,
+          "delta": 39,
+          "changed_output_beats": [
+            6
+          ]
+        },
+        {
+          "staff": [
+            91,
+            12,
+            141,
+            148,
+            97,
+            40,
+            0,
+            144
+          ],
+          "beat": 7,
+          "delta": 177,
+          "changed_output_beats": [
+            6
+          ]
+        }
+      ],
+      "tables": "demo-nonce schedule round 0 (same as the test suite)"
+    }
+  },
+  "finished": "2026-11-09 07:35:18 AM EST (America/New_York)"
+}

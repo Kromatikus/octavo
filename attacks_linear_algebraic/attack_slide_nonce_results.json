@@ -1,0 +1,129 @@
+{
+  "started": "2026-11-09 07:28:49 AM EST (America/New_York)",
+  "live_sha": "0eb6052f7ef1e48a952c5530983acead5932be469693134b65f2b21aaf5092c1",
+  "structure": {
+    "round_function_same_code_every_round": true,
+    "round_index_use": "shell_mix orientation only (r%2); all other per-round differences come from the schedule",
+    "per_round_material": [
+      "rk (128 bytes)",
+      "S (keyed)",
+      "S2 (keyed)",
+      "SH",
+      "SV",
+      "sigma (16 perms)",
+      "bridge (perm of 64)"
+    ],
+    "final_whitening": true
+  },
+  "within_schedule": {
+    "schedules": 200,
+    "round_pairs": 24000,
+    "equal_counts": {
+      "rk": 0,
+      "S": 0,
+      "S2": 0,
+      "SH": 0,
+      "SV": 0,
+      "sigma": 0,
+      "bridge": 0,
+      "full": 0
+    },
+    "S_equals_S2_same_round": 0,
+    "expected_equal_SH": 8.526512829121202e-11,
+    "expected_equal_SV": 5.587935447692871e-06,
+    "seconds": 3.4,
+    "note": "A slide needs round i == round i+p as functions. No two rounds shared rk, S, S2, sigma or bridge in any schedule, so the classic slide (and its period-p variants) has no matching rounds. The whitening key is extra."
+  },
+  "related_nonce": {
+    "pairs": 64,
+    "flip": "one random bit of a random nonce",
+    "mac_key_hamming": {
+      "mean": 127.453125,
+      "sd": 9.5523715764398,
+      "min": 110.0,
+      "max": 159.0
+    },
+    "mac_expect": "128 +- 8",
+    "white_hamming": {
+      "mean": 510.984375,
+      "sd": 16.019999402602206,
+      "min": 469.0,
+      "max": 550.0
+    },
+    "white_expect": "512 +- 16",
+    "round_key_hamming": {
+      "mean": 513.1611328125,
+      "sd": 16.24965183178507,
+      "min": 459.0,
+      "max": 572.0
+    },
+    "rk_expect": "512 +- 16",
+    "S_table_agreement": {
+      "mean": 1.017578125,
+      "sd": 1.0191925772499937,
+      "min": 0.0,
+      "max": 5.0
+    },
+    "S2_table_agreement": {
+      "mean": 1.0341796875,
+      "sd": 1.0076871099018794,
+      "min": 0.0,
+      "max": 6.0
+    },
+    "agree_expect": "1 +- 1 (random permutations agree on ~1 of 256 points)",
+    "sigma_fixed_fraction": {
+      "mean": 0.12653350830078125,
+      "sd": 0.032707141389402804,
+      "min": 0.0390625,
+      "max": 0.234375
+    },
+    "sigma_expect": 0.125,
+    "bridge_fixed_points": {
+      "mean": 1.0234375,
+      "sd": 0.986944810307927,
+      "min": 0.0,
+      "max": 5.0
+    },
+    "bridge_expect": 1.0,
+    "SH_equal_fraction": {
+      "mean": 0.12493896484375,
+      "sd": 0.08214740250062887,
+      "min": 0.0,
+      "max": 0.375
+    },
+    "SH_expect": 0.125,
+    "SV_equal_fraction": {
+      "mean": 0.0621337890625,
+      "sd": 0.08769433035863411,
+      "min": 0.0,
+      "max": 0.5
+    },
+    "SV_expect": 0.0625,
+    "identical_S_or_rk_same_round": 0,
+    "identical_rk_or_S_any_round_pair": 0,
+    "per_key_bit_flip_rate": {
+      "bits": 16384,
+      "mean": 0.501133918762207,
+      "max_abs_z": 3.75,
+      "expected_max_abs_z_null": 4.560089408860133,
+      "count_abs_z_gt_4": 0,
+      "expected_gt_4": 1.032192
+    },
+    "seconds": 2.2
+  },
+  "related_nonce_ciphertext": {
+    "pairs": 32,
+    "hamming": {
+      "mean": 512.8125,
+      "sd": 13.440697294039472,
+      "min": 478.0,
+      "max": 544.0
+    },
+    "expect": "512 +- 16"
+  },
+  "api_related_nonce": {
+    "flip_nonce_bit0_in_recorded_blob": "AuthError: tag mismatch",
+    "note": "Attackers cannot choose nonces: encrypt derives them via SHA-256 from the secret clef, pickup and message; decrypt binds the nonce into the HMAC."
+  },
+  "finished": "2026-11-09 07:28:56 AM EST (America/New_York)"
+}

@@ -1,0 +1,624 @@
+{
+  "matrix": [
+    [
+      1,
+      5,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      1,
+      6,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      1,
+      6,
+      2,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      1,
+      3,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      1,
+      4,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      2,
+      1,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      3,
+      3,
+      1
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      2,
+      2,
+      1
+    ]
+  ],
+  "row_support": [
+    2,
+    3,
+    3,
+    2,
+    2,
+    2,
+    3,
+    3
+  ],
+  "col_support": [
+    3,
+    3,
+    2,
+    2,
+    2,
+    3,
+    3,
+    2
+  ],
+  "blocks": [
+    [
+      0,
+      1,
+      2
+    ],
+    [
+      3,
+      4
+    ],
+    [
+      5,
+      6,
+      7
+    ]
+  ],
+  "lsb_single_input_outputs": [
+    2,
+    4,
+    5,
+    7
+  ],
+  "two_adic": {
+    "0": {
+      "inputs": [
+        0,
+        1
+      ],
+      "low_bits_blind_to": {}
+    },
+    "1": {
+      "inputs": [
+        0,
+        1,
+        2
+      ],
+      "low_bits_blind_to": {
+        "1": 1
+      }
+    },
+    "2": {
+      "inputs": [
+        0,
+        1,
+        2
+      ],
+      "low_bits_blind_to": {
+        "1": 1,
+        "2": 1
+      }
+    },
+    "3": {
+      "inputs": [
+        3,
+        4
+      ],
+      "low_bits_blind_to": {}
+    },
+    "4": {
+      "inputs": [
+        3,
+        4
+      ],
+      "low_bits_blind_to": {
+        "4": 2
+      }
+    },
+    "5": {
+      "inputs": [
+        5,
+        6
+      ],
+      "low_bits_blind_to": {
+        "5": 1
+      }
+    },
+    "6": {
+      "inputs": [
+        5,
+        6,
+        7
+      ],
+      "low_bits_blind_to": {}
+    },
+    "7": {
+      "inputs": [
+        5,
+        6,
+        7
+      ],
+      "low_bits_blind_to": {
+        "5": 1,
+        "6": 1
+      }
+    }
+  },
+  "single_cell_change_hist": {
+    "3": 30638,
+    "2": 30633,
+    "1": 169
+  },
+  "no_fusion_witness": {
+    "0": {
+      "partner": 1,
+      "fraction_changed": 0.9971
+    },
+    "1": {
+      "partner": 0,
+      "fraction_changed": 0.9954
+    },
+    "2": {
+      "partner": 0,
+      "fraction_changed": 0.9951
+    },
+    "3": {
+      "partner": 4,
+      "fraction_changed": 0.9944
+    },
+    "4": {
+      "partner": 3,
+      "fraction_changed": 0.9973
+    },
+    "5": {
+      "partner": 6,
+      "fraction_changed": 0.9949
+    },
+    "6": {
+      "partner": 5,
+      "fraction_changed": 0.9951
+    },
+    "7": {
+      "partner": 5,
+      "fraction_changed": 0.9929
+    }
+  },
+  "single_cell_survivors": {
+    "1:0x80": 1.0,
+    "2:0x80": 1.0,
+    "4:0x40": 1.0,
+    "4:0x80": 1.0,
+    "4:0xc0": 1.0,
+    "5:0x80": 1.0
+  },
+  "deterministic_single_cell": [
+    "1:0x80",
+    "2:0x80",
+    "4:0x40",
+    "4:0x80",
+    "4:0xc0",
+    "5:0x80"
+  ],
+  "superbox34": [
+    {
+      "boundary": 1,
+      "face": 0,
+      "ddt_max_single_cell_inputs": 24,
+      "at": [
+        "x4",
+        85,
+        2816
+      ],
+      "mean_single_cell_out_frac": 0.005882,
+      "max_single_cell_out_frac": 0.03125
+    },
+    {
+      "boundary": 1,
+      "face": 9,
+      "ddt_max_single_cell_inputs": 24,
+      "at": [
+        "x4",
+        85,
+        2816
+      ],
+      "mean_single_cell_out_frac": 0.005882,
+      "max_single_cell_out_frac": 0.03125
+    },
+    {
+      "boundary": 2,
+      "face": 0,
+      "ddt_max_single_cell_inputs": 20,
+      "at": [
+        "x4",
+        26,
+        52736
+      ],
+      "mean_single_cell_out_frac": 0.005882,
+      "max_single_cell_out_frac": 0.03125
+    },
+    {
+      "boundary": 2,
+      "face": 9,
+      "ddt_max_single_cell_inputs": 20,
+      "at": [
+        "x4",
+        26,
+        52736
+      ],
+      "mean_single_cell_out_frac": 0.005882,
+      "max_single_cell_out_frac": 0.03125
+    },
+    {
+      "boundary": 3,
+      "face": 0,
+      "ddt_max_single_cell_inputs": 22,
+      "at": [
+        "x4",
+        70,
+        768
+      ],
+      "mean_single_cell_out_frac": 0.005882,
+      "max_single_cell_out_frac": 0.03125
+    },
+    {
+      "boundary": 3,
+      "face": 9,
+      "ddt_max_single_cell_inputs": 22,
+      "at": [
+        "x4",
+        70,
+        768
+      ],
+      "mean_single_cell_out_frac": 0.005882,
+      "max_single_cell_out_frac": 0.03125
+    },
+    {
+      "boundary": 4,
+      "face": 0,
+      "ddt_max_single_cell_inputs": 16,
+      "at": [
+        "x3",
+        60,
+        4324
+      ],
+      "mean_single_cell_out_frac": 0.005882,
+      "max_single_cell_out_frac": 0.023438
+    },
+    {
+      "boundary": 4,
+      "face": 9,
+      "ddt_max_single_cell_inputs": 16,
+      "at": [
+        "x4",
+        58,
+        63744
+      ],
+      "mean_single_cell_out_frac": 0.005882,
+      "max_single_cell_out_frac": 0.023438
+    },
+    {
+      "boundary": 5,
+      "face": 0,
+      "ddt_max_single_cell_inputs": 24,
+      "at": [
+        "x4",
+        124,
+        22528
+      ],
+      "mean_single_cell_out_frac": 0.005882,
+      "max_single_cell_out_frac": 0.03125
+    },
+    {
+      "boundary": 5,
+      "face": 9,
+      "ddt_max_single_cell_inputs": 24,
+      "at": [
+        "x4",
+        124,
+        22528
+      ],
+      "mean_single_cell_out_frac": 0.005882,
+      "max_single_cell_out_frac": 0.03125
+    },
+    {
+      "boundary": 6,
+      "face": 0,
+      "ddt_max_single_cell_inputs": 16,
+      "at": [
+        "x4",
+        9,
+        1536
+      ],
+      "mean_single_cell_out_frac": 0.005882,
+      "max_single_cell_out_frac": 0.023438
+    },
+    {
+      "boundary": 6,
+      "face": 9,
+      "ddt_max_single_cell_inputs": 16,
+      "at": [
+        "x4",
+        9,
+        1536
+      ],
+      "mean_single_cell_out_frac": 0.005882,
+      "max_single_cell_out_frac": 0.023438
+    },
+    {
+      "boundary": 7,
+      "face": 0,
+      "ddt_max_single_cell_inputs": 16,
+      "at": [
+        "x3",
+        97,
+        35920
+      ],
+      "mean_single_cell_out_frac": 0.005882,
+      "max_single_cell_out_frac": 0.023438
+    },
+    {
+      "boundary": 7,
+      "face": 9,
+      "ddt_max_single_cell_inputs": 16,
+      "at": [
+        "x4",
+        12,
+        6144
+      ],
+      "mean_single_cell_out_frac": 0.005882,
+      "max_single_cell_out_frac": 0.023438
+    },
+    {
+      "boundary": 8,
+      "face": 0,
+      "ddt_max_single_cell_inputs": 20,
+      "at": [
+        "x4",
+        81,
+        5888
+      ],
+      "mean_single_cell_out_frac": 0.005882,
+      "max_single_cell_out_frac": 0.03125
+    },
+    {
+      "boundary": 8,
+      "face": 9,
+      "ddt_max_single_cell_inputs": 20,
+      "at": [
+        "x4",
+        81,
+        5888
+      ],
+      "mean_single_cell_out_frac": 0.005882,
+      "max_single_cell_out_frac": 0.03125
+    },
+    {
+      "boundary": 9,
+      "face": 0,
+      "ddt_max_single_cell_inputs": 16,
+      "at": [
+        "x4",
+        12,
+        55972
+      ],
+      "mean_single_cell_out_frac": 0.005882,
+      "max_single_cell_out_frac": 0.03125
+    },
+    {
+      "boundary": 9,
+      "face": 9,
+      "ddt_max_single_cell_inputs": 16,
+      "at": [
+        "x3",
+        2,
+        4104
+      ],
+      "mean_single_cell_out_frac": 0.005882,
+      "max_single_cell_out_frac": 0.03125
+    },
+    {
+      "boundary": 10,
+      "face": 0,
+      "ddt_max_single_cell_inputs": 16,
+      "at": [
+        "x3",
+        53,
+        60283
+      ],
+      "mean_single_cell_out_frac": 0.005882,
+      "max_single_cell_out_frac": 0.03125
+    },
+    {
+      "boundary": 10,
+      "face": 9,
+      "ddt_max_single_cell_inputs": 16,
+      "at": [
+        "x3",
+        165,
+        5953
+      ],
+      "mean_single_cell_out_frac": 0.005882,
+      "max_single_cell_out_frac": 0.03125
+    },
+    {
+      "boundary": 11,
+      "face": 0,
+      "ddt_max_single_cell_inputs": 20,
+      "at": [
+        "x4",
+        98,
+        31744
+      ],
+      "mean_single_cell_out_frac": 0.005882,
+      "max_single_cell_out_frac": 0.03125
+    },
+    {
+      "boundary": 11,
+      "face": 9,
+      "ddt_max_single_cell_inputs": 20,
+      "at": [
+        "x4",
+        98,
+        31744
+      ],
+      "mean_single_cell_out_frac": 0.005882,
+      "max_single_cell_out_frac": 0.03125
+    },
+    {
+      "boundary": 12,
+      "face": 0,
+      "ddt_max_single_cell_inputs": 18,
+      "at": [
+        "x4",
+        109,
+        35072
+      ],
+      "mean_single_cell_out_frac": 0.005882,
+      "max_single_cell_out_frac": 0.023438
+    },
+    {
+      "boundary": 12,
+      "face": 9,
+      "ddt_max_single_cell_inputs": 18,
+      "at": [
+        "x4",
+        109,
+        35072
+      ],
+      "mean_single_cell_out_frac": 0.005882,
+      "max_single_cell_out_frac": 0.023438
+    },
+    {
+      "boundary": 13,
+      "face": 0,
+      "ddt_max_single_cell_inputs": 16,
+      "at": [
+        "x3",
+        143,
+        8660
+      ],
+      "mean_single_cell_out_frac": 0.005882,
+      "max_single_cell_out_frac": 0.023438
+    },
+    {
+      "boundary": 13,
+      "face": 9,
+      "ddt_max_single_cell_inputs": 16,
+      "at": [
+        "x4",
+        67,
+        56931
+      ],
+      "mean_single_cell_out_frac": 0.005882,
+      "max_single_cell_out_frac": 0.023438
+    },
+    {
+      "boundary": 14,
+      "face": 0,
+      "ddt_max_single_cell_inputs": 16,
+      "at": [
+        "x3",
+        147,
+        10747
+      ],
+      "mean_single_cell_out_frac": 0.005882,
+      "max_single_cell_out_frac": 0.03125
+    },
+    {
+      "boundary": 14,
+      "face": 9,
+      "ddt_max_single_cell_inputs": 16,
+      "at": [
+        "x3",
+        27,
+        55942
+      ],
+      "mean_single_cell_out_frac": 0.005882,
+      "max_single_cell_out_frac": 0.03125
+    },
+    {
+      "boundary": 15,
+      "face": 0,
+      "ddt_max_single_cell_inputs": 22,
+      "at": [
+        "x4",
+        30,
+        40192
+      ],
+      "mean_single_cell_out_frac": 0.005882,
+      "max_single_cell_out_frac": 0.03125
+    },
+    {
+      "boundary": 15,
+      "face": 9,
+      "ddt_max_single_cell_inputs": 22,
+      "at": [
+        "x4",
+        30,
+        40192
+      ],
+      "mean_single_cell_out_frac": 0.005882,
+      "max_single_cell_out_frac": 0.03125
+    }
+  ],
+  "superbox_random_baseline": [
+    18,
+    18,
+    16,
+    16
+  ],
+  "naive_fused_disagree": 1914
+}

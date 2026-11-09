@@ -1,0 +1,48 @@
+{
+  "precolor2_archived_hello": {
+    "archived_blob_len": 179,
+    "old_decrypts_to": "hello world",
+    "same_mac_key": true,
+    "old_tag_equals_current_tag": false,
+    "current_result": "AuthError:tag mismatch"
+  },
+  "precolor2_fixed_nonce_2048": {
+    "counts": {
+      "AuthError:tag mismatch": 2048
+    },
+    "old_lib_roundtrip_checked": "64/64"
+  },
+  "precolor2_random_nonce_512": {
+    "counts": {
+      "AuthError:tag mismatch": 512
+    }
+  },
+  "pre_clef_encore_siv_archived_hello": {
+    "archived_blob_len": 179,
+    "old_decrypts_to": "hello world",
+    "same_mac_key": true,
+    "old_tag_equals_current_tag": false,
+    "current_result": "AuthError:tag mismatch"
+  },
+  "pre_clef_encore_siv_fixed_nonce_2048": {
+    "counts": {
+      "AuthError:tag mismatch": 2048
+    },
+    "old_lib_roundtrip_checked": "64/64"
+  },
+  "pre_clef_encore_siv_random_nonce_512": {
+    "counts": {
+      "AuthError:tag mismatch": 512
+    }
+  },
+  "previous_7_witnesses": {
+    "n": 7,
+    "counts": {
+      "AuthError:tag mismatch": 7
+    }
+  },
+  "current_blobs_into_old_decoders": {
+    "precolor2:AuthError": 256,
+    "pre_clef_encore_siv:AuthError": 256
+  }
+}

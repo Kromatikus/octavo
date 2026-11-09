@@ -1,0 +1,33 @@
+Sneak staff-core N2 (Octavo) — beat-6 fix: third bow stroke now reads pressure from beat 0, (4,5,6) -> (4,5,0).
+Homemade; NOT for real secrets. Use AES-GCM-SIV, age, or libsodium. Picture retained, not redrawn.
+seed: /workspace/sneak1024-seed.txt (unchanged)
+pickup (16 bytes; fresh OS randomness): d450337d3bbe0b460ae4298952279c7a
+nonce (16 bytes; SHA-256(clef || pickup || encode_block(msg))[:16]): b7e6267acbb2ecc0013ab8c73e0532c2
+ciphertext (128 bytes): 03fe30f92c0c677b086588e00659f792437d03ef2e63b10da763fd87155f964163b957688dfb1cd138be2985dbc73af214c9d67a8817994ae3bd7b4c6ebe93e9805f2b96e71937a58673d0701494808ad94e1038695ecd3f46cd3da73d7b3ff92460ed82735a5f4232adc81e6fa2c0f07a0432eb731b1f73898fbf2626d99e77
+tag (32 bytes; HMAC-SHA256 over clef || key_sig || SN2 || pickup || nonce || ct): 7610de7abd65ac44e81a848ab8e7f5ca1d34fc583ba55721f1075d3d4eaf787e
+blob (195 bytes = SN2 || pickup || nonce || ct || tag): 534e32d450337d3bbe0b460ae4298952279c7ab7e6267acbb2ecc0013ab8c73e0532c203fe30f92c0c677b086588e00659f792437d03ef2e63b10da763fd87155f964163b957688dfb1cd138be2985dbc73af214c9d67a8817994ae3bd7b4c6ebe93e9805f2b96e71937a58673d0701494808ad94e1038695ecd3f46cd3da73d7b3ff92460ed82735a5f4232adc81e6fa2c0f07a0432eb731b1f73898fbf2626d99e777610de7abd65ac44e81a848ab8e7f5ca1d34fc583ba55721f1075d3d4eaf787e
+
+hex grid: 16 faces x 8 byte-beats, open staffs, four measures of 2/4:
+  inner 1    | 03 FE | 30 F9 | 2C 0C | 67 7B |
+  inner 2    | 08 65 | 88 E0 | 06 59 | F7 92 |
+  inner 3    | 43 7D | 03 EF | 2E 63 | B1 0D |
+  inner 4    | A7 63 | FD 87 | 15 5F | 96 41 |
+  inner 5    | 63 B9 | 57 68 | 8D FB | 1C D1 |
+  inner 6    | 38 BE | 29 85 | DB C7 | 3A F2 |
+  inner 7    | 14 C9 | D6 7A | 88 17 | 99 4A |
+  inner 8    | E3 BD | 7B 4C | 6E BE | 93 E9 |
+  outer o1   | 80 5F | 2B 96 | E7 19 | 37 A5 |
+  outer o2   | 86 73 | D0 70 | 14 94 | 80 8A |
+  outer o3   | D9 4E | 10 38 | 69 5E | CD 3F |
+  outer o4   | 46 CD | 3D A7 | 3D 7B | 3F F9 |
+  outer o5   | 24 60 | ED 82 | 73 5A | 5F 42 |
+  outer o6   | 32 AD | C8 1E | 6F A2 | C0 F0 |
+  outer o7   | 7A 04 | 32 EB | 73 1B | 1F 73 |
+  outer o8   | 89 8F | BF 26 | 26 D9 | 9E 77 |
+
+recovered plaintext: b'hello world'
+1-bit flip (blob byte 100, bit 0) rejected: AuthError: tag mismatch
+Re-encrypting differs (fresh pickup and blob); this is one recorded sample.
+Previous sample (pickup ee95ddb278a849bae4a34fe594ee87e5, beat-7-fix era) now fails closed: AuthError: tag mismatch.
+The picture (both sneak-staff-n2.png copies) was NOT regenerated; it is stale.
+demo-nonce.txt is unchanged: an older fixed schedule-test nonce, not this sample's nonce.

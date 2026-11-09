@@ -1,0 +1,45 @@
+[live_post_join] encore 8x8 per-staff matrix mod 256 (rows=out beat, cols=in beat):
+    [1, 5, 0, 0, 0, 0, 0, 0]
+    [1, 6, 1, 0, 0, 0, 0, 0]
+    [3, 18, 6, 5, 0, 0, 0, 0]
+    [1, 6, 2, 2, 3, 0, 0, 0]
+    [5, 30, 10, 10, 20, 2, 0, 0]
+    [4, 24, 8, 8, 16, 2, 1, 0]
+    [6, 36, 12, 12, 24, 3, 3, 1]
+    [4, 24, 8, 8, 16, 2, 2, 1]
+[live_post_join] super-box components across S2 -> encore -> XOR rk -> S: [[0, 1, 2, 3, 4, 5, 6, 7]]
+[live_post_join] next-round S input depends on #S2 outputs: min 2; supports {'out0': [0, 1], 'out1': [0, 1, 2], 'out2': [0, 1, 2, 3], 'out3': [0, 1, 2, 3, 4], 'out4': [0, 1, 2, 3, 4, 5], 'out5': [0, 1, 2, 3, 4, 5, 6], 'out6': [0, 1, 2, 3, 4, 5, 6, 7], 'out7': [0, 1, 2, 3, 4, 5, 6, 7]}
+[live_post_join] odd-coefficient (full 8-bit) supports {'out0': [0, 1], 'out1': [0, 2], 'out2': [0, 3], 'out3': [0, 4], 'out4': [0], 'out5': [6], 'out6': [5, 6, 7], 'out7': [7]}
+[live_post_join] input beat reach {'in0': [0, 1, 2, 3, 4, 5, 6, 7], 'in1': [0, 1, 2, 3, 4, 5, 6, 7], 'in2': [1, 2, 3, 4, 5, 6, 7], 'in3': [2, 3, 4, 5, 6, 7], 'in4': [3, 4, 5, 6, 7], 'in5': [4, 5, 6, 7], 'in6': [5, 6, 7], 'in7': [6, 7]}
+[pre_join] encore 8x8 per-staff matrix mod 256 (rows=out beat, cols=in beat):
+    [1, 5, 0, 0, 0, 0, 0, 0]
+    [1, 6, 1, 0, 0, 0, 0, 0]
+    [1, 6, 2, 0, 0, 0, 0, 0]
+    [0, 0, 0, 1, 3, 0, 0, 0]
+    [0, 0, 0, 1, 4, 0, 0, 0]
+    [0, 0, 0, 0, 0, 2, 1, 0]
+    [0, 0, 0, 0, 0, 3, 3, 1]
+    [0, 0, 0, 0, 0, 2, 2, 1]
+[pre_join] super-box components across S2 -> encore -> XOR rk -> S: [[0, 1, 2], [3, 4], [5, 6, 7]]
+[pre_join] next-round S input depends on #S2 outputs: min 2; supports {'out0': [0, 1], 'out1': [0, 1, 2], 'out2': [0, 1, 2], 'out3': [3, 4], 'out4': [3, 4], 'out5': [5, 6], 'out6': [5, 6, 7], 'out7': [5, 6, 7]}
+[pre_join] odd-coefficient (full 8-bit) supports {'out0': [0, 1], 'out1': [0, 2], 'out2': [0], 'out3': [3, 4], 'out4': [3], 'out5': [6], 'out6': [5, 6, 7], 'out7': [7]}
+[pre_join] input beat reach {'in0': [0, 1, 2], 'in1': [0, 1, 2], 'in2': [1, 2], 'in3': [3, 4], 'in4': [3, 4], 'in5': [5, 6, 7], 'in6': [5, 6, 7], 'in7': [6, 7]}
+B0 start               ((1, 5), (1, 6)) det=1 even=[6]: single-cell output with prob 1 for [('v', '0x80', 'first')] | overall frac(single-cell | 1-cell XOR input)= 0.00196 | best partial []
+B1 bar 2               ((1, 1), (1, 2)) det=1 even=[2]: single-cell output with prob 1 for [('v', '0x80', 'first')] | overall frac(single-cell | 1-cell XOR input)= 0.00196 | best partial []
+M2 beats 3-4           ((3, 5), (1, 2)) det=1 even=[2]: single-cell output with prob 1 for [('v', '0x80', 'first')] | overall frac(single-cell | 1-cell XOR input)= 0.00196 | best partial []
+B2 center              ((1, 3), (1, 4)) det=1 even=[4]: single-cell output with prob 1 for [('v', '0x40', 'first'), ('v', '0x80', 'first'), ('v', '0xc0', 'first')] | overall frac(single-cell | 1-cell XOR input)= 0.00588 | best partial []
+M3 beats 5-6           ((5, 2), (2, 1)) det=1 even=[2, 2]: single-cell output with prob 1 for [('u', '0x80', 'first'), ('v', '0x80', 'second')] | overall frac(single-cell | 1-cell XOR input)= 0.00392 | best partial []
+B3 bar 6               ((2, 1), (1, 1)) det=1 even=[2]: single-cell output with prob 1 for [('u', '0x80', 'second')] | overall frac(single-cell | 1-cell XOR input)= 0.00196 | best partial []
+B4 end                 ((3, 1), (2, 1)) det=1 even=[2]: single-cell output with prob 1 for [('u', '0x80', 'first')] | overall frac(single-cell | 1-cell XOR input)= 0.00196 | best partial []
+mix2 butterfly/shell   ((1, 1), (1, 2)) det=1 even=[2]: single-cell output with prob 1 for [('v', '0x80', 'first')] | overall frac(single-cell | 1-cell XOR input)= 0.00196 | best partial []
+Encore, single input beat with XOR 0x80 -> output beats carrying 0x80 (prob 1): {0: [0, 1, 2, 3, 4], 1: [0], 2: [1], 3: [2], 4: [3], 5: [6], 6: [5, 6], 7: [6, 7]}
+Encore, single input beat XOR delta -> #active output beats [min,max over cell value]: [(0, '0x80', [5, 5]), (0, '0x40', [6, 6]), (0, '0xc0', [6, 6]), (0, '0x20', [8, 8]), (0, '0x1', [8, 8]), (1, '0x80', [1, 1]), (1, '0x40', [5, 5]), (1, '0xc0', [5, 5]), (1, '0x20', [6, 6]), (1, '0x1', [8, 8]), (2, '0x80', [1, 1]), (2, '0x40', [4, 4]), (2, '0xc0', [4, 4]), (2, '0x20', [5, 5]), (2, '0x1', [7, 7]), (3, '0x80', [1, 1]), (3, '0x40', [3, 3]), (3, '0xc0', [3, 3]), (3, '0x20', [4, 4]), (3, '0x1', [6, 6]), (4, '0x80', [1, 1]), (4, '0x40', [1, 1]), (4, '0xc0', [1, 1]), (4, '0x20', [2, 2]), (4, '0x1', [5, 5]), (5, '0x80', [1, 1]), (5, '0x40', [4, 4]), (5, '0xc0', [4, 4]), (5, '0x20', [4, 4]), (5, '0x1', [4, 4]), (6, '0x80', [2, 2]), (6, '0x40', [3, 3]), (6, '0xc0', [3, 3]), (6, '0x20', [3, 3]), (6, '0x1', [3, 3]), (7, '0x80', [2, 2]), (7, '0x40', [2, 2]), (7, '0xc0', [2, 2]), (7, '0x20', [2, 2]), (7, '0x1', [2, 2])]
+Cell-support after 1 round(s) (white-box, S treated as full per cell): {'pairs_dependent': 5504, 'of': 16384, 'min_inputs_per_output': 24, 'min_outputs_per_input': 30}
+Cell-support after 2 round(s) (white-box, S treated as full per cell): {'pairs_dependent': 16384, 'of': 16384, 'min_inputs_per_output': 128, 'min_outputs_per_input': 128}
+Cell-support after 3 round(s) (white-box, S treated as full per cell): {'pairs_dependent': 16384, 'of': 16384, 'min_inputs_per_output': 128, 'min_outputs_per_input': 128}
+Cell-support after 4 round(s) (white-box, S treated as full per cell): {'pairs_dependent': 16384, 'of': 16384, 'min_inputs_per_output': 128, 'min_outputs_per_input': 128}
+L_mid round 0 (weave+butterfly+shell+7 bars): S-output cell reaches S2 cells min/max {'min_outputs_per_input': 29, 'max': 53, 'min_inputs_per_output': 16}
+DDT entries (out of 256) for 0x80->0x80, rounds 0-2: [{'S': 0, 'S2': 0, 'Sbest': 4}, {'S': 0, 'S2': 0, 'Sbest': 4}, {'S': 0, 'S2': 2, 'Sbest': 4}]
+0x80 at ONE round-0 S output -> S2 inputs carrying 0x80 (prob 1): min 1 ; S-output cells that hit exactly one S2 cell: [9, 18, 21, 29, 37, 53, 56] (see attack_highbit_trail.py)
+Note: all-0x80 trails need DDT[0x80->0x80]>0 at every active S/S2; above it is 0 for S,S2 in rounds 0-1, so the exact all-0x80 trail dies; the truncated version in attack_highbit_trail.py does not need it.
+S2 output 0x80 in one cell -> next-round S inputs carrying 0x80 (prob 1): per beat [5, 1, 1, 1, 1, 1, 2, 2]

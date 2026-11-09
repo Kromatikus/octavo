@@ -1,0 +1,1725 @@
+{
+  "started": "2026-11-09 07:29:08 AM EST (America/New_York)",
+  "live_sha": "0eb6052f7ef1e48a952c5530983acead5932be469693134b65f2b21aaf5092c1",
+  "batch_validated_round_calls": 96,
+  "sbox_algebra": {
+    "SM4_base": {
+      "degree_min_max_components": [
+        7,
+        7
+      ],
+      "bi_affine": 23,
+      "full_quadratic": 39,
+      "monomials_bi_affine": 81,
+      "monomials_full": 137
+    },
+    "keyed_tables": [
+      {
+        "round": 0,
+        "table": "S",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 0,
+        "table": "S2",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 0,
+        "table": "SI",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ]
+      },
+      {
+        "round": 1,
+        "table": "S",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 1,
+        "table": "S2",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 1,
+        "table": "SI",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ]
+      },
+      {
+        "round": 2,
+        "table": "S",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 2,
+        "table": "S2",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 2,
+        "table": "SI",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ]
+      },
+      {
+        "round": 3,
+        "table": "S",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 3,
+        "table": "S2",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 3,
+        "table": "SI",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ]
+      },
+      {
+        "round": 4,
+        "table": "S",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 4,
+        "table": "S2",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 4,
+        "table": "SI",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ]
+      },
+      {
+        "round": 5,
+        "table": "S",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 5,
+        "table": "S2",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 5,
+        "table": "SI",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ]
+      },
+      {
+        "round": 6,
+        "table": "S",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 6,
+        "table": "S2",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 6,
+        "table": "SI",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ]
+      },
+      {
+        "round": 7,
+        "table": "S",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 7,
+        "table": "S2",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 7,
+        "table": "SI",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ]
+      },
+      {
+        "round": 8,
+        "table": "S",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 8,
+        "table": "S2",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 8,
+        "table": "SI",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ]
+      },
+      {
+        "round": 9,
+        "table": "S",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 9,
+        "table": "S2",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 9,
+        "table": "SI",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ]
+      },
+      {
+        "round": 10,
+        "table": "S",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 10,
+        "table": "S2",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 10,
+        "table": "SI",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ]
+      },
+      {
+        "round": 11,
+        "table": "S",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 11,
+        "table": "S2",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 11,
+        "table": "SI",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ]
+      },
+      {
+        "round": 12,
+        "table": "S",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 12,
+        "table": "S2",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 12,
+        "table": "SI",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ]
+      },
+      {
+        "round": 13,
+        "table": "S",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 13,
+        "table": "S2",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 13,
+        "table": "SI",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ]
+      },
+      {
+        "round": 14,
+        "table": "S",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 14,
+        "table": "S2",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 14,
+        "table": "SI",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ]
+      },
+      {
+        "round": 15,
+        "table": "S",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 15,
+        "table": "S2",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "bi_affine": 23,
+        "full_quadratic": 39,
+        "monomials_bi_affine": 81,
+        "monomials_full": 137
+      },
+      {
+        "round": 15,
+        "table": "SI",
+        "component_degree_min": 7,
+        "component_degree_max": 7,
+        "bit_degrees": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ]
+      }
+    ],
+    "all_degree_7": true,
+    "quadratic_counts_set": [
+      [
+        23,
+        39
+      ]
+    ]
+  },
+  "cube_tests": [
+    {
+      "function": "S+weave+butterfly+shell",
+      "cube": "cell0 bits0..0 (d=1)",
+      "dim": 1,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 896,
+      "output_bits_constant_superpoly": 896,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 896
+    },
+    {
+      "function": "S+weave+butterfly+shell",
+      "cube": "cell0 bits0..1 (d=2)",
+      "dim": 2,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 896,
+      "output_bits_constant_superpoly": 896,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 896
+    },
+    {
+      "function": "S+weave+butterfly+shell",
+      "cube": "cell0 bits0..3 (d=4)",
+      "dim": 4,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 896,
+      "output_bits_constant_superpoly": 896,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 896
+    },
+    {
+      "function": "S+weave+butterfly+shell",
+      "cube": "cell0 bits0..5 (d=6)",
+      "dim": 6,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 928,
+      "output_bits_constant_superpoly": 928,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 896
+    },
+    {
+      "function": "S+weave+butterfly+shell",
+      "cube": "cell0 bits0..6 (d=7)",
+      "dim": 7,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 928,
+      "output_bits_constant_superpoly": 1024,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 896
+    },
+    {
+      "function": "S+weave+butterfly+shell",
+      "cube": "cell0 bits0..7 (d=8)",
+      "dim": 8,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 1024,
+      "output_bits_constant_superpoly": 1024,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 1024
+    },
+    {
+      "function": "S+weave+butterfly+shell",
+      "cube": "bit0 of cells 0,9,18,27 (d=4)",
+      "dim": 4,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 1024,
+      "output_bits_constant_superpoly": 1024,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 1024
+    },
+    {
+      "function": "S+weave+butterfly+shell",
+      "cube": "bit0 of 8 cells across staffs (d=8)",
+      "dim": 8,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 1024,
+      "output_bits_constant_superpoly": 1024,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 1024
+    },
+    {
+      "function": "S+weave+butterfly+shell",
+      "cube": "cells 0,1 all bits (d=16)",
+      "dim": 16,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 1024,
+      "output_bits_constant_superpoly": 1024,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 1024
+    },
+    {
+      "function": "S+weave+butterfly+shell",
+      "cube": "bit7 of 12 cells (d=12)",
+      "dim": 12,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 1024,
+      "output_bits_constant_superpoly": 1024,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 1024
+    },
+    {
+      "function": "S+weave+butterfly+shell",
+      "cube": "cells 0 and 64 all bits (d=16, across shells)",
+      "dim": 16,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 1024,
+      "output_bits_constant_superpoly": 1024,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 1024
+    },
+    {
+      "function": "..+bars (before triplets)",
+      "cube": "cell0 bits0..0 (d=1)",
+      "dim": 1,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 742,
+      "output_bits_constant_superpoly": 745,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 737
+    },
+    {
+      "function": "..+bars (before triplets)",
+      "cube": "cell0 bits0..1 (d=2)",
+      "dim": 2,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 737,
+      "output_bits_constant_superpoly": 738,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 736
+    },
+    {
+      "function": "..+bars (before triplets)",
+      "cube": "cell0 bits0..3 (d=4)",
+      "dim": 4,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 739,
+      "output_bits_constant_superpoly": 741,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 743
+    },
+    {
+      "function": "..+bars (before triplets)",
+      "cube": "cell0 bits0..5 (d=6)",
+      "dim": 6,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 748,
+      "output_bits_constant_superpoly": 767,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 736
+    },
+    {
+      "function": "..+bars (before triplets)",
+      "cube": "cell0 bits0..6 (d=7)",
+      "dim": 7,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 787,
+      "output_bits_constant_superpoly": 840,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 736
+    },
+    {
+      "function": "..+bars (before triplets)",
+      "cube": "cell0 bits0..7 (d=8)",
+      "dim": 8,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 1024,
+      "output_bits_constant_superpoly": 1024,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 1024
+    },
+    {
+      "function": "..+bars (before triplets)",
+      "cube": "bit0 of cells 0,9,18,27 (d=4)",
+      "dim": 4,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 1024,
+      "output_bits_constant_superpoly": 1024,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 1024
+    },
+    {
+      "function": "..+bars (before triplets)",
+      "cube": "bit0 of 8 cells across staffs (d=8)",
+      "dim": 8,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 1024,
+      "output_bits_constant_superpoly": 1024,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 1024
+    },
+    {
+      "function": "..+bars (before triplets)",
+      "cube": "cells 0,1 all bits (d=16)",
+      "dim": 16,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 1024,
+      "output_bits_constant_superpoly": 1024,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 1024
+    },
+    {
+      "function": "..+bars (before triplets)",
+      "cube": "bit7 of 12 cells (d=12)",
+      "dim": 12,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 1024,
+      "output_bits_constant_superpoly": 1024,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 1024
+    },
+    {
+      "function": "..+bars (before triplets)",
+      "cube": "cells 0 and 64 all bits (d=16, across shells)",
+      "dim": 16,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 1024,
+      "output_bits_constant_superpoly": 1024,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 1024
+    },
+    {
+      "function": "1 round",
+      "cube": "cell0 bits0..0 (d=1)",
+      "dim": 1,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 8,
+      "output_bits_constant_superpoly": 10,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 8
+    },
+    {
+      "function": "1 round",
+      "cube": "cell0 bits0..1 (d=2)",
+      "dim": 2,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 5,
+      "output_bits_constant_superpoly": 9,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 1
+    },
+    {
+      "function": "1 round",
+      "cube": "cell0 bits0..3 (d=4)",
+      "dim": 4,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 4,
+      "output_bits_constant_superpoly": 6,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 5
+    },
+    {
+      "function": "1 round",
+      "cube": "cell0 bits0..5 (d=6)",
+      "dim": 6,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 3,
+      "output_bits_constant_superpoly": 8,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 9
+    },
+    {
+      "function": "1 round",
+      "cube": "cell0 bits0..6 (d=7)",
+      "dim": 7,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 2,
+      "output_bits_constant_superpoly": 3,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 4
+    },
+    {
+      "function": "1 round",
+      "cube": "cell0 bits0..7 (d=8)",
+      "dim": 8,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 4,
+      "output_bits_constant_superpoly": 6,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 3
+    },
+    {
+      "function": "1 round",
+      "cube": "bit0 of cells 0,9,18,27 (d=4)",
+      "dim": 4,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 5,
+      "output_bits_constant_superpoly": 12,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 3
+    },
+    {
+      "function": "1 round",
+      "cube": "bit0 of 8 cells across staffs (d=8)",
+      "dim": 8,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 3,
+      "output_bits_constant_superpoly": 9,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 3
+    },
+    {
+      "function": "1 round",
+      "cube": "cells 0,1 all bits (d=16)",
+      "dim": 16,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 5,
+      "output_bits_constant_superpoly": 7,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 1
+    },
+    {
+      "function": "1 round",
+      "cube": "bit7 of 12 cells (d=12)",
+      "dim": 12,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 1,
+      "output_bits_constant_superpoly": 4,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 4
+    },
+    {
+      "function": "1 round",
+      "cube": "cells 0 and 64 all bits (d=16, across shells)",
+      "dim": 16,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 3,
+      "output_bits_constant_superpoly": 7,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 4
+    },
+    {
+      "function": "2 rounds",
+      "cube": "cell0 bits0..0 (d=1)",
+      "dim": 1,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 3,
+      "output_bits_constant_superpoly": 4,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 6
+    },
+    {
+      "function": "2 rounds",
+      "cube": "cell0 bits0..1 (d=2)",
+      "dim": 2,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 2,
+      "output_bits_constant_superpoly": 10,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 2
+    },
+    {
+      "function": "2 rounds",
+      "cube": "cell0 bits0..3 (d=4)",
+      "dim": 4,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 5,
+      "output_bits_constant_superpoly": 11,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 5
+    },
+    {
+      "function": "2 rounds",
+      "cube": "cell0 bits0..5 (d=6)",
+      "dim": 6,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 5,
+      "output_bits_constant_superpoly": 6,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 7
+    },
+    {
+      "function": "2 rounds",
+      "cube": "cell0 bits0..6 (d=7)",
+      "dim": 7,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 4,
+      "output_bits_constant_superpoly": 5,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 6
+    },
+    {
+      "function": "2 rounds",
+      "cube": "cell0 bits0..7 (d=8)",
+      "dim": 8,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 3,
+      "output_bits_constant_superpoly": 7,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 5
+    },
+    {
+      "function": "2 rounds",
+      "cube": "bit0 of cells 0,9,18,27 (d=4)",
+      "dim": 4,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 4,
+      "output_bits_constant_superpoly": 6,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 3
+    },
+    {
+      "function": "2 rounds",
+      "cube": "bit0 of 8 cells across staffs (d=8)",
+      "dim": 8,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 4,
+      "output_bits_constant_superpoly": 13,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 2
+    },
+    {
+      "function": "2 rounds",
+      "cube": "cells 0,1 all bits (d=16)",
+      "dim": 16,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 3,
+      "output_bits_constant_superpoly": 7,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 2
+    },
+    {
+      "function": "2 rounds",
+      "cube": "bit7 of 12 cells (d=12)",
+      "dim": 12,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 5,
+      "output_bits_constant_superpoly": 9,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 6
+    },
+    {
+      "function": "2 rounds",
+      "cube": "cells 0 and 64 all bits (d=16, across shells)",
+      "dim": 16,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 3,
+      "output_bits_constant_superpoly": 9,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 9
+    },
+    {
+      "function": "3 rounds",
+      "cube": "cell0 bits0..0 (d=1)",
+      "dim": 1,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 1,
+      "output_bits_constant_superpoly": 3,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 4
+    },
+    {
+      "function": "3 rounds",
+      "cube": "cell0 bits0..1 (d=2)",
+      "dim": 2,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 5,
+      "output_bits_constant_superpoly": 10,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 9
+    },
+    {
+      "function": "3 rounds",
+      "cube": "cell0 bits0..3 (d=4)",
+      "dim": 4,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 2,
+      "output_bits_constant_superpoly": 7,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 5
+    },
+    {
+      "function": "3 rounds",
+      "cube": "cell0 bits0..5 (d=6)",
+      "dim": 6,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 3,
+      "output_bits_constant_superpoly": 10,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 2
+    },
+    {
+      "function": "3 rounds",
+      "cube": "cell0 bits0..6 (d=7)",
+      "dim": 7,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 3,
+      "output_bits_constant_superpoly": 8,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 4
+    },
+    {
+      "function": "3 rounds",
+      "cube": "cell0 bits0..7 (d=8)",
+      "dim": 8,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 5,
+      "output_bits_constant_superpoly": 9,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 7
+    },
+    {
+      "function": "3 rounds",
+      "cube": "bit0 of cells 0,9,18,27 (d=4)",
+      "dim": 4,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 6,
+      "output_bits_constant_superpoly": 7,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 4
+    },
+    {
+      "function": "3 rounds",
+      "cube": "bit0 of 8 cells across staffs (d=8)",
+      "dim": 8,
+      "bases": 8,
+      "output_bits_zero_on_all_bases": 8,
+      "output_bits_constant_superpoly": 12,
+      "random_expect_zero": 4.0,
+      "random_expect_const": 8.0,
+      "zero_bytes_any_base": 9
+    }
+  ],
+  "integral": [
+    {
+      "function": "S+weave+butterfly+shell",
+      "kind": "one cell takes all 256 values (every cell, 2 bases)",
+      "cases": 256,
+      "mean_zero_sum_output_cells": 128.0,
+      "max_zero_sum_output_cells": 128,
+      "cases_with_all128_zero_sum": 256,
+      "mean_balanced_output_cells": 16.0,
+      "random_expect_zero_sum": 0.5,
+      "random_expect_balanced": 0.0
+    },
+    {
+      "function": "S+weave+butterfly+shell",
+      "kind": "staff diagonal: 8 cells = x",
+      "cases": 16,
+      "mean_zero_sum_output_cells": 128.0,
+      "max_zero_sum_output_cells": 128,
+      "cases_with_all128_zero_sum": 16,
+      "mean_balanced_output_cells": 39.3125
+    },
+    {
+      "function": "S+weave+butterfly+shell",
+      "kind": "staff shifted: cell j = x+37j mod 256",
+      "cases": 16,
+      "mean_zero_sum_output_cells": 128.0,
+      "max_zero_sum_output_cells": 128,
+      "cases_with_all128_zero_sum": 16,
+      "mean_balanced_output_cells": 39.25
+    },
+    {
+      "function": "..+bars (before triplets)",
+      "kind": "one cell takes all 256 values (every cell, 2 bases)",
+      "cases": 256,
+      "mean_zero_sum_output_cells": 128.0,
+      "max_zero_sum_output_cells": 128,
+      "cases_with_all128_zero_sum": 256,
+      "mean_balanced_output_cells": 30.171875,
+      "random_expect_zero_sum": 0.5,
+      "random_expect_balanced": 0.0
+    },
+    {
+      "function": "..+bars (before triplets)",
+      "kind": "staff diagonal: 8 cells = x",
+      "cases": 16,
+      "mean_zero_sum_output_cells": 84.5,
+      "max_zero_sum_output_cells": 106,
+      "cases_with_all128_zero_sum": 0,
+      "mean_balanced_output_cells": 19.8125
+    },
+    {
+      "function": "..+bars (before triplets)",
+      "kind": "staff shifted: cell j = x+37j mod 256",
+      "cases": 16,
+      "mean_zero_sum_output_cells": 78.125,
+      "max_zero_sum_output_cells": 105,
+      "cases_with_all128_zero_sum": 0,
+      "mean_balanced_output_cells": 19.8125
+    },
+    {
+      "function": "1 round",
+      "kind": "one cell takes all 256 values (every cell, 2 bases)",
+      "cases": 256,
+      "mean_zero_sum_output_cells": 0.5,
+      "max_zero_sum_output_cells": 3,
+      "cases_with_all128_zero_sum": 0,
+      "mean_balanced_output_cells": 0.0,
+      "random_expect_zero_sum": 0.5,
+      "random_expect_balanced": 0.0
+    },
+    {
+      "function": "1 round",
+      "kind": "staff diagonal: 8 cells = x",
+      "cases": 16,
+      "mean_zero_sum_output_cells": 0.4375,
+      "max_zero_sum_output_cells": 3,
+      "cases_with_all128_zero_sum": 0,
+      "mean_balanced_output_cells": 0.0
+    },
+    {
+      "function": "1 round",
+      "kind": "staff shifted: cell j = x+37j mod 256",
+      "cases": 16,
+      "mean_zero_sum_output_cells": 0.4375,
+      "max_zero_sum_output_cells": 3,
+      "cases_with_all128_zero_sum": 0,
+      "mean_balanced_output_cells": 0.0
+    },
+    {
+      "function": "2 rounds",
+      "kind": "one cell takes all 256 values (every cell, 2 bases)",
+      "cases": 256,
+      "mean_zero_sum_output_cells": 0.44921875,
+      "max_zero_sum_output_cells": 3,
+      "cases_with_all128_zero_sum": 0,
+      "mean_balanced_output_cells": 0.0,
+      "random_expect_zero_sum": 0.5,
+      "random_expect_balanced": 0.0
+    },
+    {
+      "function": "2 rounds",
+      "kind": "staff diagonal: 8 cells = x",
+      "cases": 16,
+      "mean_zero_sum_output_cells": 0.375,
+      "max_zero_sum_output_cells": 2,
+      "cases_with_all128_zero_sum": 0,
+      "mean_balanced_output_cells": 0.0
+    },
+    {
+      "function": "2 rounds",
+      "kind": "staff shifted: cell j = x+37j mod 256",
+      "cases": 16,
+      "mean_zero_sum_output_cells": 0.375,
+      "max_zero_sum_output_cells": 1,
+      "cases_with_all128_zero_sum": 0,
+      "mean_balanced_output_cells": 0.0
+    },
+    {
+      "function": "3 rounds",
+      "kind": "one cell takes all 256 values (every cell, 2 bases)",
+      "cases": 256,
+      "mean_zero_sum_output_cells": 0.5,
+      "max_zero_sum_output_cells": 4,
+      "cases_with_all128_zero_sum": 0,
+      "mean_balanced_output_cells": 0.0,
+      "random_expect_zero_sum": 0.5,
+      "random_expect_balanced": 0.0
+    },
+    {
+      "function": "3 rounds",
+      "kind": "staff diagonal: 8 cells = x",
+      "cases": 16,
+      "mean_zero_sum_output_cells": 0.4375,
+      "max_zero_sum_output_cells": 2,
+      "cases_with_all128_zero_sum": 0,
+      "mean_balanced_output_cells": 0.0
+    },
+    {
+      "function": "3 rounds",
+      "kind": "staff shifted: cell j = x+37j mod 256",
+      "cases": 16,
+      "mean_zero_sum_output_cells": 0.5,
+      "max_zero_sum_output_cells": 2,
+      "cases_with_all128_zero_sum": 0,
+      "mean_balanced_output_cells": 0.0
+    },
+    {
+      "function": "1 round",
+      "kind": "two cells (0,1) take all 65536 values",
+      "zero_sum_output_cells": 0,
+      "random_expect": 0.5,
+      "zero_sum_output_bits": 502,
+      "random_expect_bits": 512
+    },
+    {
+      "function": "1 round",
+      "kind": "two cells (0,64) take all 65536 values",
+      "zero_sum_output_cells": 0,
+      "random_expect": 0.5,
+      "zero_sum_output_bits": 526,
+      "random_expect_bits": 512
+    },
+    {
+      "function": "1 round",
+      "kind": "two cells (7,120) take all 65536 values",
+      "zero_sum_output_cells": 0,
+      "random_expect": 0.5,
+      "zero_sum_output_bits": 486,
+      "random_expect_bits": 512
+    },
+    {
+      "function": "1 round",
+      "kind": "two cells (3,4) take all 65536 values",
+      "zero_sum_output_cells": 2,
+      "random_expect": 0.5,
+      "zero_sum_output_bits": 508,
+      "random_expect_bits": 512
+    },
+    {
+      "function": "2 rounds",
+      "kind": "two cells (0,1) take all 65536 values",
+      "zero_sum_output_cells": 1,
+      "random_expect": 0.5,
+      "zero_sum_output_bits": 509,
+      "random_expect_bits": 512
+    },
+    {
+      "function": "2 rounds",
+      "kind": "two cells (0,64) take all 65536 values",
+      "zero_sum_output_cells": 1,
+      "random_expect": 0.5,
+      "zero_sum_output_bits": 524,
+      "random_expect_bits": 512
+    },
+    {
+      "function": "2 rounds",
+      "kind": "two cells (7,120) take all 65536 values",
+      "zero_sum_output_cells": 0,
+      "random_expect": 0.5,
+      "zero_sum_output_bits": 475,
+      "random_expect_bits": 512
+    },
+    {
+      "function": "2 rounds",
+      "kind": "two cells (3,4) take all 65536 values",
+      "zero_sum_output_cells": 0,
+      "random_expect": 0.5,
+      "zero_sum_output_bits": 494,
+      "random_expect_bits": 512
+    }
+  ],
+  "system_size": {
+    "sboxes_per_round": 576,
+    "sboxes_16_rounds": 9216,
+    "quadratic_eqs_per_sbox": 39,
+    "sbox_equations_16_rounds": 359424,
+    "sbox_state_vars_16_rounds": 73728,
+    "mod256_additions_per_round_triplets": 1888,
+    "mod256_additions_per_round_bow": 224,
+    "carry_vars_16_rounds": 236544,
+    "carry_quadratic_eqs_16_rounds": 473088,
+    "bow_rotation_selectors": "each bow stroke picks r1=1+p%7 and r2=1+(p>>3)%7 from the data byte p: p%7 is a high-degree Boolean function of 8 bits, so each stroke needs a 7-way multiplexer (~14 selector vars + their defining equations) or degree-8 relations",
+    "bow_strokes_16_rounds": 3584,
+    "unknown_key_material_bits_per_round_approx": 1933,
+    "unknown_key_bits_16_rounds_plus_white_approx": 31949,
+    "known_equations_from_one_block": 1024,
+    "note": "Rough count, not an optimised encoding. Keyed S-boxes are A2*S_SM4(A1*x+b1)+b2 with unknown A1,A2,b1,b2: treating the table as known is impossible without the schedule, and treating A1,A2 as unknowns raises the degree (products of matrix entries and state bits). The schedule is SHA-256(seed||nonce) output, so algebra cannot reach the seed; and because every message gets a fresh schedule, one block (1024 output bits) faces ~31949 unknown schedule bits: the per-schedule system is hugely underdetermined, so round-key-level algebraic key recovery has no unique solution. Algebraic distinguishers would need many blocks under one schedule (white-box lab model only)."
+  },
+  "finished": "2026-11-09 07:32:01 AM EST (America/New_York)"
+}

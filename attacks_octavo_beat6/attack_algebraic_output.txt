@@ -1,0 +1,313 @@
+2026-11-09 09:31:44 AM EST (America/New_York)
+{
+  "started": "2026-11-09 09:29:13 AM EST (America/New_York)",
+  "live_sha": "922a29d89be68b29a2be08873ff5a99a7cf264afebe1ece0387aa0f4fe56fe10",
+  "anf_degree": {
+    "tables": 64,
+    "degrees": [
+      7
+    ]
+  },
+  "quadratic_equations": {
+    "sm4_base_biaffine": [
+      23,
+      81
+    ],
+    "sm4_base_full_quadratic": [
+      39,
+      137
+    ],
+    "round0_S_biaffine": [
+      23,
+      81
+    ],
+    "round0_S_full_quadratic": [
+      39,
+      137
+    ]
+  },
+  "integral_sublayers_round0": {
+    "sets": "128 cells x 2 bases, 256 texts each",
+    "random_zero_sum": 0.5,
+    "layouts": {
+      "new": {
+        "linear": {
+          "mean_balanced_cells": 16.0,
+          "mean_zero_sum_cells": 128.0
+        },
+        "bars": {
+          "mean_balanced_cells": 26.91,
+          "mean_zero_sum_cells": 128.0
+        },
+        "trips": {
+          "mean_balanced_cells": 3.91,
+          "mean_zero_sum_cells": 97.56
+        },
+        "bow": {
+          "mean_balanced_cells": 0.0,
+          "mean_zero_sum_cells": 80.52
+        },
+        "rehair": {
+          "mean_balanced_cells": 0.0,
+          "mean_zero_sum_cells": 79.18
+        },
+        "cross": {
+          "mean_balanced_cells": 0.0,
+          "mean_zero_sum_cells": 0.5
+        },
+        "bars2": {
+          "mean_balanced_cells": 0.0,
+          "mean_zero_sum_cells": 0.48
+        },
+        "trips2": {
+          "mean_balanced_cells": 0.0,
+          "mean_zero_sum_cells": 0.55
+        },
+        "bow2": {
+          "mean_balanced_cells": 0.0,
+          "mean_zero_sum_cells": 0.45
+        },
+        "rehair2": {
+          "mean_balanced_cells": 0.0,
+          "mean_zero_sum_cells": 0.49
+        },
+        "round1": {
+          "mean_balanced_cells": 0.0,
+          "mean_zero_sum_cells": 0.48
+        }
+      },
+      "old": {
+        "linear": {
+          "mean_balanced_cells": 16.0,
+          "mean_zero_sum_cells": 128.0
+        },
+        "bars": {
+          "mean_balanced_cells": 26.91,
+          "mean_zero_sum_cells": 128.0
+        },
+        "trips": {
+          "mean_balanced_cells": 3.91,
+          "mean_zero_sum_cells": 97.68
+        },
+        "bow": {
+          "mean_balanced_cells": 0.0,
+          "mean_zero_sum_cells": 80.5
+        },
+        "rehair": {
+          "mean_balanced_cells": 0.0,
+          "mean_zero_sum_cells": 79.21
+        },
+        "cross": {
+          "mean_balanced_cells": 0.0,
+          "mean_zero_sum_cells": 0.5
+        },
+        "bars2": {
+          "mean_balanced_cells": 0.0,
+          "mean_zero_sum_cells": 0.45
+        },
+        "trips2": {
+          "mean_balanced_cells": 0.0,
+          "mean_zero_sum_cells": 0.46
+        },
+        "bow2": {
+          "mean_balanced_cells": 0.0,
+          "mean_zero_sum_cells": 0.56
+        },
+        "rehair2": {
+          "mean_balanced_cells": 0.0,
+          "mean_zero_sum_cells": 0.45
+        },
+        "round1": {
+          "mean_balanced_cells": 0.0,
+          "mean_zero_sum_cells": 0.5
+        }
+      }
+    }
+  },
+  "integral_rounds": {
+    "one_cell": {
+      "1": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        1,
+        2,
+        0
+      ],
+      "2": [
+        0,
+        2,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        1,
+        1,
+        3,
+        0,
+        2,
+        1,
+        0,
+        0
+      ],
+      "3": [
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    "two_cells": {
+      "1": [
+        1,
+        0,
+        2
+      ],
+      "2": [
+        1,
+        0,
+        1
+      ]
+    },
+    "random_expect_zero_sum_cells": 0.5
+  },
+  "cube_rounds": {
+    "R1_d4": [
+      71,
+      60,
+      65,
+      62
+    ],
+    "R1_d8": [
+      61,
+      59,
+      61,
+      57
+    ],
+    "R1_d12": [
+      51,
+      68,
+      57,
+      72
+    ],
+    "R1_d16": [
+      74,
+      74,
+      57,
+      73
+    ],
+    "R2_d4": [
+      64,
+      56,
+      59,
+      73
+    ],
+    "R2_d8": [
+      80,
+      76,
+      73,
+      80
+    ],
+    "R2_d12": [
+      72,
+      56,
+      53,
+      63
+    ],
+    "R2_d16": [
+      74,
+      71,
+      74,
+      62
+    ]
+  },
+  "cube_rounds_note": "always-zero bits over 4 bases; random expectation 1024/16 = 64",
+  "bow_conditional_cubes": {
+    "metric": "fraction of output bits with zero cube sum (random 0.5)",
+    "layouts": {
+      "new": {
+        "cells(5, 6, 7)_d2": 0.966,
+        "cells(5, 6, 7)_d4": 0.985,
+        "cells(5, 6, 7)_d6": 0.99,
+        "cells(5, 6, 7)_d8": 0.992,
+        "cells(5, 6, 7)_d10": 0.992,
+        "cells(5, 6, 7)_d12": 0.996,
+        "cells(6, 7)_d2": 0.977,
+        "cells(6, 7)_d4": 0.988,
+        "cells(6, 7)_d6": 0.991,
+        "cells(6, 7)_d8": 0.996,
+        "cells(6, 7)_d10": 0.999,
+        "cells(6, 7)_d12": 1.0,
+        "cells(0, 1, 2, 3, 4, 5, 6, 7)_d2": 0.818,
+        "cells(0, 1, 2, 3, 4, 5, 6, 7)_d4": 0.916,
+        "cells(0, 1, 2, 3, 4, 5, 6, 7)_d6": 0.952,
+        "cells(0, 1, 2, 3, 4, 5, 6, 7)_d8": 0.975,
+        "cells(0, 1, 2, 3, 4, 5, 6, 7)_d10": 0.979,
+        "cells(0, 1, 2, 3, 4, 5, 6, 7)_d12": 0.986
+      },
+      "old": {
+        "cells(5, 6, 7)_d2": 0.873,
+        "cells(5, 6, 7)_d4": 0.915,
+        "cells(5, 6, 7)_d6": 0.962,
+        "cells(5, 6, 7)_d8": 0.957,
+        "cells(5, 6, 7)_d10": 0.961,
+        "cells(5, 6, 7)_d12": 0.963,
+        "cells(6, 7)_d2": 0.895,
+        "cells(6, 7)_d4": 0.952,
+        "cells(6, 7)_d6": 0.958,
+        "cells(6, 7)_d8": 0.954,
+        "cells(6, 7)_d10": 0.969,
+        "cells(6, 7)_d12": 0.962,
+        "cells(0, 1, 2, 3, 4, 5, 6, 7)_d2": 0.85,
+        "cells(0, 1, 2, 3, 4, 5, 6, 7)_d4": 0.93,
+        "cells(0, 1, 2, 3, 4, 5, 6, 7)_d6": 0.961,
+        "cells(0, 1, 2, 3, 4, 5, 6, 7)_d8": 0.973,
+        "cells(0, 1, 2, 3, 4, 5, 6, 7)_d10": 0.988,
+        "cells(0, 1, 2, 3, 4, 5, 6, 7)_d12": 0.984
+      }
+    },
+    "note": "Cubes on beats 5-7 leave beat 0 constant, so in the NEW layout the last two strokes use fixed rotations; compare with the old layout where (5,6,7) read beat 7."
+  },
+  "additive_integral": [
+    {
+      "rounds": 1,
+      "zero_add_sum_frac": 0.0034,
+      "random": 0.0039
+    },
+    {
+      "rounds": 2,
+      "zero_add_sum_frac": 0.0044,
+      "random": 0.0039
+    }
+  ],
+  "system_size_16_rounds": {
+    "sboxes_per_round": 768,
+    "note": "per round: S(128)+bars B0(32 S-box lookups per pass x2)+rehair(128 per pass x2)+S2(128) = 128+64+256+128 = 576 S-box evaluations; x16 = 9216; with 39 quadratic equations each ~359k equations over ~74k state bits plus ARX carries; unchanged by the beat-7 constant"
+  },
+  "seconds": 150.7,
+  "finished": "2026-11-09 09:31:44 AM EST (America/New_York)"
+}

@@ -1,0 +1,13 @@
+2026-11-08 10:51:32 AM EST (America/New_York)
+Protected files before/after: 309/309
+Changed: []
+Added outside attacks_siv/: []
+Removed: []
+/workspace/sneak_n2/attacks/: 9 files; inventory SHA256 22dfa2d4dc12e35aac5764cc0355f8e1ceffa386d466dcfe62c48f6451b3ead8
+/workspace/sneak_n2/attacks_8bit/: 32 files; inventory SHA256 2b72593c79e0bc1e85ea65d17b51f5ac2539b5c0f85a682855f4fff2adbe7366
+/workspace/sneak_n2/baselines/: 2 files; inventory SHA256 3ab3a161841ca20f054350dc7f5de36de29187abb9ea6727bde603a1537d4beb
+/workspace/sneak_n2/sneak_n2.py: 1 files; inventory SHA256 3c61ec2c41784ca7d3ca513f9bc3a52f559987d1dd91d121c91ca2005e29bf86
+/workspace/sneak1024-seed.txt: 1 files; inventory SHA256 a9c60fc9f5f23c33f10cb5daa0fd0b8240a107f77c05ffc22374955136ebd8b7
+/tmp/sneak_n2_8bit_precolor2/: 22 files; inventory SHA256 99196e15287fd467c016f970d9fd3a2d6d18ee971035440c622673eb92cd3fb9
+/tmp/sneak_n2_pre_clef_encore_siv/: 57 files; inventory SHA256 991026725be62522fe1ad9274a5b16ed2321b03dda36826cac64b05bd86a2da1
+PASS: all protected content byte-identical.

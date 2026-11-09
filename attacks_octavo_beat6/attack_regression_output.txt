@@ -1,0 +1,211 @@
+2026-11-09 09:29:48 AM EST (America/New_York)
+{
+  "started": "2026-11-09 09:27:43 AM EST (America/New_York)",
+  "live_sha": "922a29d89be68b29a2be08873ff5a99a7cf264afebe1ece0387aa0f4fe56fe10",
+  "integrity": {
+    "hello_pickup": "d450337d3bbe0b460ae4298952279c7a",
+    "hello_nonce": "b7e6267acbb2ecc0013ab8c73e0532c2",
+    "single_bit_flips": {
+      "AuthError: bad version prefix": 24,
+      "AuthError: tag mismatch": 1536
+    },
+    "older_samples": {
+      "ee95ddb278a849bae4a34fe594ee87e5": "AuthError: tag mismatch",
+      "76908595dcdc8f11ff9e045ac25c080c": "AuthError: tag mismatch",
+      "24d554eb3d22f0b6412d7da59e504df1": "AuthError: tag mismatch",
+      "a287436b086c25ff762366eb747704d0": "AuthError: tag mismatch",
+      "724da1f42b3aa81489b97a1dcaeb14c4": "AuthError: tag mismatch"
+    },
+    "splices_with_previous": {
+      "AuthError: tag mismatch": 14
+    },
+    "wrong_lengths": {
+      "AuthError: bad blob length": 198
+    },
+    "random_SN2_blobs": {
+      "AuthError: tag mismatch": 200
+    },
+    "ct_byte_corruptions_500": {
+      "AuthError: tag mismatch": 500
+    },
+    "tag_byte_corruptions_200": {
+      "AuthError: tag mismatch": 200
+    },
+    "seed_holder_valid_tag_wrong_siv": "AuthError: SIV nonce mismatch",
+    "seed_holder_valid_tag_random_ct": "DecodeError: tag valid but block malformed",
+    "any_accepted_or_decodeerror_without_seed": false
+  },
+  "nonce_pickup": {
+    "caller_nonce_reuse": "ValueError: nonce must be the synthetic (SIV) nonce for this message and pickup",
+    "caller_zero_nonce": "ValueError: nonce must be the synthetic (SIV) nonce for this message and pickup",
+    "1000_encryptions_same_msg": {
+      "unique_pickups": 1000,
+      "unique_nonces": 1000
+    },
+    "fixed_pickup_model": {
+      "same_msg_identical_blob": true,
+      "different_msg_same_nonce": false,
+      "ct_byte_equal_count_between_two_msgs": 3,
+      "decrypts": [
+        "b'hello world'",
+        "b'hello worle'"
+      ],
+      "note": "If os.urandom were broken, equal messages give equal blobs (deterministic-AE equality leak); different messages still get different SIV nonces and unrelated ciphertexts."
+    },
+    "decrypt_rejects_valid_tag_with_non_synthetic_nonce": "AuthError: SIV nonce mismatch"
+  },
+  "related_nonce": {
+    "rk_hd": [
+      511.194,
+      3.749
+    ],
+    "S_agree": [
+      0.958,
+      0.221
+    ],
+    "mac_hd": [
+      128.0,
+      7.871
+    ],
+    "white_hd": [
+      510.646,
+      14.439
+    ],
+    "pairs": 48,
+    "ideal": {
+      "rk_hd": 512,
+      "S_agree": 1,
+      "mac_hd": 128,
+      "white_hd": 512
+    }
+  },
+  "slide": {
+    "schedules": 100,
+    "round_pairs": 12000,
+    "equal_counts": {
+      "rk": 0,
+      "S": 0,
+      "S2": 0,
+      "sigma": 0,
+      "bridge": 0,
+      "SH": 0,
+      "SV": 0,
+      "S_eq_S2_same_round": 0
+    },
+    "total_equal_full_rounds": 0
+  },
+  "key_signature_tamper": {
+    "live_key_sig": "24e1afabdbc879a21dfb00f45bf0afd3",
+    "closure_code_names": 57,
+    "closure_data_names": 35,
+    "MIX_CODE_FUNCS": 62,
+    "cases": [
+      {
+        "change": "revert BOW_STROKES to previous (4,5,6) layout",
+        "key_sig_changed": true,
+        "key_sig_error": null,
+        "cipher_behaviour_changed": true,
+        "behaviour_error": null,
+        "live_decrypt_of_tampered_blob": "AuthError: tag mismatch",
+        "signature_blind_spot": false
+      },
+      {
+        "change": "identity staff_mix (prior blind-spot demo)",
+        "key_sig_changed": true,
+        "key_sig_error": null,
+        "cipher_behaviour_changed": true,
+        "behaviour_error": null,
+        "live_decrypt_of_tampered_blob": "AuthError: tag mismatch",
+        "signature_blind_spot": false
+      },
+      {
+        "change": "odd_restack replaced by identity function",
+        "key_sig_changed": true,
+        "key_sig_error": null,
+        "cipher_behaviour_changed": true,
+        "behaviour_error": null,
+        "live_decrypt_of_tampered_blob": "AuthError: tag mismatch",
+        "signature_blind_spot": false
+      },
+      {
+        "change": "BARS drop B0",
+        "key_sig_changed": true,
+        "key_sig_error": null,
+        "cipher_behaviour_changed": true,
+        "behaviour_error": null,
+        "live_decrypt_of_tampered_blob": "AuthError: tag mismatch",
+        "signature_blind_spot": false
+      },
+      {
+        "change": "MIX2_MATRIX -> ((1,1),(1,3))",
+        "key_sig_changed": true,
+        "key_sig_error": null,
+        "cipher_behaviour_changed": true,
+        "behaviour_error": null,
+        "live_decrypt_of_tampered_blob": "AuthError: tag mismatch",
+        "signature_blind_spot": false
+      },
+      {
+        "change": "NR 16 -> 8",
+        "key_sig_changed": true,
+        "key_sig_error": null,
+        "cipher_behaviour_changed": null,
+        "behaviour_error": "IndexError",
+        "live_decrypt_of_tampered_blob": "IndexError: list index out of range",
+        "signature_blind_spot": false
+      },
+      {
+        "change": "default arg: encrypt_grid rounds default 16 -> 4",
+        "key_sig_changed": true,
+        "key_sig_error": null,
+        "cipher_behaviour_changed": true,
+        "behaviour_error": null,
+        "live_decrypt_of_tampered_blob": "AuthError: tag mismatch",
+        "signature_blind_spot": false
+      },
+      {
+        "change": "new module global shadowing builtin sum (builtin object)",
+        "key_sig_changed": null,
+        "key_sig_error": "TypeError: cannot attest object of type builtin_function_or_method",
+        "cipher_behaviour_changed": true,
+        "behaviour_error": null,
+        "live_decrypt_of_tampered_blob": "TypeError: cannot attest object of type builtin_function_or_method",
+        "signature_blind_spot": false
+      },
+      {
+        "change": "bow_stroke rebuilt from its own __code__ with foreign globals (BOW_ROT_MOD=5 seen only by bow_stroke)",
+        "key_sig_changed": false,
+        "key_sig_error": null,
+        "cipher_behaviour_changed": true,
+        "behaviour_error": null,
+        "live_decrypt_of_tampered_blob": "DecodeError: tag valid but block malformed",
+        "signature_blind_spot": true
+      },
+      {
+        "change": "bow_stroke __code__ edited in memory (co_names swap BOW_R2_SHIFT->BOW_ROT_BASE)",
+        "key_sig_changed": false,
+        "key_sig_error": null,
+        "cipher_behaviour_changed": true,
+        "behaviour_error": null,
+        "live_decrypt_of_tampered_blob": "DecodeError: tag valid but block malformed",
+        "signature_blind_spot": true
+      },
+      {
+        "change": "builtins.divmod patched (used by shell_mix); interpreter-level",
+        "key_sig_changed": false,
+        "key_sig_error": null,
+        "cipher_behaviour_changed": true,
+        "behaviour_error": null,
+        "live_decrypt_of_tampered_blob": "DecodeError: tag valid but block malformed",
+        "signature_blind_spot": true
+      }
+    ],
+    "blind_spots": [
+      "bow_stroke rebuilt from its own __code__ with foreign globals (BOW_ROT_MOD=5 seen only by bow_stroke)",
+      "bow_stroke __code__ edited in memory (co_names swap BOW_R2_SHIFT->BOW_ROT_BASE)",
+      "builtins.divmod patched (used by shell_mix); interpreter-level"
+    ]
+  },
+  "seconds": 125.4,
+  "finished": "2026-11-09 09:29:48 AM EST (America/New_York)"
+}

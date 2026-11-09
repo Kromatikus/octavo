@@ -1,0 +1,13 @@
+Same seed+message -> identical 179-byte blob 200 /200 (passive equality leak: repeated messages are visible)
+SIV nonces for 200000 distinct messages: distinct 200000 (collision expected only near 2^64)
+1-bit message flip -> SIV nonce bits changed mean/min/max 64.46 44 76 /128 | zero-message length change mean 63.84
+encrypt(guess, nonce=target_nonce): rejected 999 /1000, accepted only [b'PIN=731'] | random caller nonce for the true message rejected 1000 /1000
+NOTE: the ValueError itself is an oracle: if a caller can pass nonce=target_nonce, "no ValueError" confirms the guess (accepted list above) -- same power as comparing blobs.
+Dictionary via encrypt(guess)==target_blob: found PIN 731 after 732 guesses 13.08 s
+Same with only the public nonce field: PIN 731 after 732 (needs clef = seed-holder/oracle access)
+Offline guess check WITHOUT the clef (2003 clef guesses, true PIN): 0 matches -> no offline dictionary without the seed-derived clef
+ct1^ct2 == pt1^pt2 holds 0 /300; mean ct XOR weight 511.99 /1024
+Wrong nonce + original tag (seedless): {'AuthError:tag mismatch': 202}
+KEY-HOLDER: well-formed hello world under random non-SIV nonce + recomputed valid tag -> {'AuthError:SIV nonce mismatch': 256}
+KEY-HOLDER: hello ct under random nonce + recomputed tag -> {'DecodeError': 255, 'AuthError:SIV nonce mismatch': 1}
+Summary: SIV binds nonce to message; reuse with different messages is impossible through encrypt(); equality of identical messages and oracle dictionary attacks remain (expected for deterministic AE).

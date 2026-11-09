@@ -1,0 +1,999 @@
+{
+  "started": "2026-11-08 06:48:25 PM EST (America/New_York)",
+  "primary_schedule": "Schedule(seed, recorded hello-world nonce db8839e7...) = live current demo",
+  "white_box": "raw blocks under one fixed known-seed schedule; not reachable through randomized public encrypt()",
+  "old_cell18_trail": {
+    "current_hello_nonce": {
+      "pairs_conditioned_S_delta80": 32768,
+      "confined_to_37_38_39": 0,
+      "min_active": 44,
+      "max_active": 48
+    },
+    "pickup_era_hello_nonce_4ea3": {
+      "pairs_conditioned_S_delta80": 32768,
+      "confined_to_37_38_39": 0,
+      "min_active": 59,
+      "max_active": 64
+    },
+    "demo_nonce_b98b": {
+      "pairs_conditioned_S_delta80": 32768,
+      "confined_to_37_38_39": 0,
+      "min_active": 29,
+      "max_active": 32
+    }
+  },
+  "cell34_trail": {
+    "current_hello_nonce": {
+      "best_fixed_delta_for_S80": 139,
+      "DDT_count": 4,
+      "modes": {
+        "random_delta": {
+          "pairs": 200000,
+          "S_delta80_count": 728,
+          "confined_to_56_63": 0,
+          "min_active_bytes": 44,
+          "max_active_bytes": 48,
+          "min_active_staffs": 6,
+          "mean_active_staffs": 6.0
+        },
+        "best_fixed_delta": {
+          "pairs": 200000,
+          "S_delta80_count": 3079,
+          "confined_to_56_63": 0,
+          "min_active_bytes": 44,
+          "max_active_bytes": 48,
+          "min_active_staffs": 6,
+          "mean_active_staffs": 6.0
+        },
+        "conditioned_on_S_delta80": {
+          "pairs": 200000,
+          "S_delta80_count": 200000,
+          "confined_to_56_63": 0,
+          "min_active_bytes": 44,
+          "max_active_bytes": 48,
+          "min_active_staffs": 6,
+          "mean_active_staffs": 6.0
+        }
+      }
+    },
+    "pickup_era_hello_nonce_4ea3": {
+      "best_fixed_delta_for_S80": 127,
+      "DDT_count": 4,
+      "modes": {
+        "random_delta": {
+          "pairs": 200000,
+          "S_delta80_count": 784,
+          "confined_to_56_63": 0,
+          "min_active_bytes": 60,
+          "max_active_bytes": 64,
+          "min_active_staffs": 8,
+          "mean_active_staffs": 8.0
+        },
+        "best_fixed_delta": {
+          "pairs": 200000,
+          "S_delta80_count": 3144,
+          "confined_to_56_63": 0,
+          "min_active_bytes": 59,
+          "max_active_bytes": 64,
+          "min_active_staffs": 8,
+          "mean_active_staffs": 8.0
+        },
+        "conditioned_on_S_delta80": {
+          "pairs": 200000,
+          "S_delta80_count": 200000,
+          "confined_to_56_63": 0,
+          "min_active_bytes": 59,
+          "max_active_bytes": 64,
+          "min_active_staffs": 8,
+          "mean_active_staffs": 8.0
+        }
+      }
+    }
+  },
+  "one_round_search": {
+    "configs": "128 cells x 255 S-output deltas x 64 random bases = 2,088,960 pairs",
+    "active_byte_histogram": {
+      "36": 7,
+      "37": 358,
+      "38": 6786,
+      "39": 87237,
+      "40": 558412,
+      "43": 2,
+      "44": 25,
+      "45": 814,
+      "46": 12993,
+      "47": 142395,
+      "48": 757691,
+      "51": 1,
+      "52": 35,
+      "53": 526,
+      "54": 7328,
+      "55": 68995,
+      "56": 314795,
+      "60": 12,
+      "61": 257,
+      "62": 3277,
+      "63": 25511,
+      "64": 101503
+    },
+    "active_staff_histogram": {
+      "5": 652800,
+      "6": 913920,
+      "7": 391680,
+      "8": 130560
+    },
+    "global_min_active_bytes": 36,
+    "global_min_active_staffs": 5,
+    "strongest": {
+      "cell": 26,
+      "S_delta": 1,
+      "union_active_bytes_over_64_bases": 40,
+      "single_pair_min_bytes": 36,
+      "single_pair_witness": {
+        "x": "05c42030c7a7c14544f26a53388d3d8cb299532aaf84242ffd36825b775c3fea105a8e52db0bccc7fa27c0a6804b172c7e8cf4f93db57b7f0b26d942cdd6e029039f7fe3d44f4d90fc66de1c90745734431b6da7190adabfd0201a1582595b3698472975e5c80ba6179d84894f27866268b0329e3a1364e39cb2cbdbd8ac2b2d",
+        "y": "05c42030c7a7c14544f26a53388d3d8cb299532aaf84242ffd36c85b775c3fea105a8e52db0bccc7fa27c0a6804b172c7e8cf4f93db57b7f0b26d942cdd6e029039f7fe3d44f4d90fc66de1c90745734431b6da7190adabfd0201a1582595b3698472975e5c80ba6179d84894f27866268b0329e3a1364e39cb2cbdbd8ac2b2d",
+        "S_delta": 34,
+        "active_positions": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          48,
+          49,
+          50,
+          51,
+          52,
+          53,
+          54,
+          55,
+          56,
+          57,
+          59,
+          60,
+          61,
+          62,
+          63,
+          80,
+          81,
+          82,
+          83,
+          85,
+          86,
+          87
+        ],
+        "live_verified": true
+      }
+    },
+    "per_cell": [
+      {
+        "cell": 0,
+        "min_active_bytes": 44,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.82
+      },
+      {
+        "cell": 1,
+        "min_active_bytes": 44,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 2,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.84
+      },
+      {
+        "cell": 3,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.85
+      },
+      {
+        "cell": 4,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 5,
+        "min_active_bytes": 44,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 6,
+        "min_active_bytes": 52,
+        "min_active_staffs": 7,
+        "mean_active_bytes": 55.79
+      },
+      {
+        "cell": 7,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 8,
+        "min_active_bytes": 44,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.82
+      },
+      {
+        "cell": 9,
+        "min_active_bytes": 52,
+        "min_active_staffs": 7,
+        "mean_active_bytes": 55.78
+      },
+      {
+        "cell": 10,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 11,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 12,
+        "min_active_bytes": 52,
+        "min_active_staffs": 7,
+        "mean_active_bytes": 55.78
+      },
+      {
+        "cell": 13,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.82
+      },
+      {
+        "cell": 14,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 15,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.84
+      },
+      {
+        "cell": 16,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.85
+      },
+      {
+        "cell": 17,
+        "min_active_bytes": 52,
+        "min_active_staffs": 7,
+        "mean_active_bytes": 55.79
+      },
+      {
+        "cell": 18,
+        "min_active_bytes": 43,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 19,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 20,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.84
+      },
+      {
+        "cell": 21,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 22,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.84
+      },
+      {
+        "cell": 23,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.84
+      },
+      {
+        "cell": 24,
+        "min_active_bytes": 51,
+        "min_active_staffs": 7,
+        "mean_active_bytes": 55.78
+      },
+      {
+        "cell": 25,
+        "min_active_bytes": 44,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.82
+      },
+      {
+        "cell": 26,
+        "min_active_bytes": 36,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.84
+      },
+      {
+        "cell": 27,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.84
+      },
+      {
+        "cell": 28,
+        "min_active_bytes": 52,
+        "min_active_staffs": 7,
+        "mean_active_bytes": 55.78
+      },
+      {
+        "cell": 29,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.84
+      },
+      {
+        "cell": 30,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.84
+      },
+      {
+        "cell": 31,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 32,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 33,
+        "min_active_bytes": 52,
+        "min_active_staffs": 7,
+        "mean_active_bytes": 55.78
+      },
+      {
+        "cell": 34,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 35,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 36,
+        "min_active_bytes": 44,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 37,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.84
+      },
+      {
+        "cell": 38,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.84
+      },
+      {
+        "cell": 39,
+        "min_active_bytes": 36,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.84
+      },
+      {
+        "cell": 40,
+        "min_active_bytes": 52,
+        "min_active_staffs": 7,
+        "mean_active_bytes": 55.79
+      },
+      {
+        "cell": 41,
+        "min_active_bytes": 61,
+        "min_active_staffs": 8,
+        "mean_active_bytes": 63.75
+      },
+      {
+        "cell": 42,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 43,
+        "min_active_bytes": 44,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 44,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 45,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.82
+      },
+      {
+        "cell": 46,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 47,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 48,
+        "min_active_bytes": 44,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 49,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 50,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 51,
+        "min_active_bytes": 52,
+        "min_active_staffs": 7,
+        "mean_active_bytes": 55.78
+      },
+      {
+        "cell": 52,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.85
+      },
+      {
+        "cell": 53,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.84
+      },
+      {
+        "cell": 54,
+        "min_active_bytes": 44,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 55,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 56,
+        "min_active_bytes": 52,
+        "min_active_staffs": 7,
+        "mean_active_bytes": 55.78
+      },
+      {
+        "cell": 57,
+        "min_active_bytes": 60,
+        "min_active_staffs": 8,
+        "mean_active_bytes": 63.74
+      },
+      {
+        "cell": 58,
+        "min_active_bytes": 44,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.82
+      },
+      {
+        "cell": 59,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 60,
+        "min_active_bytes": 52,
+        "min_active_staffs": 7,
+        "mean_active_bytes": 55.78
+      },
+      {
+        "cell": 61,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 62,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.84
+      },
+      {
+        "cell": 63,
+        "min_active_bytes": 52,
+        "min_active_staffs": 7,
+        "mean_active_bytes": 55.79
+      },
+      {
+        "cell": 64,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.85
+      },
+      {
+        "cell": 65,
+        "min_active_bytes": 53,
+        "min_active_staffs": 7,
+        "mean_active_bytes": 55.78
+      },
+      {
+        "cell": 66,
+        "min_active_bytes": 52,
+        "min_active_staffs": 7,
+        "mean_active_bytes": 55.78
+      },
+      {
+        "cell": 67,
+        "min_active_bytes": 52,
+        "min_active_staffs": 7,
+        "mean_active_bytes": 55.78
+      },
+      {
+        "cell": 68,
+        "min_active_bytes": 43,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 69,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 70,
+        "min_active_bytes": 52,
+        "min_active_staffs": 7,
+        "mean_active_bytes": 55.78
+      },
+      {
+        "cell": 71,
+        "min_active_bytes": 52,
+        "min_active_staffs": 7,
+        "mean_active_bytes": 55.78
+      },
+      {
+        "cell": 72,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.82
+      },
+      {
+        "cell": 73,
+        "min_active_bytes": 52,
+        "min_active_staffs": 7,
+        "mean_active_bytes": 55.79
+      },
+      {
+        "cell": 74,
+        "min_active_bytes": 52,
+        "min_active_staffs": 7,
+        "mean_active_bytes": 55.78
+      },
+      {
+        "cell": 75,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.84
+      },
+      {
+        "cell": 76,
+        "min_active_bytes": 52,
+        "min_active_staffs": 7,
+        "mean_active_bytes": 55.78
+      },
+      {
+        "cell": 77,
+        "min_active_bytes": 52,
+        "min_active_staffs": 7,
+        "mean_active_bytes": 55.78
+      },
+      {
+        "cell": 78,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.85
+      },
+      {
+        "cell": 79,
+        "min_active_bytes": 60,
+        "min_active_staffs": 8,
+        "mean_active_bytes": 63.75
+      },
+      {
+        "cell": 80,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.84
+      },
+      {
+        "cell": 81,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 82,
+        "min_active_bytes": 52,
+        "min_active_staffs": 7,
+        "mean_active_bytes": 55.78
+      },
+      {
+        "cell": 83,
+        "min_active_bytes": 53,
+        "min_active_staffs": 7,
+        "mean_active_bytes": 55.78
+      },
+      {
+        "cell": 84,
+        "min_active_bytes": 44,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 85,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.84
+      },
+      {
+        "cell": 86,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.84
+      },
+      {
+        "cell": 87,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.84
+      },
+      {
+        "cell": 88,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.84
+      },
+      {
+        "cell": 89,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.84
+      },
+      {
+        "cell": 90,
+        "min_active_bytes": 44,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.82
+      },
+      {
+        "cell": 91,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.85
+      },
+      {
+        "cell": 92,
+        "min_active_bytes": 36,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.84
+      },
+      {
+        "cell": 93,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.82
+      },
+      {
+        "cell": 94,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 95,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 96,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 97,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 98,
+        "min_active_bytes": 36,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.84
+      },
+      {
+        "cell": 99,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 100,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 101,
+        "min_active_bytes": 60,
+        "min_active_staffs": 8,
+        "mean_active_bytes": 63.75
+      },
+      {
+        "cell": 102,
+        "min_active_bytes": 44,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 103,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 104,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.82
+      },
+      {
+        "cell": 105,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.85
+      },
+      {
+        "cell": 106,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 107,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 108,
+        "min_active_bytes": 60,
+        "min_active_staffs": 8,
+        "mean_active_bytes": 63.75
+      },
+      {
+        "cell": 109,
+        "min_active_bytes": 60,
+        "min_active_staffs": 8,
+        "mean_active_bytes": 63.75
+      },
+      {
+        "cell": 110,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.85
+      },
+      {
+        "cell": 111,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 112,
+        "min_active_bytes": 44,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.82
+      },
+      {
+        "cell": 113,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.85
+      },
+      {
+        "cell": 114,
+        "min_active_bytes": 36,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.85
+      },
+      {
+        "cell": 115,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.82
+      },
+      {
+        "cell": 116,
+        "min_active_bytes": 60,
+        "min_active_staffs": 8,
+        "mean_active_bytes": 63.75
+      },
+      {
+        "cell": 117,
+        "min_active_bytes": 60,
+        "min_active_staffs": 8,
+        "mean_active_bytes": 63.74
+      },
+      {
+        "cell": 118,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.84
+      },
+      {
+        "cell": 119,
+        "min_active_bytes": 36,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.84
+      },
+      {
+        "cell": 120,
+        "min_active_bytes": 45,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.81
+      },
+      {
+        "cell": 121,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.84
+      },
+      {
+        "cell": 122,
+        "min_active_bytes": 53,
+        "min_active_staffs": 7,
+        "mean_active_bytes": 55.78
+      },
+      {
+        "cell": 123,
+        "min_active_bytes": 36,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.84
+      },
+      {
+        "cell": 124,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.85
+      },
+      {
+        "cell": 125,
+        "min_active_bytes": 44,
+        "min_active_staffs": 6,
+        "mean_active_bytes": 47.82
+      },
+      {
+        "cell": 126,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.84
+      },
+      {
+        "cell": 127,
+        "min_active_bytes": 37,
+        "min_active_staffs": 5,
+        "mean_active_bytes": 39.85
+      }
+    ],
+    "random_comparison": "For a random 1024-bit permutation, a nonzero output difference has <=k active bytes with probability about C(128,k)*2^(-8*(128-k)); anything < 128 active bytes is a white-box structural distinguisher at 1 round."
+  },
+  "old_two_round_witness_replay": {
+    "old_witness": {
+      "cell": 30,
+      "delta": 51,
+      "zero_bytes": 10,
+      "zero_positions": [
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        80,
+        116
+      ]
+    },
+    "current_cipher_current_hello_nonce": {
+      "zero_bytes": 0,
+      "zero_positions": []
+    },
+    "current_cipher_pickup_era_hello_nonce_4ea3": {
+      "zero_bytes": 0,
+      "zero_positions": []
+    },
+    "current_cipher_demo_nonce_b98b": {
+      "zero_bytes": 1,
+      "zero_positions": [
+        125
+      ]
+    },
+    "pre_three_fixes_library_pickup_era_nonce_reproduces": {
+      "zero_bytes": 10,
+      "zero_positions": [
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        80,
+        116
+      ],
+      "matches_old_report": true
+    }
+  },
+  "finished": "2026-11-08 06:50:05 PM EST (America/New_York)"
+}

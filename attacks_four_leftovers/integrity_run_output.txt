@@ -1,0 +1,22 @@
+{'length': 195, 'plaintext': 'hello world', 'pickup': '724da1f42b3aa81489b97a1dcaeb14c4', 'nonce': '4c6c2d12c72419fcb721e2d2aad9800c', 'tag': '9f8ed30e0104b99c4f38b46583aa76340c908af62242d9f8f637abfd13b55731', 'nonce_formula_ok': True, 'tag_recomputed_ok': True, 'reencrypt_different': True, 'encrypt_signature': '(msg: bytes, seed=None, nonce: bytes = None) -> bytes'}
+bitflips Counter({'AuthError: tag mismatch': 1536, 'AuthError: bad version prefix': 24})
+sneak_n2_4bit_unlooped 115 AuthError: bad blob length
+sneak_n2_8bit_prebar 179 AuthError: bad blob length
+sneak_n2_8bit_precolor2 179 AuthError: bad blob length
+sneak_n2_looped_meter 203 AuthError: bad blob length
+sneak_n2_pre_clef_encore_siv 179 AuthError: bad blob length
+sneak_n2_pre_cross_staff 195 AuthError: tag mismatch
+sneak_n2_pre_field_retune 179 AuthError: bad blob length
+sneak_n2_pre_four_leftovers 195 AuthError: tag mismatch
+sneak_n2_pre_join_pairs 179 AuthError: bad blob length
+sneak_n2_pre_pickup 179 AuthError: bad blob length
+sneak_n2_pre_three_fixes 195 AuthError: tag mismatch
+sneak_n2_pre_triplet 179 AuthError: bad blob length
+sneak_n2_preloop_backup 115 AuthError: bad blob length
+sneak_n2_premeter 115 AuthError: bad blob length
+sneak_n2_unlooped_meter 203 AuthError: bad blob length
+testn3 179 AuthError: bad blob length
+testn4 195 AuthError: tag mismatch
+integrity done
+0 0
+attack_integrity_pin saved

@@ -1,0 +1,278 @@
+{
+  "started": "2026-11-09 09:33:57 AM EST (America/New_York)",
+  "metric": "fraction of output bits with zero cube sum (random 0.5); bow/rehair counted on the active staff(s) only, later stages on all 128 cells",
+  "live": {
+    "one_staff_d8": {
+      "bow": 0.996,
+      "rehair": 0.788,
+      "cross": 0.842,
+      "S2": 0.842,
+      "next_half": 0.5,
+      "rehair_zero_frac_by_out_beat_active_staff": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        0.615,
+        0.62,
+        0.552,
+        0.521
+      ]
+    },
+    "one_staff_d12": {
+      "bow": 0.999,
+      "rehair": 0.852,
+      "cross": 0.887,
+      "S2": 0.886,
+      "next_half": 0.503,
+      "rehair_zero_frac_by_out_beat_active_staff": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        0.802,
+        0.823,
+        0.589,
+        0.599
+      ]
+    },
+    "one_staff_d16": {
+      "bow": 1.0,
+      "rehair": 0.852,
+      "cross": 0.889,
+      "S2": 0.892,
+      "next_half": 0.502,
+      "rehair_zero_frac_by_out_beat_active_staff": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        0.844,
+        0.812,
+        0.5,
+        0.656
+      ]
+    },
+    "all16staffs_d8": {
+      "bow": 1.0,
+      "rehair": 1.0,
+      "cross": 1.0,
+      "S2": 0.929,
+      "next_half": 0.495
+    },
+    "all16staffs_d12": {
+      "bow": 1.0,
+      "rehair": 1.0,
+      "cross": 1.0,
+      "S2": 0.998,
+      "next_half": 0.501
+    },
+    "all16staffs_d16": {
+      "bow": 1.0,
+      "rehair": 1.0,
+      "cross": 1.0,
+      "S2": 0.984,
+      "next_half": 0.505
+    }
+  },
+  "previous_(4,5,6)": {
+    "one_staff_d8": {
+      "bow": 0.958,
+      "rehair": 0.747,
+      "cross": 0.81,
+      "S2": 0.816,
+      "next_half": 0.496,
+      "rehair_zero_frac_by_out_beat_active_staff": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        0.521,
+        0.51,
+        0.479,
+        0.464
+      ]
+    },
+    "one_staff_d12": {
+      "bow": 0.949,
+      "rehair": 0.736,
+      "cross": 0.808,
+      "S2": 0.806,
+      "next_half": 0.503,
+      "rehair_zero_frac_by_out_beat_active_staff": [
+        1.0,
+        1.0,
+        0.969,
+        0.979,
+        0.5,
+        0.448,
+        0.516,
+        0.474
+      ]
+    },
+    "one_staff_d16": {
+      "bow": 0.973,
+      "rehair": 0.75,
+      "cross": 0.812,
+      "S2": 0.814,
+      "next_half": 0.5,
+      "rehair_zero_frac_by_out_beat_active_staff": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        0.469,
+        0.516,
+        0.562,
+        0.453
+      ]
+    },
+    "all16staffs_d8": {
+      "bow": 1.0,
+      "rehair": 1.0,
+      "cross": 1.0,
+      "S2": 0.929,
+      "next_half": 0.502
+    },
+    "all16staffs_d12": {
+      "bow": 1.0,
+      "rehair": 1.0,
+      "cross": 1.0,
+      "S2": 0.991,
+      "next_half": 0.502
+    },
+    "all16staffs_d16": {
+      "bow": 1.0,
+      "rehair": 1.0,
+      "cross": 1.0,
+      "S2": 1.0,
+      "next_half": 0.489
+    }
+  },
+  "bow_input_to_output_dependency": {
+    "live": {
+      "0": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "1": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "2": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "3": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "4": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "5": [
+        3,
+        4,
+        5,
+        6
+      ],
+      "6": [
+        5,
+        6,
+        7
+      ],
+      "7": [
+        5,
+        6,
+        7
+      ]
+    },
+    "previous_(4,5,6)": {
+      "0": [
+        0,
+        1,
+        2,
+        5,
+        6,
+        7
+      ],
+      "1": [
+        0,
+        1,
+        2,
+        5,
+        6,
+        7
+      ],
+      "2": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "3": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "4": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "5": [
+        3,
+        4,
+        5,
+        6
+      ],
+      "6": [
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "7": [
+        5,
+        6,
+        7
+      ]
+    }
+  },
+  "seconds": 66.3,
+  "finished": "2026-11-09 09:35:03 AM EST (America/New_York)"
+}

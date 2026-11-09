@@ -1,0 +1,18 @@
+PASS live target sha256 | 922a29d89be68b29
+PASS live BOW_STROKES = (0,1,2),(2,3,4),(4,5,0),(6,7,0),(1,2,3),(3,4,5),(5,6,0)
+PASS recorded hello-world (pickup d450337d...) decrypts | d450337d
+PASS 43 sampled single-bit flips rejected (AuthError only) | {'tag mismatch', 'bad version prefix'}
+PASS older samples ee95ddb2... (beat-7 era) and 76908595... -> tag mismatch | ['tag mismatch', 'tag mismatch']
+PASS test protocol (odd beats): bow-alone singletons 1148/522,240, bow+rehair 0 | (1148, 0)
+PASS old beat-6 singleton witnesses now change >=2 bytes under all 16 round tables | [4, 4, 4]
+PASS NEW: forced changes: beat0 -> bow out {0,1,2} always change; beat4 -> {5,6}; beat6 -> {5,7} (two pairs => no singleton) | {0: [0, 1, 2], 4: [5, 6], 6: [5, 7]}
+PASS quick all-beat kernel scan: 0 bow+rehair singletons in 4.18 M cases | 0
+PASS NEW: strokes (4,5,0),(6,7,0),(5,6,0) all read beat 0, which nothing writes after stroke 1
+PASS NEW: bow-alone beat6^0x80 -> (..,08,00,08) ~2^-5.6 live (previous layout: far lower); different pairs, rehair spreads it | (-5.66, '-inf')
+PASS NEW: half-round-local integral: beat-6 256-set gives zero sums on rehair out (4,5) in 32/32 bases live (previous few) | (32, 0)
+PASS bow linear: |corr| (c0.b0^c1.b7)->c0.b0 ~0.145 (reported as -0.145 in the +-1 bit convention) and c6.b0->c7.b4 ~0.039 (unchanged by the layout) | (0.1449, 0.0381)
+PASS triplet bit 0 is exactly GF(2)-linear
+PASS key_signature in-process blind spot still open (foreign-globals bow_stroke: behaviour changes, signature does not)
+PASS identity staff_mix demo changes key_sig (still closed)
+16/16 PASS in 3.7 s
+REPLAY PASS

@@ -1,0 +1,51 @@
+{
+  "method": "dependence: Random(5), all 128 byte positions, four trials, three rounds; avalanche: Random(20261108), 300 matched inputs/nonces/bit flips, no whitening (XOR whitening does not affect distances)",
+  "bar_lines_only": {
+    "dependence_min_union": [
+      57,
+      128,
+      128
+    ],
+    "full_dependence_round": 2,
+    "avalanche": [
+      {
+        "round": 1,
+        "mean": 88.20333333333333,
+        "min": 2,
+        "max": 129,
+        "p01": 14
+      },
+      {
+        "round": 2,
+        "mean": 487.42333333333335,
+        "min": 152,
+        "max": 538,
+        "p01": 435
+      }
+    ]
+  },
+  "second_coloring": {
+    "dependence_min_union": [
+      57,
+      128,
+      128
+    ],
+    "full_dependence_round": 2,
+    "avalanche": [
+      {
+        "round": 1,
+        "mean": 103.74,
+        "min": 9,
+        "max": 143,
+        "p01": 51
+      },
+      {
+        "round": 2,
+        "mean": 508.79,
+        "min": 194,
+        "max": 553,
+        "p01": 459
+      }
+    ]
+  }
+}

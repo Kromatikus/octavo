@@ -1,0 +1,174 @@
+{
+  "started": "2026-11-09 09:39:50 AM EST (America/New_York)",
+  "note": "lab copy only; live code untouched",
+  "variants": [
+    "live",
+    "A_bitslice_rotl_p_by_0_3_5",
+    "B_xor_consts_00_5A_C3",
+    "C_add_consts_0_3_5_mod7_offsets"
+  ],
+  "screen": {
+    "live": {
+      "rehair_singletons_by_beat_4.18M": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "forced_changes": {
+        "0": [
+          0,
+          1,
+          2
+        ],
+        "4": [
+          5,
+          6
+        ],
+        "6": [
+          5,
+          7
+        ]
+      },
+      "bow_best_diff_log2": {
+        "0": -8.14,
+        "4": -11.0,
+        "5": -8.09,
+        "6": -5.63,
+        "7": -4.71
+      },
+      "rehair_integral_zero_on_4_5_of_32": {
+        "6": 32,
+        "7": 32
+      },
+      "bow_rehair_cube_d12_zero_frac": 0.656,
+      "corr_c6b0_c7b4": 0.0388
+    },
+    "A_bitslice_rotl_p_by_0_3_5": {
+      "rehair_singletons_by_beat_4.18M": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "forced_changes": {
+        "0": [
+          0,
+          1,
+          2
+        ],
+        "4": [
+          5,
+          6
+        ],
+        "6": [
+          5,
+          7
+        ]
+      },
+      "bow_best_diff_log2": {
+        "0": -10.19,
+        "4": -11.42,
+        "5": -7.79,
+        "6": -7.05,
+        "7": -7.36
+      },
+      "rehair_integral_zero_on_4_5_of_32": {
+        "6": 32,
+        "7": 32
+      },
+      "bow_rehair_cube_d12_zero_frac": 0.705,
+      "corr_c6b0_c7b4": 0.0383
+    },
+    "B_xor_consts_00_5A_C3": {
+      "rehair_singletons_by_beat_4.18M": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "forced_changes": {
+        "0": [
+          0,
+          1,
+          2
+        ],
+        "4": [
+          5,
+          6
+        ],
+        "6": [
+          5,
+          7
+        ]
+      },
+      "bow_best_diff_log2": {
+        "0": -13.0,
+        "4": -11.42,
+        "5": -8.0,
+        "6": -6.73,
+        "7": -6.79
+      },
+      "rehair_integral_zero_on_4_5_of_32": {
+        "6": 32,
+        "7": 32
+      },
+      "bow_rehair_cube_d12_zero_frac": 0.669,
+      "corr_c6b0_c7b4": 0.0396
+    },
+    "C_add_consts_0_3_5_mod7_offsets": {
+      "rehair_singletons_by_beat_4.18M": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "forced_changes": {
+        "0": [
+          0,
+          1,
+          2
+        ],
+        "4": [
+          5,
+          6
+        ],
+        "6": [
+          5,
+          7
+        ]
+      },
+      "bow_best_diff_log2": {
+        "0": -8.05,
+        "4": -10.68,
+        "5": -7.96,
+        "6": -6.29,
+        "7": -5.62
+      },
+      "rehair_integral_zero_on_4_5_of_32": {
+        "6": 32,
+        "7": 32
+      },
+      "bow_rehair_cube_d12_zero_frac": 0.646,
+      "corr_c6b0_c7b4": 0.041
+    }
+  },
+  "seconds": 29.5,
+  "finished": "2026-11-09 09:40:20 AM EST (America/New_York)"
+}

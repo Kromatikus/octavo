@@ -1,0 +1,5 @@
+Protected-tree verification — 2026-11-09 08:33:14 AM EST (America/New_York)
+Entries hashed: 37 (frozen snapshots test1,test3,test13,testn1,testn3,testn4,testn5,sneak_t1n,sneak_v2..v13, sneak1024-seed.txt, live sneak_n2.py/test/render/README/SPEC, both PNGs, all 8 older attacks* folders, baselines)
+Method: per-file SHA-256 over sorted file list (excluding __pycache__), rolled into one tree hash per entry
+Result: before vs after = IDENTICAL
+sneak_n2.py: aa975c951dce9200f6dc2812b59bde90b47b7bd28f13acef6bbbbd65da2aab6d

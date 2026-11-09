@@ -1,0 +1,6 @@
+Frozen files checked: 185; none changed.
+Both PNGs byte-identical; SHA256 bebe91314ddb13a87a291b701ad19e372e0643832c0a7aaa3c461661d913aac5
+Backup: /tmp/sneak_n2_8bit_precolor2
+Picture grid rendered from encrypt_hello ciphertext and same final grid used to write hello-world.txt; visually checked 16 rows against demo output.
+Final post-test checksum and frozen directory inventory check: all 185 files unchanged, no added/removed files.
+Full strengthened test suite: 80/80 passed, 0 failed (test_results.txt).

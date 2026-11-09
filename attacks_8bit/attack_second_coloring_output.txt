@@ -1,0 +1,29 @@
+Boundary S_next(S2_current(x) xor key) {'boundary': 1, 'distinct_actual_key_bytes': 103, 'affine_compositions': 0, 'ddt_min': 10, 'ddt_max': 16, 'ddt_equal4': 0, 'representative_lat': 34}
+Boundary S_next(S2_current(x) xor key) {'boundary': 2, 'distinct_actual_key_bytes': 105, 'affine_compositions': 0, 'ddt_min': 10, 'ddt_max': 16, 'ddt_equal4': 0, 'representative_lat': 36}
+Boundary S_next(S2_current(x) xor key) {'boundary': 3, 'distinct_actual_key_bytes': 92, 'affine_compositions': 0, 'ddt_min': 10, 'ddt_max': 14, 'ddt_equal4': 0, 'representative_lat': 32}
+Boundary S_next(S2_current(x) xor key) {'boundary': 4, 'distinct_actual_key_bytes': 100, 'affine_compositions': 0, 'ddt_min': 10, 'ddt_max': 14, 'ddt_equal4': 0, 'representative_lat': 36}
+Boundary S_next(S2_current(x) xor key) {'boundary': 5, 'distinct_actual_key_bytes': 97, 'affine_compositions': 0, 'ddt_min': 10, 'ddt_max': 16, 'ddt_equal4': 0, 'representative_lat': 40}
+Boundary S_next(S2_current(x) xor key) {'boundary': 6, 'distinct_actual_key_bytes': 94, 'affine_compositions': 0, 'ddt_min': 10, 'ddt_max': 14, 'ddt_equal4': 0, 'representative_lat': 34}
+Boundary S_next(S2_current(x) xor key) {'boundary': 7, 'distinct_actual_key_bytes': 101, 'affine_compositions': 0, 'ddt_min': 10, 'ddt_max': 14, 'ddt_equal4': 0, 'representative_lat': 36}
+Boundary S_next(S2_current(x) xor key) {'boundary': 8, 'distinct_actual_key_bytes': 104, 'affine_compositions': 0, 'ddt_min': 10, 'ddt_max': 16, 'ddt_equal4': 0, 'representative_lat': 38}
+Boundary S_next(S2_current(x) xor key) {'boundary': 9, 'distinct_actual_key_bytes': 108, 'affine_compositions': 0, 'ddt_min': 10, 'ddt_max': 14, 'ddt_equal4': 0, 'representative_lat': 36}
+Boundary S_next(S2_current(x) xor key) {'boundary': 10, 'distinct_actual_key_bytes': 101, 'affine_compositions': 0, 'ddt_min': 10, 'ddt_max': 14, 'ddt_equal4': 0, 'representative_lat': 36}
+Boundary S_next(S2_current(x) xor key) {'boundary': 11, 'distinct_actual_key_bytes': 101, 'affine_compositions': 0, 'ddt_min': 10, 'ddt_max': 16, 'ddt_equal4': 0, 'representative_lat': 40}
+Boundary S_next(S2_current(x) xor key) {'boundary': 12, 'distinct_actual_key_bytes': 107, 'affine_compositions': 0, 'ddt_min': 10, 'ddt_max': 18, 'ddt_equal4': 0, 'representative_lat': 34}
+Boundary S_next(S2_current(x) xor key) {'boundary': 13, 'distinct_actual_key_bytes': 103, 'affine_compositions': 0, 'ddt_min': 10, 'ddt_max': 14, 'ddt_equal4': 0, 'representative_lat': 36}
+Boundary S_next(S2_current(x) xor key) {'boundary': 14, 'distinct_actual_key_bytes': 107, 'affine_compositions': 0, 'ddt_min': 10, 'ddt_max': 14, 'ddt_equal4': 0, 'representative_lat': 36}
+Boundary S_next(S2_current(x) xor key) {'boundary': 15, 'distinct_actual_key_bytes': 101, 'affine_compositions': 0, 'ddt_min': 10, 'ddt_max': 16, 'ddt_equal4': 0, 'representative_lat': 32}
+Total boundary maps 1524 DDT range 10 18 base SM4 DDT4. DDT>4 proves not affine-equivalent to SM4. Every pair DOES fuse into one arbitrary 8-bit S-box; no extra diffusion separates these two layers.
+S2 distinct from S 272 / 272 17 schedules
+Mod256 mix trail {'name': 'mix2', 'msb_trail': 65536, 'lsb_linear': 65536, 'total': 65536}
+Mod256 mix trail {'name': 'B0 start', 'msb_trail': 65536, 'lsb_linear': 65536, 'total': 65536}
+Mod256 mix trail {'name': 'B1 bar 2', 'msb_trail': 65536, 'lsb_linear': 65536, 'total': 65536}
+Mod256 mix trail {'name': 'B2 center', 'msb_trail': 65536, 'lsb_linear': 65536, 'total': 65536}
+Mod256 mix trail {'name': 'B3 bar 6', 'msb_trail': 65536, 'lsb_linear': 65536, 'total': 65536}
+Mod256 mix trail {'name': 'B4 end', 'msb_trail': 65536, 'lsb_linear': 65536, 'total': 65536}
+Through S fixed delta128 max exact output-difference count range 4 4 /256; delta128->128 occurrences across16boxes 16 /4096. Deterministic high-bit trails do not persist through a coloring.
+Through S2 fixed delta128 max exact output-difference count range 4 4 /256; delta128->128 occurrences across16boxes 14 /4096. Deterministic high-bit trails do not persist through a coloring.
+Legacy snapshot loaded read-only /tmp/sneak_n2_8bit_precolor2/sneak_n2.py same MAC key True
+Archived old hello-world blob current result DecodeError
+Legacy generated2048 valid old blobs {'DecodeError': 2041, 'accepted': 7} current HMAC verifies 2048 wrong plaintext accepts 7
+Not a fresh HMAC forgery: authenticated legacy ciphertext replay / unversioned-algorithm ambiguity. No full16round current plaintext/key recovery.

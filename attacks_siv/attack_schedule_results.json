@@ -1,0 +1,126 @@
+{
+  "affine_seed": [
+    0.35989450127877237,
+    0.3578364769820972,
+    0.36085358056265987,
+    0.35961476982097185,
+    0.359375,
+    0.36059382992327366,
+    0.3587755754475703,
+    0.3632712595907928
+  ],
+  "clef_affine_violation_bits": [
+    57,
+    54,
+    63,
+    58,
+    63,
+    70,
+    62,
+    70
+  ],
+  "affine_nonce": [
+    0.3573169757033248,
+    0.3571571291560102,
+    0.36057384910485935,
+    0.3591751918158568,
+    0.35887547953964194,
+    0.3570572250639386,
+    0.3576966112531969,
+    0.35747682225063937
+  ],
+  "n1_predictor_wrong_bits": [
+    17963,
+    50048
+  ],
+  "n1_predictor_clef_wrong_bits": 58,
+  "avalanche": {
+    "seed": {
+      "keys_white": {
+        "mean": 0.49983,
+        "min": 0.48725,
+        "max": 0.5131,
+        "n": 1024
+      },
+      "S_tables": {
+        "mean": 0.49991,
+        "min": 0.48999,
+        "max": 0.50812,
+        "n": 1024
+      },
+      "S2_tables": {
+        "mean": 0.50013,
+        "min": 0.49158,
+        "max": 0.5108,
+        "n": 1024
+      },
+      "mac_key": {
+        "mean": 0.49987,
+        "min": 0.38672,
+        "max": 0.59375,
+        "n": 1024
+      },
+      "clef": {
+        "mean": 0.49992,
+        "min": 0.32812,
+        "max": 0.66406,
+        "n": 1024
+      },
+      "siv_nonce_hello": {
+        "mean": 0.50078,
+        "min": 0.33594,
+        "max": 0.64844,
+        "n": 1024
+      }
+    },
+    "nonce": {
+      "keys_white": {
+        "mean": 0.50015,
+        "min": 0.49196,
+        "max": 0.50913,
+        "n": 128
+      },
+      "S_tables": {
+        "mean": 0.49998,
+        "min": 0.49426,
+        "max": 0.50629,
+        "n": 128
+      },
+      "S2_tables": {
+        "mean": 0.49974,
+        "min": 0.49323,
+        "max": 0.50592,
+        "n": 128
+      },
+      "mac_key": {
+        "mean": 0.49829,
+        "min": 0.42578,
+        "max": 0.58984,
+        "n": 128
+      },
+      "clef": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 128
+      },
+      "siv_nonce_hello": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 128
+      }
+    }
+  },
+  "domains": {
+    "KM_equal_positions": 14,
+    "KC_equal_positions": 13,
+    "MC_equal_positions": 16,
+    "expected": 16,
+    "clef_in_K_stream": false,
+    "clef_in_M_stream": false,
+    "clef_equals_mac_key_prefix_any_nonce0": false,
+    "clef_in_demo_schedule_material": false,
+    "mac_key_in_material": false
+  }
+}

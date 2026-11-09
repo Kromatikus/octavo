@@ -1,0 +1,5 @@
+lat {'tables': 64, 'max_abs_lat_each': [16], 'max_corr': '32/256 = 2^-3', 'sm4_base': 16, 'spectrum_identical_across_tables': True}
+emp {'rounds': 1, 'samples': 262144, 'max_abs_corr': 0.00926, 'max_sigma': 4.74, 'expected_null_max_sigma': 5.27, 'count_over_5sigma': 0, 'expected_over_5sigma': 0.6, 'mean_abs': 0.001558, 'null_mean_abs': 0.001558, 'argmax': 'in 101.6 -> out 113.2', 'argmax_fresh_2e20': -0.00087, 'argmax_fresh_sigma': -0.89}
+emp {'rounds': 2, 'samples': 131072, 'max_abs_corr': 0.01361, 'max_sigma': 4.93, 'expected_null_max_sigma': 5.27, 'count_over_5sigma': 0, 'expected_over_5sigma': 0.6, 'mean_abs': 0.002204, 'null_mean_abs': 0.002204, 'argmax': 'in 74.3 -> out 68.2', 'argmax_fresh_2e20': -0.0008, 'argmax_fresh_sigma': -0.82}
+bow bias {'samples': 4194304, 'new_corr': 0.03885, 'old_corr': 0.03885, 'sigma': 0.000488, 'bow_plus_rehair_max_single_bit_corr': 0.0037, 'bow_plus_rehair_sigma': 0.0009765625, 'note': 'rehair S-boxes cap any single-bit relation at the S-box LAT level or below'} True [{'rounds': 1, 'samples': 65536, 'corr': 0.00311, 'sigma': 0.8}, {'rounds': 2, 'samples': 65536, 'corr': 0.00766, 'sigma': 1.96}]
+attack_linear saved

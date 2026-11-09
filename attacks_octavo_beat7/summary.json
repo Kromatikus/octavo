@@ -1,0 +1,65 @@
+{
+  "target_sha": "aa975c951dce9200f6dc2812b59bde90b47b7bd28f13acef6bbbbd65da2aab6d",
+  "date": "2026-11-09 EST",
+  "verdict": "no break found; homemade, use AES-GCM-SIV/age/libsodium for real data",
+  "issue_counts": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 4,
+    "info": 4
+  },
+  "issues": [
+    {
+      "rank": 1,
+      "sev": "Low (most pressing)",
+      "name": "beat-6 bow+rehair singletons",
+      "evidence": "19/16.7M live (fix_confirm), 14/16.7M (even_beats), 10/8.4M (fix_screen), 2/1.04M (bow); table-independent",
+      "new": true
+    },
+    {
+      "rank": 2,
+      "sev": "Low",
+      "name": "shared rotation (beat 0 feeds two strokes): bow-local differential 2^-8.1->2^-4.8 (beat 7), zero-sum integral beats 5-7",
+      "new": true
+    },
+    {
+      "rank": 3,
+      "sev": "Low",
+      "name": "key-signature in-process blind spots (foreign globals, __code__ edit, builtins patch)",
+      "new": true
+    },
+    {
+      "rank": 4,
+      "sev": "Low",
+      "name": "layer linearity: triplet bit0 linear, cross branch 6, bow 0.039, new bow 2-bit relation -0.145",
+      "new": "partly"
+    },
+    {
+      "rank": 5,
+      "sev": "Info",
+      "name": "guessable seeds accepted"
+    },
+    {
+      "rank": 6,
+      "sev": "Info",
+      "name": "RNG-failure equality leak (SIV-normal)"
+    },
+    {
+      "rank": 7,
+      "sev": "Info",
+      "name": "not constant-time"
+    },
+    {
+      "rank": 8,
+      "sev": "Info",
+      "name": "single 127-byte block, no AD"
+    }
+  ],
+  "proposed_fix": {
+    "change": "BOW_STROKES third stroke (4,5,6)->(4,5,0)",
+    "lab_result": "0/133.7M vs live 19/133.7M",
+    "applied": false
+  },
+  "replay": "15/15 PASS ~3 s"
+}

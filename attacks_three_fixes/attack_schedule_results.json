@@ -1,0 +1,725 @@
+{
+  "started": "2026-11-08 06:52:22 PM EST (America/New_York)",
+  "flips": [
+    {
+      "kind": "nonce",
+      "bit": 48,
+      "material_changed": 8733,
+      "material_total": 17408,
+      "mac_key_changed": 133,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "nonce",
+      "bit": 12,
+      "material_changed": 8721,
+      "material_total": 17408,
+      "mac_key_changed": 126,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "nonce",
+      "bit": 38,
+      "material_changed": 8655,
+      "material_total": 17408,
+      "mac_key_changed": 140,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "nonce",
+      "bit": 118,
+      "material_changed": 8532,
+      "material_total": 17408,
+      "mac_key_changed": 135,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "nonce",
+      "bit": 85,
+      "material_changed": 8766,
+      "material_total": 17408,
+      "mac_key_changed": 136,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "nonce",
+      "bit": 93,
+      "material_changed": 8694,
+      "material_total": 17408,
+      "mac_key_changed": 140,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "nonce",
+      "bit": 111,
+      "material_changed": 8754,
+      "material_total": 17408,
+      "mac_key_changed": 129,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "nonce",
+      "bit": 32,
+      "material_changed": 8711,
+      "material_total": 17408,
+      "mac_key_changed": 133,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "nonce",
+      "bit": 95,
+      "material_changed": 8785,
+      "material_total": 17408,
+      "mac_key_changed": 137,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "nonce",
+      "bit": 54,
+      "material_changed": 8750,
+      "material_total": 17408,
+      "mac_key_changed": 130,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "nonce",
+      "bit": 115,
+      "material_changed": 8651,
+      "material_total": 17408,
+      "mac_key_changed": 123,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "nonce",
+      "bit": 4,
+      "material_changed": 8636,
+      "material_total": 17408,
+      "mac_key_changed": 125,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "nonce",
+      "bit": 83,
+      "material_changed": 8729,
+      "material_total": 17408,
+      "mac_key_changed": 130,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "nonce",
+      "bit": 18,
+      "material_changed": 8761,
+      "material_total": 17408,
+      "mac_key_changed": 130,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "nonce",
+      "bit": 113,
+      "material_changed": 8714,
+      "material_total": 17408,
+      "mac_key_changed": 143,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "nonce",
+      "bit": 117,
+      "material_changed": 8670,
+      "material_total": 17408,
+      "mac_key_changed": 120,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "nonce",
+      "bit": 51,
+      "material_changed": 8748,
+      "material_total": 17408,
+      "mac_key_changed": 115,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "nonce",
+      "bit": 98,
+      "material_changed": 8723,
+      "material_total": 17408,
+      "mac_key_changed": 120,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "nonce",
+      "bit": 84,
+      "material_changed": 8663,
+      "material_total": 17408,
+      "mac_key_changed": 111,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "nonce",
+      "bit": 24,
+      "material_changed": 8766,
+      "material_total": 17408,
+      "mac_key_changed": 134,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "nonce",
+      "bit": 89,
+      "material_changed": 8810,
+      "material_total": 17408,
+      "mac_key_changed": 120,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "nonce",
+      "bit": 60,
+      "material_changed": 8665,
+      "material_total": 17408,
+      "mac_key_changed": 114,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "nonce",
+      "bit": 127,
+      "material_changed": 8646,
+      "material_total": 17408,
+      "mac_key_changed": 141,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "nonce",
+      "bit": 69,
+      "material_changed": 8815,
+      "material_total": 17408,
+      "mac_key_changed": 132,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "nonce",
+      "bit": 1,
+      "material_changed": 8641,
+      "material_total": 17408,
+      "mac_key_changed": 119,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "nonce",
+      "bit": 30,
+      "material_changed": 8712,
+      "material_total": 17408,
+      "mac_key_changed": 133,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "nonce",
+      "bit": 92,
+      "material_changed": 8727,
+      "material_total": 17408,
+      "mac_key_changed": 128,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "nonce",
+      "bit": 22,
+      "material_changed": 8792,
+      "material_total": 17408,
+      "mac_key_changed": 115,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "nonce",
+      "bit": 44,
+      "material_changed": 8674,
+      "material_total": 17408,
+      "mac_key_changed": 132,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "nonce",
+      "bit": 124,
+      "material_changed": 8658,
+      "material_total": 17408,
+      "mac_key_changed": 124,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "nonce",
+      "bit": 43,
+      "material_changed": 8752,
+      "material_total": 17408,
+      "mac_key_changed": 131,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "nonce",
+      "bit": 80,
+      "material_changed": 8771,
+      "material_total": 17408,
+      "mac_key_changed": 132,
+      "clef_changed": 0,
+      "key_sig_changed": 0,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 832,
+      "material_changed": 8642,
+      "material_total": 17408,
+      "mac_key_changed": 118,
+      "clef_changed": 69,
+      "key_sig_changed": 67,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 380,
+      "material_changed": 8758,
+      "material_total": 17408,
+      "mac_key_changed": 149,
+      "clef_changed": 78,
+      "key_sig_changed": 61,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 357,
+      "material_changed": 8723,
+      "material_total": 17408,
+      "mac_key_changed": 119,
+      "clef_changed": 62,
+      "key_sig_changed": 66,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 738,
+      "material_changed": 8695,
+      "material_total": 17408,
+      "mac_key_changed": 128,
+      "clef_changed": 67,
+      "key_sig_changed": 56,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 747,
+      "material_changed": 8822,
+      "material_total": 17408,
+      "mac_key_changed": 122,
+      "clef_changed": 51,
+      "key_sig_changed": 70,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 110,
+      "material_changed": 8582,
+      "material_total": 17408,
+      "mac_key_changed": 136,
+      "clef_changed": 56,
+      "key_sig_changed": 70,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 421,
+      "material_changed": 8653,
+      "material_total": 17408,
+      "mac_key_changed": 127,
+      "clef_changed": 54,
+      "key_sig_changed": 62,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 207,
+      "material_changed": 8758,
+      "material_total": 17408,
+      "mac_key_changed": 136,
+      "clef_changed": 56,
+      "key_sig_changed": 59,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 399,
+      "material_changed": 8666,
+      "material_total": 17408,
+      "mac_key_changed": 133,
+      "clef_changed": 61,
+      "key_sig_changed": 65,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 295,
+      "material_changed": 8657,
+      "material_total": 17408,
+      "mac_key_changed": 123,
+      "clef_changed": 76,
+      "key_sig_changed": 59,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 954,
+      "material_changed": 8622,
+      "material_total": 17408,
+      "mac_key_changed": 127,
+      "clef_changed": 55,
+      "key_sig_changed": 70,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 596,
+      "material_changed": 8781,
+      "material_total": 17408,
+      "mac_key_changed": 144,
+      "clef_changed": 59,
+      "key_sig_changed": 66,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 298,
+      "material_changed": 8630,
+      "material_total": 17408,
+      "mac_key_changed": 119,
+      "clef_changed": 65,
+      "key_sig_changed": 65,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 526,
+      "material_changed": 8832,
+      "material_total": 17408,
+      "mac_key_changed": 123,
+      "clef_changed": 67,
+      "key_sig_changed": 60,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 342,
+      "material_changed": 8692,
+      "material_total": 17408,
+      "mac_key_changed": 132,
+      "clef_changed": 64,
+      "key_sig_changed": 66,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 799,
+      "material_changed": 8621,
+      "material_total": 17408,
+      "mac_key_changed": 123,
+      "clef_changed": 69,
+      "key_sig_changed": 58,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 169,
+      "material_changed": 8672,
+      "material_total": 17408,
+      "mac_key_changed": 127,
+      "clef_changed": 63,
+      "key_sig_changed": 62,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 3,
+      "material_changed": 8678,
+      "material_total": 17408,
+      "mac_key_changed": 120,
+      "clef_changed": 58,
+      "key_sig_changed": 74,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 226,
+      "material_changed": 8689,
+      "material_total": 17408,
+      "mac_key_changed": 112,
+      "clef_changed": 65,
+      "key_sig_changed": 67,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 938,
+      "material_changed": 8706,
+      "material_total": 17408,
+      "mac_key_changed": 117,
+      "clef_changed": 60,
+      "key_sig_changed": 59,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 466,
+      "material_changed": 8635,
+      "material_total": 17408,
+      "mac_key_changed": 138,
+      "clef_changed": 60,
+      "key_sig_changed": 64,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 885,
+      "material_changed": 8654,
+      "material_total": 17408,
+      "mac_key_changed": 127,
+      "clef_changed": 63,
+      "key_sig_changed": 62,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 175,
+      "material_changed": 8711,
+      "material_total": 17408,
+      "mac_key_changed": 126,
+      "clef_changed": 59,
+      "key_sig_changed": 58,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 842,
+      "material_changed": 8666,
+      "material_total": 17408,
+      "mac_key_changed": 122,
+      "clef_changed": 61,
+      "key_sig_changed": 56,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 837,
+      "material_changed": 8787,
+      "material_total": 17408,
+      "mac_key_changed": 126,
+      "clef_changed": 62,
+      "key_sig_changed": 74,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 390,
+      "material_changed": 8656,
+      "material_total": 17408,
+      "mac_key_changed": 107,
+      "clef_changed": 64,
+      "key_sig_changed": 64,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 268,
+      "material_changed": 8489,
+      "material_total": 17408,
+      "mac_key_changed": 137,
+      "clef_changed": 62,
+      "key_sig_changed": 65,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 12,
+      "material_changed": 8728,
+      "material_total": 17408,
+      "mac_key_changed": 111,
+      "clef_changed": 63,
+      "key_sig_changed": 70,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 766,
+      "material_changed": 8768,
+      "material_total": 17408,
+      "mac_key_changed": 144,
+      "clef_changed": 59,
+      "key_sig_changed": 64,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 642,
+      "material_changed": 8747,
+      "material_total": 17408,
+      "mac_key_changed": 124,
+      "clef_changed": 64,
+      "key_sig_changed": 62,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 620,
+      "material_changed": 8717,
+      "material_total": 17408,
+      "mac_key_changed": 123,
+      "clef_changed": 63,
+      "key_sig_changed": 79,
+      "S0_equal": false
+    },
+    {
+      "kind": "seed",
+      "bit": 248,
+      "material_changed": 8774,
+      "material_total": 17408,
+      "mac_key_changed": 107,
+      "clef_changed": 62,
+      "key_sig_changed": 61,
+      "S0_equal": false
+    }
+  ],
+  "summary": {
+    "nonce": {
+      "samples": 32,
+      "material_fraction_range": [
+        0.4901,
+        0.5064
+      ],
+      "mac_key_bits_changed_range_of_256": [
+        111,
+        143
+      ],
+      "clef_bits_changed_range_of_128": [
+        0,
+        0
+      ],
+      "key_sig_bits_changed_range_of_128": [
+        0,
+        0
+      ],
+      "S0_equal_count": 0
+    },
+    "seed": {
+      "samples": 32,
+      "material_fraction_range": [
+        0.4876,
+        0.5074
+      ],
+      "mac_key_bits_changed_range_of_256": [
+        107,
+        149
+      ],
+      "clef_bits_changed_range_of_128": [
+        51,
+        78
+      ],
+      "key_sig_bits_changed_range_of_128": [
+        56,
+        79
+      ],
+      "S0_equal_count": 0
+    }
+  },
+  "domains_distinct": true,
+  "key_sig": "54e93f364be610b0e298cb68a12ed9c8",
+  "key_sig_in_blob": false,
+  "mix_description_sha256": "2376cc6765f05df75b65a071c1349037a009422062127bc120cfd76244dcc754",
+  "source_imports": [
+    "hashlib",
+    "hmac",
+    "os",
+    "json"
+  ],
+  "sm4_head": "d690e9fecce13db716b614c228fb2c05",
+  "starts_d690e9fe": true,
+  "not_aes_head": true,
+  "SM4_reference_vectors_pass": true,
+  "spectra": {
+    "base_SM4_ddt_max": 4,
+    "base_SM4_lat_max": 16,
+    "round0": {
+      "S_ddt_max": 4,
+      "S_lat_max": 16,
+      "S2_ddt_max": 4,
+      "S2_lat_max": 16
+    },
+    "round1": {
+      "S_ddt_max": 4,
+      "S_lat_max": 16,
+      "S2_ddt_max": 4,
+      "S2_lat_max": 16
+    },
+    "round15": {
+      "S_ddt_max": 4,
+      "S_lat_max": 16,
+      "S2_ddt_max": 4,
+      "S2_lat_max": 16
+    }
+  },
+  "family_disclosure": "SM4 and AES S-boxes are both affine-equivalent to inversion over GF(2^8). \"Not AES\" does not mean an unrelated algebraic family; keyed affine wrapping preserves DDT/LAT spectra exactly.",
+  "finished": "2026-11-08 06:52:24 PM EST (America/New_York)"
+}

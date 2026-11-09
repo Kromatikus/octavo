@@ -1,0 +1,444 @@
+{
+  "started": "2026-11-09 08:18:20 AM EST (America/New_York)",
+  "note": "A rehair singleton needs a bow delta inside one pair (i,i+1) with du==dv or du==2dv (field kernel); this is table-independent, so only the bow is evaluated.",
+  "scan": {
+    "new": {
+      "0": {
+        "cases": 16711680,
+        "rehair_singletons": 0,
+        "rate": 0.0,
+        "witnesses": []
+      },
+      "1": {
+        "cases": 16711680,
+        "rehair_singletons": 0,
+        "rate": 0.0,
+        "witnesses": []
+      },
+      "2": {
+        "cases": 16711680,
+        "rehair_singletons": 0,
+        "rate": 0.0,
+        "witnesses": []
+      },
+      "3": {
+        "cases": 16711680,
+        "rehair_singletons": 0,
+        "rate": 0.0,
+        "witnesses": []
+      },
+      "4": {
+        "cases": 16711680,
+        "rehair_singletons": 0,
+        "rate": 0.0,
+        "witnesses": []
+      },
+      "5": {
+        "cases": 16711680,
+        "rehair_singletons": 0,
+        "rate": 0.0,
+        "witnesses": []
+      },
+      "6": {
+        "cases": 16711680,
+        "rehair_singletons": 14,
+        "rate": 8.377374387254902e-07,
+        "witnesses": [
+          {
+            "base": [
+              61,
+              184,
+              68,
+              8,
+              147,
+              13,
+              127,
+              98
+            ],
+            "beat": 6,
+            "delta": 14,
+            "bow_delta": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              22,
+              11
+            ]
+          },
+          {
+            "base": [
+              121,
+              234,
+              152,
+              46,
+              28,
+              121,
+              240,
+              211
+            ],
+            "beat": 6,
+            "delta": 18,
+            "bow_delta": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              14,
+              7
+            ]
+          },
+          {
+            "base": [
+              248,
+              57,
+              224,
+              163,
+              155,
+              133,
+              232,
+              18
+            ],
+            "beat": 6,
+            "delta": 36,
+            "bow_delta": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              36,
+              18
+            ]
+          }
+        ]
+      },
+      "7": {
+        "cases": 16711680,
+        "rehair_singletons": 0,
+        "rate": 0.0,
+        "witnesses": []
+      }
+    },
+    "old": {
+      "0": {
+        "cases": 16711680,
+        "rehair_singletons": 0,
+        "rate": 0.0,
+        "witnesses": []
+      },
+      "1": {
+        "cases": 16711680,
+        "rehair_singletons": 0,
+        "rate": 0.0,
+        "witnesses": []
+      },
+      "2": {
+        "cases": 16711680,
+        "rehair_singletons": 0,
+        "rate": 0.0,
+        "witnesses": []
+      },
+      "3": {
+        "cases": 16711680,
+        "rehair_singletons": 0,
+        "rate": 0.0,
+        "witnesses": []
+      },
+      "4": {
+        "cases": 16711680,
+        "rehair_singletons": 0,
+        "rate": 0.0,
+        "witnesses": []
+      },
+      "5": {
+        "cases": 16711680,
+        "rehair_singletons": 0,
+        "rate": 0.0,
+        "witnesses": []
+      },
+      "6": {
+        "cases": 16711680,
+        "rehair_singletons": 28,
+        "rate": 1.6754748774509804e-06,
+        "witnesses": [
+          {
+            "base": [
+              102,
+              144,
+              87,
+              46,
+              156,
+              153,
+              169,
+              156
+            ],
+            "beat": 6,
+            "delta": 4,
+            "bow_delta": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              12,
+              6
+            ]
+          },
+          {
+            "base": [
+              14,
+              165,
+              255,
+              86,
+              34,
+              111,
+              176,
+              95
+            ],
+            "beat": 6,
+            "delta": 18,
+            "bow_delta": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              14,
+              7
+            ]
+          },
+          {
+            "base": [
+              194,
+              97,
+              41,
+              176,
+              232,
+              0,
+              1,
+              181
+            ],
+            "beat": 6,
+            "delta": 60,
+            "bow_delta": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              136,
+              136
+            ]
+          }
+        ]
+      },
+      "7": {
+        "cases": 16711680,
+        "rehair_singletons": 406,
+        "rate": 2.4294385723039214e-05,
+        "witnesses": [
+          {
+            "base": [
+              70,
+              193,
+              107,
+              253,
+              170,
+              188,
+              31,
+              110
+            ],
+            "beat": 7,
+            "delta": 2,
+            "bow_delta": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              113,
+              194
+            ]
+          },
+          {
+            "base": [
+              35,
+              167,
+              217,
+              75,
+              82,
+              102,
+              61,
+              55
+            ],
+            "beat": 7,
+            "delta": 3,
+            "bow_delta": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              166,
+              83
+            ]
+          },
+          {
+            "base": [
+              60,
+              64,
+              17,
+              131,
+              0,
+              239,
+              241,
+              200
+            ],
+            "beat": 7,
+            "delta": 5,
+            "bow_delta": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              245,
+              245
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "cases_per_beat": 16711680,
+  "live_confirmation": [
+    {
+      "base": [
+        61,
+        184,
+        68,
+        8,
+        147,
+        13,
+        127,
+        98
+      ],
+      "beat": 6,
+      "delta": 14,
+      "bow_rehair_weights_all_16_rounds": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base": [
+        121,
+        234,
+        152,
+        46,
+        28,
+        121,
+        240,
+        211
+      ],
+      "beat": 6,
+      "delta": 18,
+      "bow_rehair_weights_all_16_rounds": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "base": [
+        248,
+        57,
+        224,
+        163,
+        155,
+        133,
+        232,
+        18
+      ],
+      "beat": 6,
+      "delta": 36,
+      "bow_rehair_weights_all_16_rounds": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    }
+  ],
+  "cross_after_single_cell_active_cells": [
+    12,
+    12,
+    12,
+    12,
+    12,
+    12,
+    12,
+    12,
+    12,
+    12,
+    12,
+    12,
+    12,
+    12,
+    12,
+    12
+  ],
+  "seconds": 65.4,
+  "finished": "2026-11-09 08:19:26 AM EST (America/New_York)"
+}

@@ -1,0 +1,185 @@
+2026-11-09 08:28:19 AM EST (America/New_York)
+{
+  "started": "2026-11-09 08:28:04 AM EST (America/New_York)",
+  "metric": "fraction of output bits of beats 5,6,7 whose cube sum is 0 (random function: 0.5; degree < d: 1.0)",
+  "layouts": {
+    "new": {
+      "cube(5, 6, 7)_d2": {
+        "zero_frac": 0.828,
+        "cubes_with_all_out_bits_zero": 53,
+        "trials": 200
+      },
+      "cube(5, 6, 7)_d4": {
+        "zero_frac": 0.887,
+        "cubes_with_all_out_bits_zero": 83,
+        "trials": 200
+      },
+      "cube(5, 6, 7)_d6": {
+        "zero_frac": 0.89,
+        "cubes_with_all_out_bits_zero": 73,
+        "trials": 200
+      },
+      "cube(5, 6, 7)_d8": {
+        "zero_frac": 0.909,
+        "cubes_with_all_out_bits_zero": 71,
+        "trials": 200
+      },
+      "cube(5, 6, 7)_d12": {
+        "zero_frac": 0.905,
+        "cubes_with_all_out_bits_zero": 64,
+        "trials": 200
+      },
+      "cube(5, 6, 7)_d16": {
+        "zero_frac": 0.925,
+        "cubes_with_all_out_bits_zero": 102,
+        "trials": 200
+      },
+      "cube(6, 7)_d2": {
+        "zero_frac": 0.848,
+        "cubes_with_all_out_bits_zero": 62,
+        "trials": 200
+      },
+      "cube(6, 7)_d4": {
+        "zero_frac": 0.892,
+        "cubes_with_all_out_bits_zero": 76,
+        "trials": 200
+      },
+      "cube(6, 7)_d6": {
+        "zero_frac": 0.892,
+        "cubes_with_all_out_bits_zero": 81,
+        "trials": 200
+      },
+      "cube(6, 7)_d8": {
+        "zero_frac": 0.897,
+        "cubes_with_all_out_bits_zero": 74,
+        "trials": 200
+      },
+      "cube(6, 7)_d12": {
+        "zero_frac": 0.9,
+        "cubes_with_all_out_bits_zero": 74,
+        "trials": 200
+      },
+      "cube(6, 7)_d16": {
+        "zero_frac": 1.0,
+        "cubes_with_all_out_bits_zero": 200,
+        "trials": 200
+      },
+      "cube(7,)_d2": {
+        "zero_frac": 0.948,
+        "cubes_with_all_out_bits_zero": 131,
+        "trials": 200
+      },
+      "cube(7,)_d4": {
+        "zero_frac": 0.96,
+        "cubes_with_all_out_bits_zero": 149,
+        "trials": 200
+      },
+      "cube(7,)_d6": {
+        "zero_frac": 0.949,
+        "cubes_with_all_out_bits_zero": 132,
+        "trials": 200
+      },
+      "cube(7,)_d8": {
+        "zero_frac": 1.0,
+        "cubes_with_all_out_bits_zero": 200,
+        "trials": 200
+      }
+    },
+    "old": {
+      "cube(5, 6, 7)_d2": {
+        "zero_frac": 0.727,
+        "cubes_with_all_out_bits_zero": 15,
+        "trials": 200
+      },
+      "cube(5, 6, 7)_d4": {
+        "zero_frac": 0.772,
+        "cubes_with_all_out_bits_zero": 24,
+        "trials": 200
+      },
+      "cube(5, 6, 7)_d6": {
+        "zero_frac": 0.736,
+        "cubes_with_all_out_bits_zero": 8,
+        "trials": 200
+      },
+      "cube(5, 6, 7)_d8": {
+        "zero_frac": 0.736,
+        "cubes_with_all_out_bits_zero": 8,
+        "trials": 200
+      },
+      "cube(5, 6, 7)_d12": {
+        "zero_frac": 0.724,
+        "cubes_with_all_out_bits_zero": 2,
+        "trials": 200
+      },
+      "cube(5, 6, 7)_d16": {
+        "zero_frac": 0.727,
+        "cubes_with_all_out_bits_zero": 0,
+        "trials": 200
+      },
+      "cube(6, 7)_d2": {
+        "zero_frac": 0.655,
+        "cubes_with_all_out_bits_zero": 2,
+        "trials": 200
+      },
+      "cube(6, 7)_d4": {
+        "zero_frac": 0.667,
+        "cubes_with_all_out_bits_zero": 5,
+        "trials": 200
+      },
+      "cube(6, 7)_d6": {
+        "zero_frac": 0.673,
+        "cubes_with_all_out_bits_zero": 0,
+        "trials": 200
+      },
+      "cube(6, 7)_d8": {
+        "zero_frac": 0.667,
+        "cubes_with_all_out_bits_zero": 0,
+        "trials": 200
+      },
+      "cube(6, 7)_d12": {
+        "zero_frac": 0.682,
+        "cubes_with_all_out_bits_zero": 0,
+        "trials": 200
+      },
+      "cube(6, 7)_d16": {
+        "zero_frac": 0.69,
+        "cubes_with_all_out_bits_zero": 1,
+        "trials": 200
+      },
+      "cube(7,)_d2": {
+        "zero_frac": 0.677,
+        "cubes_with_all_out_bits_zero": 6,
+        "trials": 200
+      },
+      "cube(7,)_d4": {
+        "zero_frac": 0.682,
+        "cubes_with_all_out_bits_zero": 10,
+        "trials": 200
+      },
+      "cube(7,)_d6": {
+        "zero_frac": 0.68,
+        "cubes_with_all_out_bits_zero": 9,
+        "trials": 200
+      },
+      "cube(7,)_d8": {
+        "zero_frac": 0.685,
+        "cubes_with_all_out_bits_zero": 4,
+        "trials": 200
+      }
+    }
+  },
+  "bow_plus_rehair_out_beats_4_7": {
+    "new": {
+      "d4": 0.504,
+      "d8": 0.503,
+      "d12": 0.507
+    },
+    "old": {
+      "d4": 0.5,
+      "d8": 0.494,
+      "d12": 0.5
+    }
+  },
+  "seconds": 14.2,
+  "finished": "2026-11-09 08:28:19 AM EST (America/New_York)"
+}

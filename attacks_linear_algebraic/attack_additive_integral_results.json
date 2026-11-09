@@ -1,0 +1,63 @@
+{
+  "started": "2026-11-09 07:36:34 AM EST (America/New_York)",
+  "live_sha": "0eb6052f7ef1e48a952c5530983acead5932be469693134b65f2b21aaf5092c1",
+  "additive_integral": [
+    {
+      "function": "..+bars+triplets (before bow)",
+      "cases": 64,
+      "output_cells": 8192,
+      "additive_sum_top_values": {
+        "0": 6276,
+        "128": 1009,
+        "70": 14
+      },
+      "share_sum_0_or_128": 0.8892822265625,
+      "random_share": 0.0078125,
+      "xor_zero_sum_share": 0.7293701171875,
+      "random_xor_share": 0.00390625
+    },
+    {
+      "function": "..+bow (before rehair)",
+      "cases": 64,
+      "output_cells": 8192,
+      "additive_sum_top_values": {
+        "0": 4801,
+        "195": 28,
+        "98": 24
+      },
+      "share_sum_0_or_128": 0.5888671875,
+      "random_share": 0.0078125,
+      "xor_zero_sum_share": 0.5904541015625,
+      "random_xor_share": 0.00390625
+    },
+    {
+      "function": "1 round",
+      "cases": 64,
+      "output_cells": 8192,
+      "additive_sum_top_values": {
+        "160": 49,
+        "72": 48,
+        "245": 45
+      },
+      "share_sum_0_or_128": 0.00927734375,
+      "random_share": 0.0078125,
+      "xor_zero_sum_share": 0.003173828125,
+      "random_xor_share": 0.00390625
+    },
+    {
+      "function": "2 rounds",
+      "cases": 64,
+      "output_cells": 8192,
+      "additive_sum_top_values": {
+        "49": 47,
+        "194": 47,
+        "10": 46
+      },
+      "share_sum_0_or_128": 0.0067138671875,
+      "random_share": 0.0078125,
+      "xor_zero_sum_share": 0.00439453125,
+      "random_xor_share": 0.00390625
+    }
+  ],
+  "finished": "2026-11-09 07:36:36 AM EST (America/New_York)"
+}

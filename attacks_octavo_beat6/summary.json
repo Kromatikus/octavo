@@ -1,0 +1,26 @@
+{
+  "target_sha": "922a29d89be68b29a2be08873ff5a99a7cf264afebe1ece0387aa0f4fe56fe10",
+  "bow_strokes": "(0,1,2),(2,3,4),(4,5,0),(6,7,0),(1,2,3),(3,4,5),(5,6,0)",
+  "date": "2026-11-09, about 9:27-9:45 AM EST",
+  "verdict": "no break found; still homemade, use AES-GCM-SIV/age/libsodium for real data",
+  "issue_counts": {"critical": 0, "high": 0, "medium": 0, "low": 4, "info": 4},
+  "issues": [
+    {"rank": 1, "sev": "Low (most pressing)", "name": "three-way shared rotation from beat 0 (strokes (4,5,0),(6,7,0),(5,6,0))",
+     "evidence": "bow-alone beat-6 best differential 2^-7.5 -> 2^-5.6; beat-6 256-set now gives zero sums on rehair pair (4,5) in 128/128 (previous 0/128); bow+rehair cube d=12 on beats 5-7: 0.66 zero bits vs 0.50; all die by the next half-round (0.50) and at the cross from the round input (0.50)", "new": true},
+    {"rank": 2, "sev": "Low", "name": "beat 2 is the only beat without a written no-singleton argument", "evidence": "0 hits in 534.8M random + 133.7M structured XOR + 133.7M additive cases; proven when the bow's beat-0 output is unchanged (15%); otherwise >=3 active pairs in all 14.1M measured cases", "new": true},
+    {"rank": 3, "sev": "Low", "name": "key-signature in-process blind spots (foreign globals, __code__ edit, builtins.divmod)", "evidence": "3/3 still give key_sig unchanged + behaviour changed + DecodeError on live decrypt", "new": false},
+    {"rank": 4, "sev": "Low", "name": "layer linearity: triplet bit0 linear, bow 2-bit -0.145, bow 0.039", "evidence": "unchanged by the layout; best output mask over any rehair pair (Walsh, 2^22) 0.0038", "new": false},
+    {"rank": 5, "sev": "Info", "name": "guessable seeds accepted"},
+    {"rank": 6, "sev": "Info", "name": "RNG-failure equality leak (SIV-normal)"},
+    {"rank": 7, "sev": "Info", "name": "not constant-time"},
+    {"rank": 8, "sev": "Info", "name": "single 127-byte block, no AD"}
+  ],
+  "even_beat_singletons": {"beat0": "0 hits; PROOF: bow outputs 0,1,2 always change", "beat2": "0 hits; partial proof", "beat4": "0 hits; PROOF: bow outputs 5,6 always change", "beat6": "0 hits; PROOF: outputs 5,7 always change",
+    "cases_total_xor": 2690000000, "cases_additive": 401080320},
+  "proposed_fix": {"change": "give each beat-0 reader its own view of beat 0: stroke (4,5,0) uses p, (6,7,0) uses rotl(p,3), (5,6,0) uses rotl(p,5) before r1/r2",
+    "lab_result": "0 singletons in 4.18M quick cases; forced-change proofs unchanged; bow-alone best diffs beat7 2^-4.7->2^-7.4, beat6 2^-5.6->2^-7.1, beat0 2^-8.1->2^-10.2; integral and cube structure NOT removed",
+    "applied": false},
+  "replay": "16/16 PASS in about 3.7 s",
+  "compute_seconds_summed": 1222,
+  "protected_files": "IDENTICAL before/after (40 entries)"
+}

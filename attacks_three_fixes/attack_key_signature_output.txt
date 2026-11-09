@@ -1,0 +1,83 @@
+2026-11-08 06:46:32 PM EST (America/New_York)
+{
+  "started": "2026-11-08 06:46:32 PM EST (America/New_York)",
+  "changes": [
+    {
+      "change": "pair B0 matrix ((1,5),(1,6)) -> ((1,5),(1,7))",
+      "alt_key_sig": "99f56567864d41ca01d4e61856a22fb5",
+      "key_sig_changed": true,
+      "live_result": "AuthError: tag mismatch",
+      "blob": "534e3243aa3d46ad5a28334a04e7072c1fe89983fbcea1314f474a221e54748836956879a14d0de1deec0d561ee417ef9e436de13deb06d06846cc57ad345586cc48c6af7cfd45dbf39819f90fdea3e3873e9e94a7f2b2763539f563990881adba760ebdffd12806b4d182c56048abdbd5184466ca57d578928f3c94f8ee47474def3e748a6d1d1c4e28cd679d15a7cb98cb489d86757c15677a0e8edb1b602784f0f88b64a4988a21b3a5f9c1293727ed6877a354fbe51588bc3634d77110ea0be5b0",
+      "live_tables_decrypt_body_well_formed": false,
+      "if_retagged_by_seed_holder_under_live_sig": "DecodeError: tag valid but block malformed"
+    },
+    {
+      "change": "skip pair B0 (BARS[1:])",
+      "alt_key_sig": "f59caf0dfc0fd8dc52569cba0acb3e04",
+      "key_sig_changed": true,
+      "live_result": "AuthError: tag mismatch",
+      "blob": "534e32cac52af99df94463d70e4b7c771ca0544785e6203bc786a896758c2c883aa4795e3c0c36165ebfce6a12e40f2853cf58243e06610ae804690a0440890d573e6d437c59e596074d61af9c5e7b96562fe50906129b7f6afffaa52960c98c7593f6543561d71efc2a7bcda8df90f2e6d576301aa75cc87145a56006cbe61048d998ccffd1d6a4a19f4a9e1d00b79f88fb1c66f0e7f4bc438f53dce113badf39a6f52fa6df5ccccb45cc0933273549698778f0f6a79dc882743c10abe9b95b857947",
+      "live_tables_decrypt_body_well_formed": false,
+      "if_retagged_by_seed_holder_under_live_sig": "DecodeError: tag valid but block malformed"
+    },
+    {
+      "change": "triplet T0 row0 (5,1,1)->(5,1,3)",
+      "alt_key_sig": "9359318ca225e5d3544d6bdd97b819ad",
+      "key_sig_changed": true,
+      "live_result": "AuthError: tag mismatch",
+      "blob": "534e325a86d137d8a7490b7282ed2a0a262566556ba040aa0b73c20931853bbf7e07560bb9ef4a79d887ca507218f875004c650e0c382a9a92082faaf787621bc783eb7ae3eb178de83cf9ad3a499213dedd863580e9f6a82095d9329090ddced0734dc2ac34c336b937c22c14fa0a7505f1ad4aed20d1c20f02e052d4ae2ee31f260b031897b6177dad7b800f39744cf84479498c3e784c1675ec4f234dbc32a83dcef6079432859cf2e70a3721bc8ba8f952a6ea5f084892ee97ad0ce3efa3afecca",
+      "live_tables_decrypt_body_well_formed": false,
+      "if_retagged_by_seed_holder_under_live_sig": "DecodeError: tag valid but block malformed"
+    },
+    {
+      "change": "skip triplet T0 (TRIPLETS[1:])",
+      "alt_key_sig": "e63c5a8e2ebdb7c61bef9502ce252b83",
+      "key_sig_changed": true,
+      "live_result": "AuthError: tag mismatch",
+      "blob": "534e32a7f7c4541ec558101b859f7c3b9e6951d3793f52075a6c8c4cd2527692053069cb08d0ce9c53e354a385db07cfb11dbd328693e53eaa3f6eb5d91084275b737247dc834688c4e1a1afe6a8beb49d366f836b72c310399d1e98655405f0d986d829120de2c1e23a7706ab2f1ad01c0c570ee10482dc1d4a884359e5f07bfb706d0ed1d3f638b77f41d1a9052c810e59f2a84a0b03a075acee8db987b7aa1017baad5f682ba5079d9d66439ae938ba3503d50ed092e8252cfcc8376865d135be73",
+      "live_tables_decrypt_body_well_formed": false,
+      "if_retagged_by_seed_holder_under_live_sig": "DecodeError: tag valid but block malformed"
+    },
+    {
+      "change": "mix2 matrix ((1,1),(1,2)) -> ((1,1),(1,3))",
+      "alt_key_sig": "dc99cdffe91bdbb4609f96e240d41536",
+      "key_sig_changed": true,
+      "live_result": "AuthError: tag mismatch",
+      "blob": "534e32570a9f02cae5444c744d0d33008027111a9b9df0db5663be5551c87ede8888c11d6b90319fe2373e9d326d49aa2731600d65cb4b06d3bf5a19aa979fcf7af38b33cb0d7d5f6a7892a6dd4050d1342141796744b3cb728c2ff686afdcf740244cc4fc90d8574c8eabce06a4838310c67c9982dcfddd8d71c6766e2f00a00ca9e24b33decaf10ca06e25ea7573038027ea3f7bbf2f8e407a10c3c048695cf8830e69a364ba38389d798d3e482944fd8d4568f456cd61b2fc2e052f57ef2f8015db",
+      "live_tables_decrypt_body_well_formed": false,
+      "if_retagged_by_seed_holder_under_live_sig": "DecodeError: tag valid but block malformed"
+    },
+    {
+      "change": "bow parameter BOW_ROT_BASE 1->2",
+      "alt_key_sig": "4f8fdb426fb58c18a2e975d488962c7a",
+      "key_sig_changed": true,
+      "live_result": "AuthError: tag mismatch",
+      "blob": "534e324deab87398961ef7d5edcf1fe56db25dd6ab51f2eb536aac6ae5b371e87186af612869440b861ff57e6ca187e86cf9bf9815df2982995657d8ae479d3d980f6f263f1b32098c2483a1dac5cf491c223c1a2da9aa3e684d4d746132fbe442cb6df510e70830f1a3314f7bf9ce580a7e00a29431f63c0198f34e2949d132120e4f7242db9f9d753457bc2cb81d4040d8200c152f105fbf03cfedc5718cdf5cbf2b902a790ffe6d3c90df68fa259f6fed62c5e2aa19b7aab90be9489537fbf94859",
+      "live_tables_decrypt_body_well_formed": false,
+      "if_retagged_by_seed_holder_under_live_sig": "DecodeError: tag valid but block malformed"
+    },
+    {
+      "change": "skip both B0 and T0 (pickup-era leftover shape)",
+      "alt_key_sig": "e44768517d2b34047e7ad86ec435c428",
+      "key_sig_changed": true,
+      "live_result": "AuthError: tag mismatch",
+      "blob": "534e3220b36613baf516521b9d008930ccfe8d36e67122dd519030d9c67622c74c3c68856a15111ff6abfe8dc596093c21112e3c60a1e23b1d3b2f066f2ff7388c0eccef47c5a7153fddf80613eab0ab2a045e53acbd768d2f00916761c43ab6487b7e1de384c14b0cb1992251014ade390d5cdefb1d166aa20322e9e69a7c97b33b978b037c9c89ac84f116d5cfdd21fd4fa95e4ffa2324eea396dd88b07de159ae7f77b442cdef3d7446a4c1a334f30101017dcf765c6199a18c96e23368190307f8",
+      "live_tables_decrypt_body_well_formed": false,
+      "if_retagged_by_seed_holder_under_live_sig": "DecodeError: tag valid but block malformed"
+    }
+  ],
+  "isolated_module_skip_B0_T0": {
+    "alt_key_sig": "e44768517d2b34047e7ad86ec435c428",
+    "live_result": "AuthError: tag mismatch",
+    "blob": "534e32e9e8e2e67f36dee3db16c78d0535f0d8b2ea5197f6ef4b28d583c7b71302c493d878650dfb1a89c9da62ff8c5ea71360aec9c9e039bc81d1d0661d1a73039fb5727afbe512eaaca6f10e70ff07545a27d6b04cb289edf0b0627b05f855e594a88b2169b9ae3f4575a88859ec435df760b3c8411a63156f4178cf74f1e99f69eae92af9c8263a6b225a3f16f08e550789490d2886ec5d2b4fa2a2996baffdc941d888ba38ae3d9d751d8f303d7efb32cbcb3b11b41c4af2f3212784b2b41f7faa"
+  },
+  "honest_limit_code_only_change": {
+    "change": "bar_mix() body patched to skip B0; BARS constant untouched",
+    "key_sig_same_as_live": true,
+    "live_result": "DecodeError: tag valid but block malformed",
+    "blob": "534e32dc0c1c68caa4a67e15200a56482e25469b1e6ad954e1b4052dfcebd972eaf2006126fee27262509e8fd71209da6dc1d25feefb335b532490fd8957f9432ab8ab3e7ffd59c21bec400b229bca8d655bcabfe0893714cbacfa63032fed347c62745240f72430bcc786b77663f3a226a724a653c9a555e0018ff357541a8e9dbb7d4debfe3887dfa4d580f6af704126bd60e04fea073164bfd2407914f64684365c269d7fb2238db79482285b7008a12ebf31edd525e3de0534c90045036208b96f",
+    "note": "The commitment attests mix_description() (serialized constants), not the arithmetic code. A code-only change passes the tag and then fails as DecodeError (or, rarely, decodes wrongly). This is the documented scope limit, not a forgery: building such a blob needs the seed."
+  },
+  "live_key_sig_restored_and_hello_ok": true,
+  "finished": "2026-11-08 06:46:32 PM EST (America/New_York)"
+}

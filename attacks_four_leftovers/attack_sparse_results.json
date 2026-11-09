@@ -1,0 +1,48 @@
+{
+  "started": "2026-11-08 09:48:47 PM EST (America/New_York)",
+  "finished": "2026-11-08 09:51:18 PM EST (America/New_York)",
+  "schedule_nonce": "4c6c2d12c72419fcb721e2d2aad9800c",
+  "per_input_scan": {
+    "2": {
+      "total": 0,
+      "max_zero": 6,
+      "cells": [],
+      "witness": null,
+      "zero_hist": {
+        "0": 317921,
+        "1": 159356,
+        "2": 39721,
+        "3": 6435,
+        "4": 786,
+        "5": 62,
+        "6": 7
+      },
+      "pairs": 524288,
+      "expected_random": 0.026798223862404155
+    },
+    "3": {
+      "total": 0,
+      "max_zero": 6,
+      "cells": [],
+      "witness": null,
+      "zero_hist": {
+        "0": 317898,
+        "1": 159220,
+        "2": 39824,
+        "3": 6496,
+        "4": 758,
+        "5": 83,
+        "6": 9
+      },
+      "pairs": 524288,
+      "expected_random": 0.026798223862404155
+    }
+  },
+  "four_round_broad_524288": {
+    "pairs": 524288,
+    "ge8": 0,
+    "max_zero": 6,
+    "witness": null,
+    "expected_random": 0.026798223862404155
+  }
+}
