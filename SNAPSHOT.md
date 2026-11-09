@@ -1,13 +1,15 @@
-# octavo001 — frozen Octavo snapshot
+# octavo002 — frozen Octavo snapshot
 
-Saved 2026-11-09 ~9:52 AM EST from live /workspace/sneak_n2 (Python caches excluded), plus sneak1024-seed.txt.
+Saved 2026-11-09 ~10:36 AM EST from live /workspace/sneak_n2 (Python caches excluded), plus sneak1024-seed.txt.
 
-Contents: Octavo (sneak staff-core N2) with latin-pair B0 and odd restack, field bar pairs, six triplets, bow pressure with BOW_STROKES ((0,1,2),(2,3,4),(4,5,0),(6,7,0),(1,2,3),(3,4,5),(5,6,0)) (beat-7 and beat-6 fixes), cross-staff mix with bridge, pickup, clef, encore, SIV nonce, HMAC tag, code-closure key signature.
+Contents: Octavo as in octavo001 plus the beat-0 pressure rotation fix: BOW_STROKES unchanged, BOW_PRESSURE_ROT = (0,0,0,3,0,0,5), so strokes (4,5,0), (6,7,0), (5,6,0) read beat 0 rotated by 0, 3, 5 bits.
 
-- sneak_n2.py SHA-256: 922a29d89be68b29a2be08873ff5a99a7cf264afebe1ece0387aa0f4fe56fe10
-- Tests at freeze: 229/229 (recorded on live)
-- hello-world pickup d450337d3bbe0b460ae4298952279c7a, nonce b7e6267acbb2ecc0013ab8c73e0532c2
-- Latest attack: attacks_octavo_beat6/ (0 critical/high/medium; 4 low, 4 info; not a proof)
-- sneak-staff-n2.png is current (redrawn 9:50 AM), SHA-256: 9e5bc968ff2db45fb01011d31b8b39d74721f05938462d560f1693b7abfec768
+- sneak_n2.py SHA-256: 25cfe812ac6a5d5c22a26ba17440843f417dd44e060498850a78b68964612ff0
+- key_sig: 1946c5ac57f19d045eeacd9e5ed823fb
+- Tests at freeze: 237/237 (recorded on live)
+- hello-world pickup 7d4b4694011a7ab66e7f5f24c235c3f8, nonce 8855fdf3a1cb2cc843c4d1250f484697
+- Verification: fix_beat0rot_verification/ (0 singletons on all beats; 2^21-base even-beat scan)
+- Latest attack report: attacks_octavo_beat6/ (made on the previous revision)
+- sneak-staff-n2.png shows the previous revision's hello-world cells (stale).
 
 Homemade, NOT for real secrets. Use AES-GCM-SIV, age, or libsodium.

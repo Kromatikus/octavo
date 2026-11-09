@@ -1,10 +1,84 @@
 <p align="center"><img src="sneak-staff-n2.png" alt="Octavo: dual octahedra seed shells and the 16-staff by 8-beat hex grid of the hello-world ciphertext" width="100%"></p>
 
 **Octavo** is an experimental homemade 1024-bit cipher (files are named `sneak_n2`). It is **not for real secrets**; use AES-GCM-SIV, age, or libsodium. See [ATTACKS.md](ATTACKS.md) for the full attack history and [`attacks_octavo_beat6/`](attacks_octavo_beat6/REPORT.md) for the latest report.
-
 # Sneak staff-core N2 (8-bit cells)
 
-## Current live revision — beat-6 bow fix (2026-11-09)
+## Current live revision — beat-0 pressure rotation fix (2026-11-09)
+
+This section supersedes everything below for the bow, including the beat-6 section that
+follows. Still N2 / SN2 (project name: Octavo), still homemade, **not for real secrets** (use
+AES-GCM-SIV, age or libsodium). `BOW_STROKES` is unchanged; one new constant and two function
+bodies changed. No table name, sponge domain, blob format or API changed. No PNG, renderer,
+seed, frozen snapshot, attack folder, baseline, GitHub clone or demo-nonce was changed; the
+picture (`sneak-staff-n2.png`) is **stale** and still shows the previous revision's hello-world
+cells.
+
+**What the attack found** (`attacks_octavo_beat6/REPORT.md`, issue 1). After the beat-6 fix,
+three strokes (`(4,5,0)`, `(6,7,0)`, `(5,6,0)`) all read beat 0, which nothing writes after
+stroke 1, so they always share the same `(r1, r2)`. That raised bow-alone differentials
+(beat 6 ~2^-5.6, beat 7 ~2^-4.9) and some local cubes/integrals, all absorbed by the next
+half-round. Hardening, not a break.
+
+**The change.** Keep `BOW_STROKES`. Give each beat-0 reader a different view of the pressure
+byte before the r1/r2 formulas, via `BOW_PRESSURE_ROT` aligned with the strokes:
+
+```
+BOW_STROKES      = (0,1,2),(2,3,4),(4,5,0),(6,7,0),(1,2,3),(3,4,5),(5,6,0)
+BOW_PRESSURE_ROT = (0,    0,    0,     3,     0,     0,     5    )
+#                  ^identity for non-beat-0 readers; beat-0 readers use 0 / 3 / 5
+view = rotl8(p, BOW_PRESSURE_ROT[stroke])
+r1 = 1 + view%7 ; r2 = 1 + (view>>3)%7 ; u = (u + rotl8(v,r1)) & 255 ; v ^= rotl8(u,r2)
+```
+
+`(4,5,0)` uses `p`, `(6,7,0)` uses `rotl8(p,3)`, `(5,6,0)` uses `rotl8(p,5)`. Stroke formula,
+order, the no-(7,0)-pair rule and the odd rehair are unchanged. `unbow_pressure` still undoes
+the strokes in reverse with the same views; beat 0 is only written by stroke 1, before every
+stroke that reads it, so inversion is exact.
+
+**Singleton arguments (carry over).** Every argument that only needs "pressure unchanged ⇒
+rotations fixed" still holds, including the beat-6 / beat-7 / odd-beat proofs. Added to the
+SPEC from the beat-6 report: **beat 0** (outputs 0,1,2 always change → two pairs) and
+**beat 4** (outputs 5,6 always change). **Beat 2** stays measured only (partial proof when
+the bow's beat-0 output is unchanged).
+
+**Verified.**
+- Strict test, all 8 beats (1,044,480 cases): bow+rehair singletons per beat `[0]*8`.
+- Full verification in `fix_beat0rot_verification/` (does not modify any `attacks_*` folder):
+  - Scan A: 2^21 random bases × 255 deltas on even beats 0/2/4 → **0 / 534,773,760** hits
+    each; `one_pair_both = 0` (necessary first step for a rehair singleton never occurs).
+  - Scan B: 2^18 bases × 255 on all 8 beats → **0** hits on every beat (66.8 M each),
+    including odd beats and beat 6.
+  - Forced-change outputs match the written arguments: beat 0 → {0,1,2}, beat 4 → {5,6},
+    beat 6 → {5,7}, beat 7 → {5}.
+  - Bow-alone best differentials (2^13 bases): beat 0/6/7 = **2^-10.19 / 2^-7.07 / 2^-7.33**
+    (pre-fix live report ~2^-8.1 / 2^-5.6 / 2^-4.9; same-bases old-model ~2^-8.09 / 2^-5.47 /
+    2^-4.72). Integrals/cubes of fixed-rotation ARX when beat 0 is constant are **not** removed.
+- Key signature: `BOW_PRESSURE_ROT` is reachable module data (closure now **36** data names)
+  and is in the `mix_description` bow dict; `bow_pressure` / `unbow_pressure` sources changed,
+  so key_sig and every tag changed.
+- Previous hello-world sample (pickup `d450337d3bbe0b460ae4298952279c7a`) fails with tag
+  mismatch. Pre-change copy: `/tmp/sneak_n2_pre_beat0rot`.
+- Live `sneak_n2.py` SHA-256: `25cfe812ac6a5d5c22a26ba17440843f417dd44e060498850a78b68964612ff0`.
+- key_sig: `1946c5ac57f19d045eeacd9e5ed823fb`.
+- New hello-world pickup `7d4b4694011a7ab66e7f5f24c235c3f8` (see `hello-world.txt`).
+- Tests: **237/237 passed** (229 before + new checks for `BOW_PRESSURE_ROT`, distinct beat-0
+  views, differential spot check, previous sample on tag, coverage of the new constant, and an
+  updated negative control that also restores all-zero pressure-rot). Full suite ~10 min.
+- Picture / `render_n2.py` untouched (stale; shows previous revision's hello-world cells).
+
+**Honest costs / limits.**
+- Still homemade. For real secrets use AES-GCM-SIV, age, or libsodium.
+- Late strokes that read beat 0 still see a fixed function of beat 0, so fixed-rotation ARX
+  structure (integrals/cubes) remains whenever beat 0 is constant; removing it would break the
+  singleton proofs.
+- Beat 2 still has only a partial written proof.
+- The picture was **not** redrawn; it shows the previous revision's hello-world cells.
+- Older blobs (including the public GitHub sample until it is updated) fail on the tag.
+
+---
+
+
+## Previous revision — beat-6 bow fix (2026-11-09)
 
 This section supersedes everything below for the bow, including the beat-7 section that
 follows. Still N2 / SN2 (project name: Octavo), still homemade, **not for real secrets** (use

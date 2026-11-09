@@ -1,6 +1,69 @@
 # Sneak staff-core N2: live specification
 
-## Current live revision — beat-6 bow fix (2026-11-09)
+## Current live revision — beat-0 pressure rotation fix (2026-11-09)
+
+This section supersedes everything below for the bow, including the beat-6 section that
+follows. Still N2 / SN2 (project name: Octavo), still homemade, **not for real secrets** (use
+AES-GCM-SIV, age or libsodium). `BOW_STROKES` unchanged; new `BOW_PRESSURE_ROT` and updated
+`bow_pressure` / `unbow_pressure`. No table name, sponge domain, blob format or API changed.
+No PNG, renderer, seed, frozen snapshot, attack folder, baseline, GitHub clone or demo-nonce
+was changed; the picture is stale (previous revision's hello-world cells).
+
+**Motivation** (`attacks_octavo_beat6/REPORT.md` §6). Three strokes share beat 0's rotations.
+Proposed and lab-screened fix: distinct views of beat 0 before r1/r2.
+
+**Live bow.**
+
+```
+BOW_STROKES      = (0,1,2),(2,3,4),(4,5,0),(6,7,0),(1,2,3),(3,4,5),(5,6,0)   # (i, j, pressure)
+BOW_PRESSURE_ROT = (0,    0,    0,     3,     0,     0,     5    )           # per-stroke rotl of p
+view = rotl8(pressure_byte, BOW_PRESSURE_ROT[stroke_index])
+r1 = 1 + view%7 ; r2 = 1 + (view>>3)%7
+u = (u + rotl8(v,r1)) & 255 ; v ^= rotl8(u,r2)
+```
+
+`(4,5,0)` uses `p`; `(6,7,0)` uses `rotl8(p,3)`; `(5,6,0)` uses `rotl8(p,5)`. Non-beat-0
+readers use rot 0 (identity). `unbow_pressure` applies the same views in reverse stroke order.
+Beat 0 is written only by stroke `(0,1,2)`, before every later reader, so the bow stays
+invertible.
+
+**No-singleton arguments** (any base, any delta, any tables). Each uses only "pressure byte
+unchanged ⇒ rotations fixed" (still true under a fixed per-stroke function of p) and that
+`x ↦ x+c`, `x ↦ x⊕c` are bijections:
+
+* **Beat 0 (written).** Stroke `(0,1,2)` has fixed rotations (beat 2 unchanged), so
+  `u = s0 + rotl(s1)` changes. Beat 0's final value is that `u`, and s1 changes. Stroke
+  `(2,3,4)` is untouched, so `(1,2,3)` has fixed rotations: beat 1 changes, then beat 2
+  changes. Neither is written again. Outputs 0, 1 and 2 change → two rehair pairs.
+* **Beat 4 (written).** Stroke `(4,5,0)` reads beat 0, which beat 4 cannot reach before
+  stroke 3, so its rotations are fixed. u3 changes and beat 5 changes. `(6,7,0)` is
+  untouched. `(5,6,0)` has fixed rotations: beat 5 changes, then beat 6 changes. Outputs 5
+  and 6 change → two pairs.
+* **Beat 6 (written; unchanged by this fix).** Outputs 5 and 7 always change (pairs (4,5)
+  and (6,7)). See the beat-6 section below.
+* **Beat 7 / odd beats (written; unchanged).** See the beat-7 section below.
+* **Beat 2 (measured only; partial proof).** If the bow's beat-0 output is unchanged
+  (~15% of cases), strokes that read beat 0 are untouched and outputs 3 and 4 always change.
+  Otherwise: measured ≥ 3 active pairs in all sampled cases; no complete written argument.
+
+**Verified / identifiers.**
+- Live `sneak_n2.py` SHA-256: `25cfe812ac6a5d5c22a26ba17440843f417dd44e060498850a78b68964612ff0`.
+- key_sig: `1946c5ac57f19d045eeacd9e5ed823fb` (changes with `BOW_PRESSURE_ROT` and the bow
+  sources; closure data names now 36, including `BOW_PRESSURE_ROT`).
+- Previous sample pickup `d450337d…` → tag mismatch. Backup: `/tmp/sneak_n2_pre_beat0rot`.
+- New hello-world pickup `7d4b4694011a7ab66e7f5f24c235c3f8`.
+- Scan folder: `/workspace/sneak_n2/fix_beat0rot_verification/` — A: 0/534.8 M per even beat
+  (2^21); B: 0 on all 8 beats (2^18); diffs beat 0/6/7 → 2^-10.19 / 2^-7.07 / 2^-7.33.
+  Forced changes: beat 0→{0,1,2}, beat 4→{5,6}, beat 6→{5,7}. Does not modify any `attacks_*`.
+- Tests: **237/237 passed**. Picture / `render_n2.py` untouched (stale).
+
+**Honest limits.** Fixed-rotation ARX integrals/cubes when beat 0 is constant remain; this
+fix only splits the shared `(r1,r2)`. Still homemade — use AES-GCM-SIV, age, or libsodium.
+
+---
+
+
+## Previous revision — beat-6 bow fix (2026-11-09)
 
 This section supersedes everything below for the bow, including the beat-7 section that
 follows. Still N2 / SN2 (project name: Octavo), still homemade, **not for real secrets** (use

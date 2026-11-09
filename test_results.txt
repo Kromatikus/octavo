@@ -142,10 +142,12 @@ PASS altered triplet score: 195-byte valid alternate blob rejected on live TAG a
 PASS altered mix2 score: 195-byte valid alternate blob rejected on live TAG as AuthError
 PASS score commitment changes with FIELD_POLY
 PASS score commitment changes with BOW_STROKES
+PASS score commitment changes with BOW_PRESSURE_ROT
 PASS score commitment changes with BOW_ROT_BASE
 PASS score commitment changes with BOW_ROT_MOD
 PASS score commitment changes with BOW_R2_SHIFT
 PASS bow strokes match open even then interior odd order, pressure read only may wrap
+PASS BOW_PRESSURE_ROT aligned with BOW_STROKES: beat-0 readers use 0,3,5; others identity
 PASS bow stroke inverse, exhaustive byte pairs for pressures 0, 127, 255
 PASS bow pressure two-sided inverse: 20,000 random staffs plus uniform edge staffs
 PASS bow pressure is nonidentity and copies its input
@@ -163,7 +165,8 @@ PASS score commitment changes with CROSS_BRIDGE
 PASS score commitment changes with CROSS_LAYERS
 PASS altered effective cross order roundtrips locally but fails live tag
 PASS pre-cross 195-byte hello-world pickup 28c124 now fails closed on TAG
-PASS triplets/bow, schedule, weave, bridges, encoding and AE formula unchanged from pre-cross (B0/rehair intentionally changed)
+PASS triplets, schedule, weave, bridges, encoding and AE formula unchanged from pre-cross (B0/rehair and bow pressure-rot intentionally changed)
+PASS bow_pressure/unbow_pressure sources differ from pre-cross (beat-0 pressure-rot fix applies rotl8 view)
 cell-2 one-round spread (300 pairs, demo schedule; first delta 0x5a): min 16, max 16, union [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], confined 0/300
 PASS cell-2 previous five-staff confinement broken in all 300 pairs; union all 16 staffs
 PASS testn4 frozen source hash unchanged
@@ -180,8 +183,8 @@ PASS B0 old differential is not a base-independent linear kernel wipe
 PASS B0 exactly-one-input changes both outputs (40,000 sampled derivatives)
 PASS odd_restack two-sided inverse, copies without mutation (20,256 staffs)
 PASS odd restack beat 7 only pairs with 6; no beat-7-to-0 line
-all-beat scan bow -> bow+rehair: 1148/1044480 -> 0/1044480 singletons; min after 2; includes every delta 0x80
-per-beat singletons (130,560 cases each), bow alone: [0, 93, 0, 120, 0, 127, 0, 808] ; bow+rehair: [0, 0, 0, 0, 0, 0, 0, 0]
+all-beat scan bow -> bow+rehair: 482/1044480 -> 0/1044480 singletons; min after 2; includes every delta 0x80
+per-beat singletons (130,560 cases each), bow alone: [0, 7, 0, 120, 0, 127, 0, 228] ; bow+rehair: [0, 0, 0, 0, 0, 0, 0, 0]
 PASS bow+odd_restack has no singletons for 1,044,480 all-beat input cases (8 beats x 130,560, all 255 deltas; odd subset = the old 522,240)
 PASS ARX rotation constants retired (no B0_ROT_*/ODD_RESTACK_R* attributes)
 PASS latin_pair/latin_unpair/round_enc/round_dec are in MIX_CODE_FUNCS
@@ -211,21 +214,28 @@ PASS beat-6 lemma: bow keeps beats 0..4, always changes beats 5 and 7 (200,000 r
 PASS beat 6 is read as pressure by no stroke; beat 0 feeds exactly the three strokes (4,5,0),(6,7,0),(5,6,0)
 pre-fix beat-6 witnesses, bow+rehair changed bytes per round table: [[4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4], [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4], [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4], [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4]]
 PASS the 4 pre-fix beat-6 witnesses (3 all-table + REPORT mechanism example) now change >=2 bytes for all 16 rounds' tables
-PASS negative control: with the pre-fix (4,5,6) layout patched in, the 4 beat-6 witnesses are single-byte under all 16 tables
+PASS negative control: with pre-beat6 (4,5,6) strokes AND all-zero BOW_PRESSURE_ROT patched in, the 4 beat-6 witnesses are single-byte under all 16 tables
 PASS NumPy bow/rehair model equals live bow_pressure/odd_restack on 5,000 random staffs
-NumPy bow+rehair singleton scan (round-0 tables), cases per beat [4177920, 4177920, 4177920, 4177920, 4177920, 4177920, 16711680, 4177920], singletons [0, 0, 0, 0, 0, 0, 0, 0], 16.1s
+NumPy bow+rehair singleton scan (round-0 tables), cases per beat [4177920, 4177920, 4177920, 4177920, 4177920, 4177920, 16711680, 4177920], singletons [0, 0, 0, 0, 0, 0, 0, 0], 19.6s
 PASS beat-6 scan: 0 singletons in 16,711,680 beat-6 cases (65,536 random bases x 255 deltas; pre-fix layout gave ~19) and 0 on every other beat (4,177,920 each)
 PASS pre-beat6-fix 195-byte hello-world pickup ee95ddb2 fails on tag, not DecodeError
+PASS pre-beat0rot 195-byte hello-world pickup d450337d fails on tag, not DecodeError
+PASS beat-0 pressure views are p, rotl8(p,3), rotl8(p,5) for all 256 pressure bytes
+beat-0 reader (r1,r2) distinctness over 256 p: shared-all=4, all-three-distinct=226
+PASS beat-0 readers rarely share one (r1,r2); usually all three distinct (shared < 16, distinct3 > 180)
+bow-alone best diff log2 (2^12 bases): beat0=-9.42, beat6=-7.05, beat7=-6.96 (pre-fix live ~-8.1/-5.6/-4.9)
+PASS bow-alone best differentials on beats 0/6/7 improved vs pre-fix live (~-8.1/-5.6/-4.9)
+PASS mix_description bow records pressure_rot and the view-then-r1/r2 formula
 PASS pre-beat7-fix 195-byte hello-world pickup 76908595 fails on tag, not DecodeError
 keyed pair exact affine output bits per round (col,bit,u_mask,v_mask,const): [[], [], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
 PASS keyed pair: no output bit is an exact affine function of the inputs (all 16 rounds' tables)
 PASS pre-sig-gap 195-byte hello-world pickup 24d554eb fails on tag, not DecodeError
-reachable functions/classes: 57 ; reachable module data: ['BARS', 'BARS_INV', 'BLOB_LEN', 'BLOCK_LEN', 'BOW_R2_SHIFT', 'BOW_ROT_BASE', 'BOW_ROT_MOD', 'BOW_STROKES', 'CROSS_ADJACENT', 'CROSS_BRIDGE', 'CROSS_LAYERS', 'CROSS_OPPOSITE', 'CROSS_RADIAL', 'CT0', 'CT1', 'FIELD_POLY', 'LAYERS', 'MAX_MSG', 'MIX2_INV', 'MIX2_MATRIX', 'MIX_CODE_FUNCS', 'MIX_CODE_ROOTS', 'N0', 'NB', 'NF', 'NONCE_LEN', 'NR', 'PICKUP_LEN', 'PK0', 'SEED_PATH', 'SM4_SBOX', 'TRIPLETS', 'TRIPLETS_INV', 'VERSION', '_GF_MUL']
+reachable functions/classes: 57 ; reachable module data: ['BARS', 'BARS_INV', 'BLOB_LEN', 'BLOCK_LEN', 'BOW_PRESSURE_ROT', 'BOW_R2_SHIFT', 'BOW_ROT_BASE', 'BOW_ROT_MOD', 'BOW_STROKES', 'CROSS_ADJACENT', 'CROSS_BRIDGE', 'CROSS_LAYERS', 'CROSS_OPPOSITE', 'CROSS_RADIAL', 'CT0', 'CT1', 'FIELD_POLY', 'LAYERS', 'MAX_MSG', 'MIX2_INV', 'MIX2_MATRIX', 'MIX_CODE_FUNCS', 'MIX_CODE_ROOTS', 'N0', 'NB', 'NF', 'NONCE_LEN', 'NR', 'PICKUP_LEN', 'PK0', 'SEED_PATH', 'SM4_SBOX', 'TRIPLETS', 'TRIPLETS_INV', 'VERSION', '_GF_MUL']
 PASS nothing reachable from encrypt/decrypt/siv_nonce/key_signature/split_blob is missing from MIX_CODE_FUNCS; listed extras are only the import-time table builders
 module functions/classes NOT in coverage: ['ddt_max', 'encrypt_hello', 'grid_rows', 'lat_max']
 PASS only non-cipher helpers are outside coverage (ddt_max, lat_max, grid_rows, encrypt_hello)
 PASS closure includes staff_mix/staff_unmix/shell_mix/shell_unmix/weave/unweave/xor_grid/Schedule/keyed_sbox/encode_block/encrypt_grid/decrypt_grid
-PASS module data hashed includes BARS, BARS_INV, TRIPLETS(_INV), CROSS_*, BOW_*, LAYERS, SM4_SBOX, _GF_MUL, MIX2_*, sizes
+PASS module data hashed includes BARS, BARS_INV, TRIPLETS(_INV), CROSS_*, BOW_* (incl. BOW_PRESSURE_ROT), LAYERS, SM4_SBOX, _GF_MUL, MIX2_*, sizes
 PASS independent recomputation of mix_code and mix_data digests matches
 modified-copy replacements: 60 functions/classes; key_sig changed AND live hello-world -> tag mismatch for 60; failures []
 PASS modified copy of staff_mix: key_sig changes and live hello-world decrypt fails with AuthError tag mismatch
@@ -252,18 +262,18 @@ PASS key signature is stable across calls in an untouched process
 PASS copied bar_mix skips B0, BARS identical: key_sig changes; alternate roundtrip; live tag mismatch
 PASS runtime replacing bar_mix object changes source commitment without editing BARS
 N2-8bit+bars+triplets diffusion, min over 128 input bytes of |union of affected output bytes| after r rounds: [128, 128, 128, 128, 128, 128]
-N2-8bit+bars+triplets diffusion, mean affected bytes per single trial (random ~127.5): [127.5, 127.5, 127.5, 127.5, 127.5, 127.5]
+N2-8bit+bars+triplets diffusion, mean affected bytes per single trial (random ~127.5): [127.6, 127.5, 127.5, 127.5, 127.5, 127.5]
 N2-8bit+bars+triplets full byte dependence at round 1  (8-bit N2 before bars: round 3, min-union [37, 127, 128]; 4-bit N2: round 3)
 PASS N2-8bit reaches full 128-byte dependence by round 4
 PASS N2-8bit mean affected bytes after 3 rounds >= 120 (random-like 127.5)
-bit avalanche  1 rounds: mean 513.6/1024, min 458, max 558
-bit avalanche  2 rounds: mean 511.4/1024, min 473, max 559
-bit avalanche  3 rounds: mean 512.2/1024, min 467, max 565
-bit avalanche  4 rounds: mean 513.7/1024, min 461, max 553
-bit avalanche 16 rounds: mean 511.5/1024, min 463, max 567
+bit avalanche  1 rounds: mean 510.7/1024, min 468, max 557
+bit avalanche  2 rounds: mean 511.0/1024, min 447, max 566
+bit avalanche  3 rounds: mean 511.2/1024, min 464, max 554
+bit avalanche  4 rounds: mean 510.5/1024, min 465, max 567
+bit avalanche 16 rounds: mean 512.6/1024, min 463, max 564
 PASS 4-round bit avalanche mean within 496..528 (of 1024)
 PASS 16-round bit avalanche mean within 500..524, min > 440
-ct byte chi2 over 2000 random messages (255 df, 99.9% crit 330.5): 247.7
+ct byte chi2 over 2000 random messages (255 df, 99.9% crit 330.5): 257.5
 PASS ct byte distribution uniform-ish (chi2 < 330.5)
 baseline frozen-and-n1.sha256: 58 files
 PASS unchanged vs baseline frozen-and-n1.sha256
@@ -271,4 +281,4 @@ baseline v2-v13-and-seed.sha256: 116 files
 PASS unchanged vs baseline v2-v13-and-seed.sha256
 PASS no files added/removed in test1/, test3/, test13/, testn1/, sneak_t1n/
 
-229/229 passed, 0 failed
+237/237 passed, 0 failed

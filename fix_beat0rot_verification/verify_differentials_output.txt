@@ -1,0 +1,9 @@
+live_sha 25cfe812ac6a5d5c22a26ba17440843f417dd44e060498850a78b68964612ff0
+validated 2000
+beat 0 {'log2': -10.19, 'count': 7, 'delta': 9, 'out_pack': 516103, 'bases': 8192} pre -8.1
+beat 6 {'log2': -7.07, 'count': 61, 'delta': 16, 'out_pack': 2311613246236262400, 'bases': 8192} pre -5.6
+beat 7 {'log2': -7.33, 'count': 51, 'delta': 16, 'out_pack': 140737488355328, 'bases': 8192} pre -4.9
+old-model beat 0 -8.09
+old-model beat 6 -5.47
+old-model beat 7 -4.72
+improved {0: True, 6: True, 7: True} sec 2.1

@@ -1,0 +1,227 @@
+{
+  "started": "2026-11-09 10:11:46 EST",
+  "live_sha": "25cfe812ac6a5d5c22a26ba17440843f417dd44e060498850a78b68964612ff0",
+  "strokes": [
+    [
+      0,
+      1,
+      2
+    ],
+    [
+      2,
+      3,
+      4
+    ],
+    [
+      4,
+      5,
+      0
+    ],
+    [
+      6,
+      7,
+      0
+    ],
+    [
+      1,
+      2,
+      3
+    ],
+    [
+      3,
+      4,
+      5
+    ],
+    [
+      5,
+      6,
+      0
+    ]
+  ],
+  "pressure_rot": [
+    0,
+    0,
+    0,
+    3,
+    0,
+    0,
+    5
+  ],
+  "note": "post beat-0rot fix verification",
+  "A_random_even_2^21": {
+    "0": {
+      "cases": 534773760,
+      "hits": 0,
+      "one_pair_both": 0,
+      "pairs_hist": [
+        0,
+        0,
+        540883,
+        862229,
+        533370648
+      ],
+      "witnesses": []
+    },
+    "2": {
+      "cases": 534773760,
+      "hits": 0,
+      "one_pair_both": 0,
+      "pairs_hist": [
+        0,
+        0,
+        311409,
+        82813636,
+        451648715
+      ],
+      "witnesses": []
+    },
+    "4": {
+      "cases": 534773760,
+      "hits": 0,
+      "one_pair_both": 0,
+      "pairs_hist": [
+        0,
+        0,
+        43879,
+        24153585,
+        510576296
+      ],
+      "witnesses": []
+    }
+  },
+  "B_random_all_beats_2^18": {
+    "0": {
+      "cases": 66846720,
+      "hits": 0,
+      "one_pair_both": 0,
+      "pairs_hist": [
+        0,
+        0,
+        67962,
+        108516,
+        66670242
+      ],
+      "witnesses": []
+    },
+    "1": {
+      "cases": 66846720,
+      "hits": 0,
+      "one_pair_both": 0,
+      "pairs_hist": [
+        0,
+        1241,
+        69635,
+        169143,
+        66606701
+      ],
+      "witnesses": []
+    },
+    "2": {
+      "cases": 66846720,
+      "hits": 0,
+      "one_pair_both": 0,
+      "pairs_hist": [
+        0,
+        0,
+        38972,
+        10344844,
+        56462904
+      ],
+      "witnesses": []
+    },
+    "3": {
+      "cases": 66846720,
+      "hits": 0,
+      "one_pair_both": 0,
+      "pairs_hist": [
+        0,
+        54834,
+        1647830,
+        65144056,
+        0
+      ],
+      "witnesses": []
+    },
+    "4": {
+      "cases": 66846720,
+      "hits": 0,
+      "one_pair_both": 0,
+      "pairs_hist": [
+        0,
+        0,
+        5566,
+        3018835,
+        63822319
+      ],
+      "witnesses": []
+    },
+    "5": {
+      "cases": 66846720,
+      "hits": 0,
+      "one_pair_both": 0,
+      "pairs_hist": [
+        0,
+        53196,
+        1628713,
+        65164811,
+        0
+      ],
+      "witnesses": []
+    },
+    "6": {
+      "cases": 66846720,
+      "hits": 0,
+      "one_pair_both": 0,
+      "pairs_hist": [
+        0,
+        0,
+        66846720,
+        0,
+        0
+      ],
+      "witnesses": []
+    },
+    "7": {
+      "cases": 66846720,
+      "hits": 0,
+      "one_pair_both": 0,
+      "pairs_hist": [
+        0,
+        86926,
+        66759794,
+        0,
+        0
+      ],
+      "witnesses": []
+    }
+  },
+  "F_forced_changes": {
+    "0": [
+      0,
+      1,
+      2
+    ],
+    "1": [
+      0
+    ],
+    "2": [],
+    "3": [],
+    "4": [
+      5,
+      6
+    ],
+    "5": [],
+    "6": [
+      5,
+      7
+    ],
+    "7": [
+      5
+    ]
+  },
+  "live_confirmation": [],
+  "seconds": 106.0,
+  "finished": "2026-11-09 10:13:32 EST",
+  "total_hits": 0,
+  "PASS": true
+}

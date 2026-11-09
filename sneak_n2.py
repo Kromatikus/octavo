@@ -381,7 +381,16 @@ BOW_STROKES = ((0, 1, 2), (2, 3, 4), (4, 5, 0), (6, 7, 0),
 # beats 5 and 7 both change -> the delta spans pairs (4,5) and (6,7). Cost: beat 0 now feeds the rotations of
 # three strokes ((4,5,0), (6,7,0), (5,6,0)); bow-alone best beat-6 differential ~2^-7.75 -> ~2^-5.68 (the
 # rehair S-boxes absorb it). Even beats 0, 2, 4 are covered by measurement only, not by this argument.
+# Beat-0 pressure-rotation fix (2026-11-09, after attacks_octavo_beat6 §6): BOW_STROKES unchanged, but each
+# beat-0 reader gets a different view of the pressure byte before the r1/r2 formulas. (4,5,0) uses p,
+# (6,7,0) uses rotl8(p,3), (5,6,0) uses rotl8(p,5). Other strokes keep rot 0 (identity). Singleton
+# arguments that only need "pressure unchanged => rotations fixed" still hold; beat 0 is not written after
+# stroke 1, so the bow stays invertible. Lab screen: bow-alone best diffs beat 7/6/0 ~2^-4.7/2^-5.6/2^-8.1
+# -> ~2^-7.4/2^-7.1/2^-10.2; integrals/cubes of fixed-rotation ARX are not removed.
 BOW_ROT_BASE, BOW_ROT_MOD, BOW_R2_SHIFT = 1, 7, 3
+# Per-stroke left-rotate of the pressure byte BEFORE r1/r2, aligned with BOW_STROKES. Non-beat-0 readers
+# use 0 (identity). The three beat-0 readers use 0, 3, 5 so they no longer share identical (r1, r2).
+BOW_PRESSURE_ROT = (0, 0, 0, 3, 0, 0, 5)
 
 def rotl8(x, n): return ((x << n) | (x >> (8 - n))) & 255
 
@@ -402,13 +411,15 @@ def unbow_stroke(u, v, p):
 def bow_pressure(staff):
     s = list(staff)
     if len(s) != NB: raise ValueError("staff must have 8 bytes")
-    for i, j, p in BOW_STROKES: s[i], s[j] = bow_stroke(s[i], s[j], s[p])
+    for (i, j, p), k in zip(BOW_STROKES, BOW_PRESSURE_ROT):
+        s[i], s[j] = bow_stroke(s[i], s[j], rotl8(s[p], k))
     return s
 
 def unbow_pressure(staff):
     s = list(staff)
     if len(s) != NB: raise ValueError("staff must have 8 bytes")
-    for i, j, p in reversed(BOW_STROKES): s[i], s[j] = unbow_stroke(s[i], s[j], s[p])
+    for (i, j, p), k in zip(reversed(BOW_STROKES), reversed(BOW_PRESSURE_ROT)):
+        s[i], s[j] = unbow_stroke(s[i], s[j], rotl8(s[p], k))
     return s
 
 # ---------------------------------------------------------------- odd-beat rehair (open staff, no pressure read)
@@ -513,9 +524,9 @@ def mix_description():
         mix_data=dict(names=tuple(sorted(data_names)), sha256=data.hexdigest(),
                       framing="per name (sorted): name, _canon_data(value); each UTF-8 part prefixed by uint64be length"),
         field_poly=FIELD_POLY, pair_ring="GF(2^8); B0 keyed Latin pair", triplet_ring="Z/256Z",
-        bow=dict(strokes=BOW_STROKES, rot_base=BOW_ROT_BASE, rot_mod=BOW_ROT_MOD,
-                 r2_shift=BOW_R2_SHIFT,
-                 formula="r1=base+p%mod;r2=base+(p>>shift)%mod;u=(u+rotl8(v,r1))&255;v=v^rotl8(u,r2)",
+        bow=dict(strokes=BOW_STROKES, pressure_rot=BOW_PRESSURE_ROT,
+                 rot_base=BOW_ROT_BASE, rot_mod=BOW_ROT_MOD, r2_shift=BOW_R2_SHIFT,
+                 formula="view=rotl8(p,pressure_rot[stroke]);r1=base+view%mod;r2=base+(view>>shift)%mod;u=(u+rotl8(v,r1))&255;v=v^rotl8(u,r2)",
                  placement="after-mid-triplets-before-rehair;after-encore-triplets-before-rehair"),
         odd_restack=dict(beats=(1,3,5,7), pairs=((0,1),(2,3),(4,5),(6,7)),
                  kind="field+keyed-sbox", field=MIX2_MATRIX, tables="u'=S[x];v'=S2[y];inverse SI,SI2",

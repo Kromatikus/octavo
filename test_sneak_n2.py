@@ -367,12 +367,17 @@ for kind in ("pair", "triplet", "mix2"):
 # Each relevant constant is encoded dynamically, not a fixed prose promise.
 from unittest.mock import patch
 for name, value in (("FIELD_POLY",0x1F7), ("BOW_STROKES",tuple(reversed(N.BOW_STROKES))),
+                    ("BOW_PRESSURE_ROT",tuple(reversed(N.BOW_PRESSURE_ROT))),
                     ("BOW_ROT_BASE",2), ("BOW_ROT_MOD",6), ("BOW_R2_SHIFT",2)):
     sig = N.key_signature(SEED)
     with patch.object(N, name, value): changed = N.key_signature(SEED) != sig
     check("score commitment changes with "+name, changed)
 check("bow strokes match open even then interior odd order, pressure read only may wrap", N.BOW_STROKES ==
       ((0,1,2),(2,3,4),(4,5,0),(6,7,0),(1,2,3),(3,4,5),(5,6,0)) and all({i,j}!={0,7} and p not in (i,j) for i,j,p in N.BOW_STROKES))
+check("BOW_PRESSURE_ROT aligned with BOW_STROKES: beat-0 readers use 0,3,5; others identity",
+      N.BOW_PRESSURE_ROT == (0,0,0,3,0,0,5) and len(N.BOW_PRESSURE_ROT)==len(N.BOW_STROKES)
+      and [N.BOW_PRESSURE_ROT[i] for i,st in enumerate(N.BOW_STROKES) if st[2]==0]==[0,3,5]
+      and all(N.BOW_PRESSURE_ROT[i]==0 for i,st in enumerate(N.BOW_STROKES) if st[2]!=0))
 check("bow stroke inverse, exhaustive byte pairs for pressures 0, 127, 255", all(
       N.unbow_stroke(*N.bow_stroke(u,v,p),p)==(u,v) for p in (0,127,255) for u in range(256) for v in range(256)))
 staffs = [list(rb(8)) for _ in range(20000)]
@@ -428,11 +433,16 @@ er = catch(lambda: N.decrypt(pre_cross_blob, SEED))
 check("pre-cross 195-byte hello-world pickup 28c124 now fails closed on TAG",
       len(pre_cross_blob)==195 and pre_cross_blob[3:19].hex().startswith("28c124")
       and isinstance(er,N.AuthError) and "tag" in str(er))
-check("triplets/bow, schedule, weave, bridges, encoding and AE formula unchanged from pre-cross (B0/rehair intentionally changed)",
+check("triplets, schedule, weave, bridges, encoding and AE formula unchanged from pre-cross (B0/rehair and bow pressure-rot intentionally changed)",
       all(inspect.getsource(getattr(N,n)) == inspect.getsource(getattr(PRE_CROSS,n)) for n in
-          ("triplet_mix","triplet_unmix","bow_pressure","unbow_pressure",
+          ("triplet_mix","triplet_unmix",
            "staff_mix","staff_unmix","shell_mix","shell_unmix","weave","unweave","Schedule",
            "StaffSponge","keyed_sbox","encode_block","encrypt","decrypt","siv_nonce","_tag")))
+check("bow_pressure/unbow_pressure sources differ from pre-cross (beat-0 pressure-rot fix applies rotl8 view)",
+      inspect.getsource(N.bow_pressure) != inspect.getsource(PRE_CROSS.bow_pressure)
+      and inspect.getsource(N.unbow_pressure) != inspect.getsource(PRE_CROSS.unbow_pressure)
+      and "BOW_PRESSURE_ROT" in inspect.getsource(N.bow_pressure)
+      and "BOW_PRESSURE_ROT" in inspect.getsource(N.unbow_pressure))
 rr_cross = random.Random(20261108); active_counts=[]; staff_union=set(); confined=0
 for trial in range(300):
     g = [[rr_cross.randrange(256) for _ in range(8)] for _ in range(16)]
@@ -629,19 +639,22 @@ print("pre-fix beat-6 witnesses, bow+rehair changed bytes per round table:",b6_w
 check("the 4 pre-fix beat-6 witnesses (3 all-table + REPORT mechanism example) now change >=2 bytes for all 16 rounds' tables",
       all(min(w)>=2 for w in b6_w))
 PRE_B6_STROKES=((0,1,2),(2,3,4),(4,5,6),(6,7,0),(1,2,3),(3,4,5),(5,6,0))
-with patch.object(N,"BOW_STROKES",PRE_B6_STROKES):
+PRE_B6_PRESSURE_ROT=(0,0,0,0,0,0,0)  # pre-beat0rot: every stroke used p as-is
+with patch.object(N,"BOW_STROKES",PRE_B6_STROKES), patch.object(N,"BOW_PRESSURE_ROT",PRE_B6_PRESSURE_ROT):
     ctrl=[[sum(x!=y for x,y in zip(N.odd_restack(N.bow_pressure(s),rk["S"],rk["S2"]),
             N.odd_restack(N.bow_pressure([c^(d if k==t else 0) for k,c in enumerate(s)]),rk["S"],rk["S2"]))) for rk in sch0.rounds]
           for s,t,d in OLD_B6]
-check("negative control: with the pre-fix (4,5,6) layout patched in, the 4 beat-6 witnesses are single-byte under all 16 tables",
-      all(w==[1]*16 for w in ctrl) and N.BOW_STROKES==((0,1,2),(2,3,4),(4,5,0),(6,7,0),(1,2,3),(3,4,5),(5,6,0)))
+check("negative control: with pre-beat6 (4,5,6) strokes AND all-zero BOW_PRESSURE_ROT patched in, the 4 beat-6 witnesses are single-byte under all 16 tables",
+      all(w==[1]*16 for w in ctrl)
+      and N.BOW_STROKES==((0,1,2),(2,3,4),(4,5,0),(6,7,0),(1,2,3),(3,4,5),(5,6,0))
+      and N.BOW_PRESSURE_ROT==(0,0,0,3,0,0,5))
 # Large NumPy scan: vectorised bow (checked against live bow_pressure) + live round-0 keyed rehair.
 _S0=np.array(list(TS[0]),dtype=np.int64); _S20=np.array(list(TS[1]),dtype=np.int64); _G2=np.array(list(N._GF_MUL[2]),dtype=np.int64)
 def _rotl(x,r): return ((x<<r)|(x>>(8-r)))&255
 def np_bow(A):
     A=A.copy()
-    for i,j,p in N.BOW_STROKES:
-        P=A[:,p]; r1=N.BOW_ROT_BASE+(P%N.BOW_ROT_MOD); r2=N.BOW_ROT_BASE+((P>>N.BOW_R2_SHIFT)%N.BOW_ROT_MOD)
+    for (i,j,p),k in zip(N.BOW_STROKES, N.BOW_PRESSURE_ROT):
+        P=_rotl(A[:,p],k); r1=N.BOW_ROT_BASE+(P%N.BOW_ROT_MOD); r2=N.BOW_ROT_BASE+((P>>N.BOW_R2_SHIFT)%N.BOW_ROT_MOD)
         u=(A[:,i]+_rotl(A[:,j],r1))&255; v=A[:,j]^_rotl(u,r2); A[:,i]=u; A[:,j]=v
     return A
 def np_rehair(A):
@@ -672,6 +685,43 @@ er = catch(lambda: N.decrypt(b6_blob, SEED))
 check("pre-beat6-fix 195-byte hello-world pickup ee95ddb2 fails on tag, not DecodeError",
       len(b6_blob)==195 and b6_blob[3:19].hex()=="ee95ddb278a849bae4a34fe594ee87e5"
       and isinstance(er,N.AuthError) and str(er)=="tag mismatch")
+# ---- beat-0 pressure-rotation fix (2026-11-09, after attacks_octavo_beat6 §6)
+B0R_PRE = "/tmp/sneak_n2_pre_beat0rot"
+b0r_blob = bytes.fromhex(next(l for l in open(B0R_PRE+"/hello-world.txt") if l.startswith("blob")).split()[-1])
+er = catch(lambda: N.decrypt(b0r_blob, SEED))
+check("pre-beat0rot 195-byte hello-world pickup d450337d fails on tag, not DecodeError",
+      len(b0r_blob)==195 and b0r_blob[3:19].hex()=="d450337d3bbe0b460ae4298952279c7a"
+      and isinstance(er,N.AuthError) and str(er)=="tag mismatch")
+# Explicit pressure views: for every pressure byte, the three beat-0 strokes see 0/3/5-bit rotates.
+def _stroke_views(p):
+    return [N.rotl8(p, N.BOW_PRESSURE_ROT[i]) for i,st in enumerate(N.BOW_STROKES) if st[2]==0]
+check("beat-0 pressure views are p, rotl8(p,3), rotl8(p,5) for all 256 pressure bytes",
+      all(_stroke_views(p)==[p, N.rotl8(p,3), N.rotl8(p,5)] for p in range(256)))
+# Distinct (r1,r2) for the three beat-0 readers on most pressures (shared-rotation hardening).
+def _rr(view):
+    return (N.BOW_ROT_BASE+(view%N.BOW_ROT_MOD), N.BOW_ROT_BASE+((view>>N.BOW_R2_SHIFT)%N.BOW_ROT_MOD))
+shared = sum(1 for p in range(256) if len({_rr(v) for v in _stroke_views(p)})==1)
+distinct3 = sum(1 for p in range(256) if len({_rr(v) for v in _stroke_views(p)})==3)
+print(f"beat-0 reader (r1,r2) distinctness over 256 p: shared-all={shared}, all-three-distinct={distinct3}")
+check("beat-0 readers rarely share one (r1,r2); usually all three distinct (shared < 16, distinct3 > 180)",
+      shared < 16 and distinct3 > 180)
+# Cheap bow-alone differential spot check (2^12 bases, beats 0/6/7): should beat the pre-fix live numbers
+# from attacks_octavo_beat6 (beat 6 ~2^-5.6, beat 7 ~2^-4.9, beat 0 ~2^-8.1).
+_rngd=np.random.default_rng(909); Bd=_rngd.integers(0,256,(1<<12,8),dtype=np.int64); Ad=np_bow(Bd)
+def _best_diff(t):
+    pack=lambda z:(z.astype(np.int64)*(256**np.arange(8))).sum(1); best=0
+    for d in range(1,256):
+        H=Bd.copy(); H[:,t]^=d; best=max(best,int(np.unique(pack(Ad^np_bow(H)),return_counts=True)[1].max()))
+    return round(float(np.log2(best/len(Bd))),2)
+bd0,bd6,bd7=_best_diff(0),_best_diff(6),_best_diff(7)
+print(f"bow-alone best diff log2 (2^12 bases): beat0={bd0}, beat6={bd6}, beat7={bd7} (pre-fix live ~-8.1/-5.6/-4.9)")
+check("bow-alone best differentials on beats 0/6/7 improved vs pre-fix live (~-8.1/-5.6/-4.9)",
+      bd0 <= -9.0 and bd6 <= -6.5 and bd7 <= -6.5)
+# Description records pressure_rot; key_sig changes if BOW_PRESSURE_ROT is patched (already in loop above).
+desc_bow=json.loads(N.mix_description())["bow"]
+check("mix_description bow records pressure_rot and the view-then-r1/r2 formula",
+      desc_bow["pressure_rot"]==list(N.BOW_PRESSURE_ROT) and "pressure_rot" in desc_bow["formula"]
+      and desc_bow["strokes"]==[list(s) for s in N.BOW_STROKES])
 B7_PRE = "/tmp/sneak_n2_pre_beat7"
 b7_blob = bytes.fromhex(next(l for l in open(B7_PRE+"/hello-world.txt") if l.startswith("blob")).split()[-1])
 er = catch(lambda: N.decrypt(b7_blob, SEED))
@@ -723,10 +773,11 @@ check("only non-cipher helpers are outside coverage (ddt_max, lat_max, grid_rows
 check("closure includes staff_mix/staff_unmix/shell_mix/shell_unmix/weave/unweave/xor_grid/Schedule/keyed_sbox/encode_block/encrypt_grid/decrypt_grid",
       {"staff_mix","staff_unmix","shell_mix","shell_unmix","weave","unweave","xor_grid","Schedule","StaffSponge","keyed_sbox",
        "mat_apply","mat_invertible","encode_block","encrypt_grid","decrypt_grid","bytes_to_grid","grid_to_bytes","_tag","staff_clef"} <= reach)
-check("module data hashed includes BARS, BARS_INV, TRIPLETS(_INV), CROSS_*, BOW_*, LAYERS, SM4_SBOX, _GF_MUL, MIX2_*, sizes",
+check("module data hashed includes BARS, BARS_INV, TRIPLETS(_INV), CROSS_*, BOW_* (incl. BOW_PRESSURE_ROT), LAYERS, SM4_SBOX, _GF_MUL, MIX2_*, sizes",
       {"BARS","BARS_INV","TRIPLETS","TRIPLETS_INV","CROSS_OPPOSITE","CROSS_RADIAL","CROSS_ADJACENT","CROSS_BRIDGE","CROSS_LAYERS",
-       "BOW_STROKES","BOW_ROT_BASE","BOW_ROT_MOD","BOW_R2_SHIFT","LAYERS","SM4_SBOX","_GF_MUL","MIX2_MATRIX","MIX2_INV","FIELD_POLY",
-       "NF","NB","NR","BLOCK_LEN","VERSION"} <= reach_data and json.loads(N.mix_description())["mix_data"]["names"]==sorted(reach_data))
+       "BOW_STROKES","BOW_PRESSURE_ROT","BOW_ROT_BASE","BOW_ROT_MOD","BOW_R2_SHIFT","LAYERS","SM4_SBOX","_GF_MUL","MIX2_MATRIX","MIX2_INV","FIELD_POLY",
+       "NF","NB","NR","BLOCK_LEN","VERSION"} <= reach_data and json.loads(N.mix_description())["mix_data"]["names"]==sorted(reach_data)
+      and len(reach_data)==36)
 def frame(h,parts):
     for part in parts: b=part.encode(); h.update(len(b).to_bytes(8,"big")); h.update(b)
 desc5=json.loads(N.mix_description())
