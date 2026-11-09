@@ -1,9 +1,0 @@
-accelerator live-round checks 512
-oracle matches public encrypt True
-repeat equality whole blob True
-keystream xor identity 0 /300
-ct xor HW mean/min/max 511.5566666666667 461 554 /1024
-one bit message flip ct HW mean/min/max 511.99333333333334 469 556
-fixed nonce chosen-message oracle dictionary found b'PIN=731' queries 732
-Wrong guessed message says no; absent an oracle or secret key this comparison says maybe, not yes. Ciphertext-only: no plaintext recovered.
-default encrypt urandom(16), observed distinct fresh nonces 32 /32

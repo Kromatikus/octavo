@@ -1,6 +1,0 @@
-2026-11-08 05:30:48 PM EST (America/New_York)
-Protected files before/after: 1043/1043 (including existing pycache)
-Changed: []
-Added outside attacks_pickup/: []
-Removed: []
-PASS: all protected content byte-identical.

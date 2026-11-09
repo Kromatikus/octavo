@@ -1,7 +1,0 @@
-{
-  "keystream_matches": 0,
-  "trials": 300,
-  "oracle_queries": 732,
-  "ct_xor_mean": 511.5566666666667,
-  "onebit_mean": 511.99333333333334
-}

@@ -1,5 +1,7 @@
 <p align="center"><img src="sneak-staff-n2.png" alt="Octavo: dual octahedra seed shells and the 16-staff by 8-beat hex grid of the hello-world ciphertext" width="100%"></p>
 
+**Octavo** is an experimental homemade 1024-bit cipher (files are named `sneak_n2`). It is **not for real secrets**; use AES-GCM-SIV, age, or libsodium. See [ATTACKS.md](ATTACKS.md) for the full attack history and [`attacks_octavo_beat6/`](attacks_octavo_beat6/REPORT.md) for the latest report.
+
 # Sneak staff-core N2 (8-bit cells)
 
 ## Current live revision — beat-6 bow fix (2026-11-09)

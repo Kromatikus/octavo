@@ -1,8 +1,0 @@
-Caller-chosen nonce: ValueError: nonce must be the synthetic (SIV) nonce for this message
-Caller passes the correct SIV nonce -> same blob: True
-Reuse nonce of msg A for msg B: ValueError: nonce must be the synthetic (SIV) nonce for this message
-encrypt() calls os.urandom: False
-Same message twice -> identical blob (equality leak): True
-White-box nonce-reuse blob (needs the seed) on decrypt: AuthError: SIV nonce mismatch
-Attacker sees only target blob: 534e32da63c542f773fe2ded3530836f8ecdee1c3c1b5cb642c8a70874aacb26626e5095925ff43eaea1679ecf78a9b6d0f068ff2f3ece7e1f8aeac0c87a348eb8b9c04388d641ec9b225337f0928573e3488eca6ddb9825d4f3c2c3e8fe2f66e85d9c2c3dfadb610472b811008b48a80d3014f7c5b1b0132c05dc88275eee15626c9e9ceebaa47a171641d015c6d5dbba9be8a0c28449b427b87ca6a11e610a7a831805caa1ad246f0fce99a6fc263248a500
-PIN demo: {'secret_pin': '5851', 'recovered': '5851', 'guesses': 5852, 'seconds': 106.04, 'target_blob': '534e32da63c542f773fe2ded3530836f8ecdee1c3c1b5cb642c8a70874aacb26626e5095925ff43eaea1679ecf78a9b6d0f068ff2f3ece7e1f8aeac0c87a348eb8b9c04388d641ec9b225337f0928573e3488eca6ddb9825d4f3c2c3e8fe2f66e85d9c2c3dfadb610472b811008b48a80d3014f7c5b1b0132c05dc88275eee15626c9e9ceebaa47a171641d015c6d5dbba9be8a0c28449b427b87ca6a11e610a7a831805caa1ad246f0fce99a6fc263248a500', 'matching_nonce': 'da63c542f773fe2ded3530836f8ecdee', 'note': 'Attacker only needs an encryption oracle (or the seed). Equality of deterministic SIV blobs reveals the PIN.'}

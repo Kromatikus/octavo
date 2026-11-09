@@ -1,3 +1,0 @@
-live [0, 0, 0, 0, 0, 0, 19, 0]
-proposed [0, 0, 0, 0, 0, 0, 0, 0]
-attack_fix_confirm saved

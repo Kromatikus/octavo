@@ -1,5 +1,0 @@
-nonce 1-bit flips: material frac changed [0.501, 0.501, 0.499, 0.502, 0.501, 0.499, 0.501, 0.5, 0.502, 0.5, 0.499, 0.496] | mac_key bits [117, 141, 126, 124, 115, 129, 128, 139, 118, 114, 129, 123] | clef bits [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-seed 1-bit flips: material frac changed [0.502, 0.5, 0.501, 0.498, 0.493, 0.494, 0.502, 0.498, 0.5, 0.497, 0.497, 0.507] | mac_key bits [131, 107, 127, 127, 135, 123, 116, 119, 141, 118, 109, 126] | clef bits [64, 61, 76, 68, 67, 62, 77, 62, 55, 52, 66, 65]
-M/K/C domain outputs distinct: True | clef collides with K/M for zero nonce: False
-AES S-box head in source: False | SM4 head d690e9fecce13db7 | AES/crypto imports: False | keyed S DDT/LAT {'ddt': 4, 'lat': 16, 'S2_ddt': 4}
-SM4 and AES S-boxes are both affine-equivalent to inversion in GF(2^8); same DDT 4 / LAT 16 class. Not AES, but same family.
