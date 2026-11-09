@@ -10,14 +10,14 @@ named pair mixes (keyed Latin B0, six field pairs) plus six overlapping triplet 
 S-box table is the published SM4/SMS4 S-box (GB/T 32907-2016). No AES, AES S-box, MixColumns or GCM anywhere.
 See SPEC.md.
 """
-import hashlib, hmac, os, json, inspect, ast, textwrap, types
+import hashlib, hmac, os, json, inspect, ast, textwrap, types, time
 
 VERSION = b"SN2"                 # magic after the format-version byte; sponge domains stay b"SN2/"
-FMT_VERSION = 1                   # one-byte blob format version, front of every blob
+FMT_VERSION = 2                   # one-byte blob format version, front of every blob
 NF, NB, NR = 16, 8, 16            # faces, beats, rounds (16 rounds <-> 16 faces)
 CELL_BITS = 8                     # one byte per beat (was a 4-bit nibble)
 NONCE_LEN, BLOCK_LEN, TAG_LEN = 16, 128, 32
-PICKUP_LEN = 16                   # random anacrusis before the downbeat (os.urandom, fresh per encrypt)
+PICKUP_LEN = 16                   # hardened anacrusis: sha256(SN2/P || urandom || time_ns || counter || pid)[:16]
 BLOB_LEN = 1 + len(VERSION) + PICKUP_LEN + NONCE_LEN + BLOCK_LEN + TAG_LEN    # 196
 MAX_MSG = 127
 PK0, N0 = 1 + len(VERSION), 1 + len(VERSION) + PICKUP_LEN      # pickup = blob[4:20], nonce = blob[20:36]
@@ -27,7 +27,7 @@ CT0, CT1 = N0 + NONCE_LEN, N0 + NONCE_LEN + BLOCK_LEN          # ct = blob[36:16
 SEED_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sneak1024-seed.txt")
 # sha256(mix_description()) hex; used as the StaffSponge nonce for key_signature.
 # Excluded from attestation so this constant is not part of what it names (chicken-and-egg).
-EXPECTED_MIX_SHA256 = "85d7af1ea863fc44735809576b7b96dd9ff490b6d736d243a10f7cd4b826f15a"
+EXPECTED_MIX_SHA256 = "8c12ae0d2a88b0aed3bf6d14e2031903a18d801ee5c7f56c7fc34cb7437ac31c"
 
 # SM4 (SMS4) 8-bit S-box, GB/T 32907-2016 Fig./Table "S-box", as printed in draft-ribose-cfrg-sm4-10 sec. 6.2.3
 # (Tse, Wong, Saarinen, IRTF CFRG, 2018). Published DDT max 4/256 (2^-6), nonlinearity 112 (LAT max |bias| 16/256).
@@ -480,7 +480,7 @@ MIX_CODE_FUNCS = (
     "staff_mix", "staff_unmix", "shell_mix", "shell_unmix", "weave", "unweave", "xor_grid",
     "encrypt_grid", "decrypt_grid", "bytes_to_grid", "grid_to_bytes", "encode_block",
     "Schedule", "StaffSponge", "keyed_sbox", "mat_apply", "mat_invertible",
-    "staff_clef", "siv_nonce", "_tag", "encrypt", "decrypt", "split_blob",
+    "staff_clef", "siv_nonce", "_tag", "_encode_ad", "_fresh_pickup", "encrypt", "decrypt", "split_blob",
     "key_signature", "mix_description", "mix_code_closure", "_referenced_globals", "_canon_data",
     "_seed_bytes", "load_seed", "AuthError", "DecodeError", "UnsupportedVersion",
 )
@@ -654,48 +654,66 @@ def staff_clef(seed=None) -> bytes:
     """seed-only clef: StaffSponge(b"C", seed, 16 zero bytes).take(16). Never stored in the blob."""
     return StaffSponge(b"C", _seed_bytes(seed), bytes(NONCE_LEN)).take(16)
 
-def siv_nonce(msg: bytes, pickup: bytes, seed=None) -> bytes:
-    """homemade SIV-style nonce = SHA-256(clef || pickup || encode_block(msg))[:16]"""
+def _encode_ad(ad: bytes = b"") -> bytes:
+    """Unambiguous associated-data encoding: uint64be(len(ad)) || ad. Not stored in the blob."""
+    ad = bytes(ad)
+    return len(ad).to_bytes(8, "big") + ad
+
+def _fresh_pickup() -> bytes:
+    """16-byte pickup that cannot repeat in-process even if os.urandom returns the same bytes.
+    SHA-256(b"SN2/P" || urandom(16) || time_ns(8) || counter(8) || pid(4))[:16]."""
+    _fresh_pickup.n += 1
+    mix = (os.urandom(PICKUP_LEN)
+           + time.time_ns().to_bytes(8, "big")
+           + _fresh_pickup.n.to_bytes(8, "big")
+           + os.getpid().to_bytes(4, "big"))
+    return hashlib.sha256(b"SN2/P" + mix).digest()[:PICKUP_LEN]
+_fresh_pickup.n = 0
+
+def siv_nonce(msg: bytes, pickup: bytes, seed=None, ad: bytes = b"") -> bytes:
+    """homemade SIV-style nonce = SHA-256(clef || pickup || encode_block(msg) || encode_ad(ad))[:16]"""
     pickup = bytes(pickup)
     if len(pickup) != PICKUP_LEN: raise ValueError("pickup must be 16 bytes")
-    return hashlib.sha256(staff_clef(seed) + pickup + encode_block(bytes(msg))).digest()[:NONCE_LEN]
+    return hashlib.sha256(staff_clef(seed) + pickup + encode_block(bytes(msg)) + _encode_ad(ad)).digest()[:NONCE_LEN]
 
-def _tag(mac_key, pickup, nonce, ct, clef, key_sig):
-    return hmac.new(mac_key, clef + key_sig + bytes([FMT_VERSION]) + VERSION + pickup + nonce + ct, hashlib.sha256).digest()
+def _tag(mac_key, pickup, nonce, ct, clef, key_sig, ad: bytes = b""):
+    return hmac.new(mac_key, clef + key_sig + bytes([FMT_VERSION]) + VERSION + pickup + nonce + ct + _encode_ad(ad), hashlib.sha256).digest()
 
-def encrypt(msg: bytes, seed=None, nonce: bytes = None) -> bytes:
-    """blob = version(1) || b"SN2" || pickup(16) || nonce(16) || ct(128) || HMAC-SHA256(mac_key, clef || key_sig || version || b"SN2" || pickup || nonce || ct).
-    pickup = 16 fresh OS-random bytes every call (no public pickup argument, by design);
-    nonce = SHA-256(clef || pickup || encode_block(msg))[:16]; a caller nonce must equal it (ValueError otherwise)."""
-    msg = bytes(msg); block = encode_block(msg); clef = staff_clef(seed)
-    pickup = os.urandom(PICKUP_LEN)
-    syn = hashlib.sha256(clef + pickup + block).digest()[:NONCE_LEN]
+def encrypt(msg: bytes, seed=None, nonce: bytes = None, ad: bytes = b"") -> bytes:
+    """blob = version(1) || b"SN2" || pickup(16) || nonce(16) || ct(128) || HMAC-SHA256(mac_key, clef || key_sig || version || b"SN2" || pickup || nonce || ct || encode_ad(ad)).
+    pickup = _fresh_pickup() every call (no public pickup argument, by design);
+    nonce = SHA-256(clef || pickup || encode_block(msg) || encode_ad(ad))[:16]; a caller nonce must equal it (ValueError otherwise).
+    ad is authenticated and not stored in the blob; empty and omitted AD are the same."""
+    msg = bytes(msg); ad = bytes(ad); block = encode_block(msg); adb = _encode_ad(ad); clef = staff_clef(seed)
+    pickup = _fresh_pickup()
+    syn = hashlib.sha256(clef + pickup + block + adb).digest()[:NONCE_LEN]
     if nonce is not None and not hmac.compare_digest(bytes(nonce), syn):
         raise ValueError("nonce must be the synthetic (SIV) nonce for this message and pickup")
     nonce = syn
     sch = Schedule(seed, nonce)
     ct = grid_to_bytes(encrypt_grid(bytes_to_grid(block), sch))
-    return bytes([FMT_VERSION]) + VERSION + pickup + nonce + ct + _tag(sch.mac_key, pickup, nonce, ct, clef, key_signature(seed))
+    return bytes([FMT_VERSION]) + VERSION + pickup + nonce + ct + _tag(sch.mac_key, pickup, nonce, ct, clef, key_signature(seed), ad)
 
 def split_blob(blob: bytes):
     """-> (version_prefix, pickup, nonce, ct, tag) where version_prefix is bytes([FMT_VERSION]) + b'SN2'."""
     return blob[:PK0], blob[PK0:N0], blob[N0:CT0], blob[CT0:CT1], blob[CT1:]
 
-def decrypt(blob: bytes, seed=None) -> bytes:
-    """Format version is checked first, then length, then the tag (constant-time compare). On any mismatch: AuthError, no payload."""
-    blob = bytes(blob)
+def decrypt(blob: bytes, seed=None, ad: bytes = b"") -> bytes:
+    """Format version is checked first, then length, then the tag (constant-time compare). On any mismatch: AuthError, no payload.
+    The same associated data supplied to encrypt must be supplied here; it is not in the blob."""
+    blob = bytes(blob); ad = bytes(ad)
     if len(blob) < 1: raise AuthError("bad blob length")
     if blob[0] != FMT_VERSION: raise UnsupportedVersion("unsupported version")
     if len(blob) != BLOB_LEN: raise AuthError("bad blob length")
     v, pickup, nonce, ct, tag = split_blob(blob)
     if not hmac.compare_digest(v, bytes([FMT_VERSION]) + VERSION): raise AuthError("bad version prefix")
     clef = staff_clef(seed); sch = Schedule(seed, nonce)
-    if not hmac.compare_digest(tag, _tag(sch.mac_key, pickup, nonce, ct, clef, key_signature(seed))): raise AuthError("tag mismatch")
+    if not hmac.compare_digest(tag, _tag(sch.mac_key, pickup, nonce, ct, clef, key_signature(seed), ad)): raise AuthError("tag mismatch")
     b = grid_to_bytes(decrypt_grid(bytes_to_grid(ct), sch))
     L = b[0]                                   # secondary sanity check only; the MAC is the authenticity check
     if L > MAX_MSG or any(b[1 + L:]): raise DecodeError("tag valid but block malformed")
     msg = b[1:1 + L]
-    if not hmac.compare_digest(nonce, hashlib.sha256(clef + pickup + encode_block(msg)).digest()[:NONCE_LEN]):
+    if not hmac.compare_digest(nonce, hashlib.sha256(clef + pickup + encode_block(msg) + _encode_ad(ad)).digest()[:NONCE_LEN]):
         raise AuthError("SIV nonce mismatch")
     return msg
 

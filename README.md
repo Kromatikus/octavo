@@ -15,11 +15,14 @@ import os
 from sneak_n2 import encrypt, decrypt
 
 key = os.urandom(128)                  # 1024-bit key
-blob = encrypt(b"meet at noon", key)   # 196-byte blob: version | SN2 | pickup | nonce | ciphertext | tag
+blob = encrypt(b"meet at noon", key)   # 196-byte blob: version 2 | SN2 | pickup | nonce | ciphertext | tag
 print(decrypt(blob, key))              # b'meet at noon'
+# optional associated data (authenticated, not stored in the blob):
+sealed = encrypt(b"meet at noon", key, ad=b"from:alice")
+print(decrypt(sealed, key, ad=b"from:alice"))
 ```
 
-Messages are limited to one block (127 bytes). `sneak1024-seed.txt` is the public demo key used for `hello-world.txt`; never use it for anything else. Run `python3 quick_check.py` for a portable sanity check. The full `test_sneak_n2.py` suite runs on a fresh clone (historical `/tmp` comparisons are skipped when those copies are missing).
+Messages are limited to one block (127 bytes). Associated data is optional. `sneak1024-seed.txt` is the public demo key used for `hello-world.txt`; never use it for anything else. Run `python3 quick_check.py` for a portable sanity check. The full `test_sneak_n2.py` suite runs on a fresh clone (historical `/tmp` comparisons are skipped when those copies are missing).
 
 ## What's here
 
@@ -40,7 +43,44 @@ The rest of this README is the author's detailed revision log.
 
 ---
 
-## Current live revision — packaging (2026-11-09)
+## Current live revision — info fixes (2026-11-09)
+
+This section supersedes the blob format, pickup, and AE API below. The round
+function is unchanged from the packaging revision and from the beat-0
+pressure-rotation revision. Still N2 / SN2 (project name: Octavo), still homemade,
+**not for real secrets** (use AES-GCM-SIV, age or libsodium). No picture redraw.
+
+These are the remaining Info items from `attacks_octavo_beat6/REPORT.md` (items 5–8).
+Item 5 (guessable seeds) was already rejected by the packaging revision's weak-seed
+rule. Review finding 6 (the unused attested B0 matrix) is left alone.
+
+**What changed (API and blob version; round function unchanged).**
+- Pickup is now `SHA-256(b"SN2/P" || os.urandom(16) || time_ns || counter || pid)[:16]`.
+  Two `encrypt` calls in the same process never share a pickup, even if `os.urandom`
+  returns the same bytes.
+- Optional associated data: `encrypt(msg, seed, nonce=None, ad=b"")` and
+  `decrypt(blob, seed, ad=b"")`. AD is bound into the SIV nonce and the HMAC as
+  `uint64be(len(ad)) || ad`. It is not stored in the blob. Empty and omitted AD
+  are the same; the wrong or missing AD fails the tag.
+- `FMT_VERSION = 2`. Blobs stay **196 bytes**:
+  `version(1) || SN2 || pickup(16) || nonce(16) || ct(128) || tag(32)`.
+  Version-1 blobs raise `UnsupportedVersion("unsupported version")`.
+- Constant-time limitations and the single-block / no multi-block-mode limits are
+  documented in `SECURITY.md` and `SPEC.md`.
+
+**What did not change.** The 16-round function, S-boxes, schedule sponge domains
+(`SN2/K`, `SN2/M`, `SN2/C`, `SN2/G`), mixes, bow, rehair and cross-staff layers
+are the same. `demo-nonce.txt` is unchanged. The picture was not redrawn.
+
+- Live `sneak_n2.py` SHA-256: `2d7c18e2c9a00146361bc7cdf0708af181fb692a1c121aadb200af1cc3a6a39f`.
+- `EXPECTED_MIX_SHA256`: `8c12ae0d2a88b0aed3bf6d14e2031903a18d801ee5c7f56c7fc34cb7437ac31c`.
+- key_sig (demo seed): `6fcc97151089539a8084e4cc3886921a`.
+- hello-world pickup `3f703b2e5515d2613767372de752343e`, nonce `0a08ea35ec9a2ac650773b407f6d93df` (empty AD; see `hello-world.txt`).
+- Blob size: 196 bytes, version byte 2.
+
+Older version-1 196-byte blobs and 195-byte `SN2...` blobs fail with **unsupported version**.
+
+## Previous revision — packaging (2026-11-09)
 
 This section supersedes the blob format, seed-path, and key-signature *mechanics*
 below. The round function is unchanged from the beat-0 pressure-rotation revision.

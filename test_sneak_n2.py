@@ -39,25 +39,29 @@ PRE_PICKUP_179 = optional_blob("/tmp/sneak_n2_pre_pickup/hello-world.txt")
 # ---- seed / format
 check("seed is the 1024-bit file (128 bytes), same parse as N1", len(SEED) == 128 and SEED.hex().startswith("62ba585f"))
 check("blob length 196 = 1 + 3 + 16 + 16 + 128 + 32", len(N.encrypt(b"hello world", SEED)) == 196 == N.BLOB_LEN == 1 + 3 + 16 + 16 + 128 + 32)
-check("blob starts with version byte 1 then b'SN2'", N.encrypt(b"x", SEED)[:4] == bytes([N.FMT_VERSION]) + b"SN2" == b"\x01SN2")
+check("blob starts with version byte 2 then b'SN2'", N.encrypt(b"x", SEED)[:4] == bytes([N.FMT_VERSION]) + b"SN2" == b"\x02SN2")
 # ---- packaging (relative seed, cached attestation, version byte, weak seeds)
 check("SEED_PATH is sneak1024-seed.txt next to the module",
       os.path.basename(N.SEED_PATH)=="sneak1024-seed.txt" and os.path.dirname(os.path.abspath(N.SEED_PATH))==os.path.abspath(HERE))
 check("load_seed() finds the module-relative demo seed", N.load_seed()==SEED and SEED.hex().startswith("62ba585f"))
 check("embedded mix digest matches a fresh sha256(mix_description())",
       N.EXPECTED_MIX_SHA256==N._MIX_SHA256==hashlib.sha256(N.mix_description()).hexdigest() and N._SOURCE_AVAILABLE is True)
-check("FMT_VERSION is 1 and is authenticated in the tag", N.FMT_VERSION==1)
+check("FMT_VERSION is 2 and is authenticated in the tag", N.FMT_VERSION==2)
 old_style = b"SN2" + bytes(192)
 e_old = catch(lambda: N.decrypt(old_style, SEED))
 check("old 195-byte SN2 blob raises UnsupportedVersion before a tag check",
       isinstance(e_old, N.UnsupportedVersion) and str(e_old)=="unsupported version")
-wrong_ver = bytes([2]) + b"SN2" + bytes(192)
+wrong_ver = bytes([1]) + b"SN2" + bytes(192)
 e_ver = catch(lambda: N.decrypt(wrong_ver, SEED))
-check("version byte 2 on a 196-byte blob raises UnsupportedVersion, not tag mismatch",
+check("version byte 1 on a 196-byte blob raises UnsupportedVersion, not tag mismatch",
       isinstance(e_ver, N.UnsupportedVersion) and str(e_ver)=="unsupported version")
-check("weak seeds rejected: all-zero, integer 1, 31 distinct nonzero bytes",
+wrong_ver3 = bytes([3]) + b"SN2" + bytes(192)
+e_ver3 = catch(lambda: N.decrypt(wrong_ver3, SEED))
+check("version byte 3 on a 196-byte blob raises UnsupportedVersion, not tag mismatch",
+      isinstance(e_ver3, N.UnsupportedVersion) and str(e_ver3)=="unsupported version")
+check("weak seeds rejected: all-zero, integer 1, all-FF, 31 distinct nonzero bytes",
       all(isinstance(catch(lambda s=s: N.encrypt(b"x", s)), ValueError) and "weak seed" in str(catch(lambda s=s: N._seed_bytes(s)))
-          for s in (bytes(128), 1, bytes(range(1,32))+bytes(97))))
+          for s in (bytes(128), 1, bytes([255]*128), bytes(range(1,32))+bytes(97))))
 check("real demo seed and os.urandom(128) are accepted",
       len(N._seed_bytes(SEED))==128 and len(N._seed_bytes(os.urandom(128)))==128)
 
@@ -130,17 +134,54 @@ a1, a2 = N.encrypt(b"hello world", SEED), N.encrypt(b"hello world", SEED)
 check("pickup: same message twice -> different pickups, nonces, blobs; both decrypt to original",
       a1[4:20] != a2[4:20] and a1[20:36] != a2[20:36] and a1 != a2 and N.decrypt(a1, SEED) == N.decrypt(a2, SEED) == b"hello world")
 check("pickup: 200 encryptions of the same message -> 200 distinct pickups and blobs", len({N.encrypt(b"1234", SEED) for _ in range(200)}) == 200)
+from unittest.mock import patch as _patch_urandom
+with _patch_urandom.object(N.os, "urandom", lambda n: bytes([0x5A])*n):
+    broken1 = N.encrypt(b"same message", SEED)
+    broken2 = N.encrypt(b"same message", SEED)
+check("pickup hardening: constant os.urandom still yields different pickups and blobs; both decrypt",
+      broken1 != broken2 and broken1[4:20] != broken2[4:20] and N.decrypt(broken1, SEED) == N.decrypt(broken2, SEED) == b"same message")
+ad_msg, ad_ok, ad_bad = b"hello associated", b"from:alice", b"from:bob"
+ad_blob = N.encrypt(ad_msg, SEED, ad=ad_ok)
+check("AD round-trip: encrypt(..., ad=x) decrypts with the same ad", N.decrypt(ad_blob, SEED, ad=ad_ok) == ad_msg)
+e_wrong = catch(lambda: N.decrypt(ad_blob, SEED, ad=ad_bad))
+check("wrong AD fails the tag (AuthError tag mismatch)", isinstance(e_wrong, N.AuthError) and str(e_wrong)=="tag mismatch")
+e_missing = catch(lambda: N.decrypt(ad_blob, SEED))
+check("missing AD fails the tag when the blob was sealed with nonempty AD", isinstance(e_missing, N.AuthError) and str(e_missing)=="tag mismatch")
+empty_abs = N.encrypt(b"empty-vs-absent", SEED)
+empty_exp = N.encrypt(b"empty-vs-absent", SEED, ad=b"")
+check("empty versus absent AD behave the same (both decrypt with omitted or b'')",
+      N.decrypt(empty_abs, SEED) == N.decrypt(empty_abs, SEED, ad=b"") == b"empty-vs-absent"
+      and N.decrypt(empty_exp, SEED) == N.decrypt(empty_exp, SEED, ad=b"") == b"empty-vs-absent"
+      and inspect.signature(N.encrypt).parameters["ad"].default == b""
+      and inspect.signature(N.decrypt).parameters["ad"].default == b"")
+amb1 = N.encrypt(b"bar", SEED, ad=b"foo")
+amb2 = N.encrypt(b"ar", SEED, ad=b"foob")
+e_amb = catch(lambda: N.decrypt(amb1, SEED, ad=b"foob"))
+check("length-prefix AD encoding is unambiguous: (ad='foo',msg='bar') != (ad='foob',msg='ar'); cross-AD decrypt fails",
+      N._encode_ad(b"foo") + N.encode_block(b"bar") != N._encode_ad(b"foob") + N.encode_block(b"ar")
+      and N._encode_ad(b"ab") + N._encode_ad(b"c") != N._encode_ad(b"a") + N._encode_ad(b"bc")
+      and N._encode_ad(b"") == (0).to_bytes(8, "big") and N._encode_ad(b"hi") == (2).to_bytes(8, "big") + b"hi"
+      and N.decrypt(amb1, SEED, ad=b"foo") == b"bar" and N.decrypt(amb2, SEED, ad=b"foob") == b"ar"
+      and isinstance(e_amb, N.AuthError) and str(e_amb)=="tag mismatch")
+PRE_INFO = optional_blob("/tmp/sneak_n2_pre_infofix/hello-world.txt")
+if PRE_INFO is None:
+    skip("octavo003 version-1 196-byte hello-world blob fails as unsupported version")
+else:
+    e_pre = catch(lambda: N.decrypt(PRE_INFO, SEED))
+    check("octavo003 version-1 196-byte hello-world blob fails as unsupported version",
+          len(PRE_INFO)==196 and PRE_INFO[0]==1 and isinstance(e_pre, N.UnsupportedVersion) and str(e_pre)=="unsupported version")
 msgs = {rb(R.randrange(1, 64)) for _ in range(300)}
 check("300 different messages -> 300 different nonces and ciphertexts", len({N.encrypt(m, SEED)[20:36] for m in msgs}) == len(msgs) == len({N.encrypt(m, SEED)[36:164] for m in msgs}))
-def nonce_formula_ok(m):
-    b = N.encrypt(m, SEED); pk, n = b[4:20], b[20:36]
-    return n == hashlib.sha256(N.staff_clef(SEED) + pk + N.encode_block(m)).digest()[:16] == N.siv_nonce(m, pk, SEED)
-check("nonce formula: SHA-256(clef || pickup || encode_block(msg))[:16] for the pickup stored in the blob (demo + 50 random)",
-      C_NONCE == hashlib.sha256(N.staff_clef(SEED) + C_PK + N.encode_block(b"hello world")).digest()[:16] and all(nonce_formula_ok(rb(R.randrange(128))) for _ in range(50)))
+def nonce_formula_ok(m, ad=b""):
+    b = N.encrypt(m, SEED, ad=ad); pk, n = b[4:20], b[20:36]
+    return n == hashlib.sha256(N.staff_clef(SEED) + pk + N.encode_block(m) + N._encode_ad(ad)).digest()[:16] == N.siv_nonce(m, pk, SEED, ad)
+check("nonce formula: SHA-256(clef || pickup || encode_block(msg) || encode_ad(ad))[:16] for the pickup stored in the blob (demo + 50 random + AD)",
+      C_NONCE == hashlib.sha256(N.staff_clef(SEED) + C_PK + N.encode_block(b"hello world") + N._encode_ad(b"")).digest()[:16] and all(nonce_formula_ok(rb(R.randrange(128))) for _ in range(50)) and nonce_formula_ok(b"hi", b"from:alice"))
 check("encrypt(msg, nonce=wrong) raises ValueError (random, zero, old demo SIV, another blob's nonce for same msg)",
       all(isinstance(catch(lambda n=n: N.encrypt(b"hello world", SEED, n)), ValueError) for n in (rb(16), bytes(16), DEMO_NONCE, C_NONCE)))
-check("encrypt has no public pickup argument (signature is msg, seed, nonce)", list(inspect.signature(N.encrypt).parameters) == ["msg", "seed", "nonce"])
-check("os.urandom used only for the pickup in encrypt, never for nonce", inspect.getsource(N.encrypt).count("os.urandom(") == 1 and "pickup = os.urandom(PICKUP_LEN)" in inspect.getsource(N.encrypt)
+check("encrypt has no public pickup argument (signature is msg, seed, nonce, ad)", list(inspect.signature(N.encrypt).parameters) == ["msg", "seed", "nonce", "ad"])
+check("os.urandom used only inside _fresh_pickup, never for the nonce", inspect.getsource(N.encrypt).count("os.urandom(") == 0 and "pickup = _fresh_pickup()" in inspect.getsource(N.encrypt)
+      and inspect.getsource(N._fresh_pickup).count("os.urandom(") == 1
       and "urandom" not in inspect.getsource(N.siv_nonce) and "urandom" not in inspect.getsource(N.Schedule))
 def pin_dictionary_fails(trials=200):
     rr = random.Random(77)
@@ -173,8 +214,8 @@ check("domain separation: MAC stream (b'M') and schedule stream (b'K') differ an
 check("clef = StaffSponge domain 'C', seed + zero nonce (independent hashlib check), 16 bytes, not in blob",
       N.staff_clef(SEED) == hashlib.sha256(b"SN2/C" + (0).to_bytes(4, "big") + SEED + bytes(16)).digest()[:16] and N.staff_clef(SEED) not in c)
 check("clef depends on seed", N.staff_clef(flip(SEED, 5)) != N.staff_clef(SEED))
-check("tag = HMAC-SHA256(mac_key, clef || key_sig || version || 'SN2' || pickup || nonce || ct) (independent hmac check)",
-      c[164:] == __import__("hmac").new(N.Schedule(SEED, C_NONCE).mac_key, N.staff_clef(SEED) + N.key_signature(SEED) + bytes([N.FMT_VERSION]) + b"SN2" + c[4:20] + c[20:36] + c[36:164], hashlib.sha256).digest())
+check("tag = HMAC-SHA256(mac_key, clef || key_sig || version || 'SN2' || pickup || nonce || ct || encode_ad(ad)) (independent hmac check)",
+      c[164:] == __import__("hmac").new(N.Schedule(SEED, C_NONCE).mac_key, N.staff_clef(SEED) + N.key_signature(SEED) + bytes([N.FMT_VERSION]) + b"SN2" + c[4:20] + c[20:36] + c[36:164] + N._encode_ad(b""), hashlib.sha256).digest())
 check("MAC key derived from seed via SHA-256 domain 'M' (independent check with hashlib)",
       sch0.mac_key == hashlib.sha256(b"SN2/M" + (0).to_bytes(4, "big") + SEED + DEMO_NONCE).digest())
 
@@ -406,8 +447,8 @@ check("key signature uses domain G and sha256(mix_description()) as sponge nonce
       len(N.key_signature(SEED)) == 16 and N._MIX_SHA256 == N.EXPECTED_MIX_SHA256 == hashlib.sha256(N.mix_description()).hexdigest()
       and N.key_signature(SEED) == hashlib.sha256(
           b"SN2/G" + bytes(4) + SEED + bytes.fromhex(N._MIX_SHA256)).digest()[:16])
-check("key signature has no public encrypt/decrypt override and no blob field", list(inspect.signature(N.encrypt).parameters) == ["msg","seed","nonce"]
-      and list(inspect.signature(N.decrypt).parameters) == ["blob","seed"] and N.key_signature(SEED) not in c)
+check("key signature has no public encrypt/decrypt override and no blob field", list(inspect.signature(N.encrypt).parameters) == ["msg","seed","nonce","ad"]
+      and list(inspect.signature(N.decrypt).parameters) == ["blob","seed","ad"] and N.key_signature(SEED) not in c)
 # Copies remain in memory only: no edits to any old snapshot or attack tree.
 for kind in ("pair", "triplet", "mix2"):
     alt = load("altered_"+kind, os.path.join(HERE,"sneak_n2.py"))
@@ -503,11 +544,11 @@ if PRE_CROSS is None:
     skip("triplets, schedule, weave, bridges, encoding unchanged from pre-cross")
     skip("bow_pressure/unbow_pressure sources differ from pre-cross")
 else:
-    check("triplets, schedule, weave, bridges, encoding unchanged from pre-cross (packaging changed encrypt/decrypt/_tag; B0/rehair/bow intentionally changed earlier)",
+    check("triplets, schedule, weave, bridges, encoding unchanged from pre-cross (packaging changed encrypt/decrypt/_tag/siv_nonce; B0/rehair/bow intentionally changed earlier)",
           all(inspect.getsource(getattr(N,n)) == inspect.getsource(getattr(PRE_CROSS,n)) for n in
               ("triplet_mix","triplet_unmix",
                "staff_mix","staff_unmix","shell_mix","shell_unmix","weave","unweave","Schedule",
-               "StaffSponge","keyed_sbox","encode_block","siv_nonce")))
+               "StaffSponge","keyed_sbox","encode_block")))
     check("bow_pressure/unbow_pressure sources differ from pre-cross (beat-0 pressure-rot fix applies rotl8 view)",
           inspect.getsource(N.bow_pressure) != inspect.getsource(PRE_CROSS.bow_pressure)
           and inspect.getsource(N.unbow_pressure) != inspect.getsource(PRE_CROSS.unbow_pressure)

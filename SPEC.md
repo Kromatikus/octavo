@@ -1,4 +1,81 @@
-## Current live revision — packaging (2026-11-09)
+## Current live revision — info fixes (2026-11-09)
+
+API and blob-version changes only: the 16-round function, S-boxes, schedule,
+mixes, bow, rehair and cross-staff layers are unchanged from the packaging
+revision and from the beat-0 pressure-rotation revision below.
+Still homemade. **Not for real secrets.** Use AES-GCM-SIV, age or libsodium.
+
+These close Info items 6 and part of 8 from `attacks_octavo_beat6/REPORT.md`.
+Item 5 (guessable seeds) was already fixed. Item 7 (not constant-time) and the
+rest of item 8 (one 127-byte block, no multi-block mode) are documented, not
+redesigned. Review finding 6 is unchanged.
+
+### Hardened pickup
+
+`encrypt` no longer uses `os.urandom(16)` as the pickup itself. Each call
+computes
+
+```
+pickup = SHA-256(b"SN2/P" || os.urandom(16) || time_ns(8) || counter(8) || pid(4))[:16]
+```
+
+`counter` is a per-process monotonic integer starting at 1. Two encryptions in
+the same process never share a pickup, even if the OS generator returns identical
+bytes. The pickup remains 16 bytes in the blob. There is still no public
+`pickup=` argument.
+
+### Associated data
+
+`encrypt(msg, seed=None, nonce=None, ad=b"")` and `decrypt(blob, seed=None, ad=b"")`.
+AD is encoded unambiguously as `uint64be(len(ad)) || ad` (`_encode_ad`). That
+encoding is appended:
+
+- to the SIV nonce: `SHA-256(clef || pickup || encode_block(msg) || encode_ad(ad))[:16]`
+- to the HMAC: `clef || key_sig || version || SN2 || pickup || nonce || ct || encode_ad(ad)`
+
+AD is not stored in the blob. The caller must supply the same AD on decrypt.
+Empty AD and omitted AD are identical. A wrong or missing AD fails the tag
+(`AuthError: tag mismatch`) before any payload is returned.
+
+### Blob format version 2
+
+Blobs are still 196 bytes:
+
+```
+version (1 byte, FMT_VERSION = 2) || SN2 || pickup (16) || nonce (16) || ct (128) || tag (32)
+```
+
+Offsets are unchanged: version `[0:4]`, pickup `[4:20]`, nonce `[20:36]`,
+ciphertext `[36:164]`, tag `[164:196]`. `decrypt` checks the first byte before
+the length and before the tag. A blob whose first byte is not `2` — including
+every version-1 196-byte blob and every older 195-byte `SN2...` blob — raises
+`UnsupportedVersion("unsupported version")`.
+
+### Timing side channels (Info 7)
+
+Octavo is **not constant-time**. The round function uses 256-entry S-box table
+lookups and data-dependent rotations in bow pressure (`r1` / `r2` are derived
+from a pressure byte). Pure Python cannot provide a meaningful constant-time
+implementation; bitsliced or masked replacements would still run in CPython's
+interpreter and are out of scope. The HMAC comparison uses `hmac.compare_digest`.
+That is the only deliberate constant-time step.
+
+### Remaining format limits (Info 8)
+
+A message is one 127-byte block. There is no multi-block mode, no streaming API
+and no chunked associated-data API. Minimum overhead is 69 bytes (196 − 127).
+AD itself can be any length because it is not stored in the blob.
+
+### Identifiers
+
+- Live `sneak_n2.py` SHA-256: `2d7c18e2c9a00146361bc7cdf0708af181fb692a1c121aadb200af1cc3a6a39f`
+- `EXPECTED_MIX_SHA256`: `8c12ae0d2a88b0aed3bf6d14e2031903a18d801ee5c7f56c7fc34cb7437ac31c`
+- key_sig (demo seed): `6fcc97151089539a8084e4cc3886921a`
+- hello-world pickup `3f703b2e5515d2613767372de752343e`, nonce `0a08ea35ec9a2ac650773b407f6d93df` (empty AD)
+
+---
+
+## Previous revision — packaging (2026-11-09)
 
 Packaging only: the 16-round function, S-boxes, schedule, mixes, bow, rehair and
 cross-staff layers are unchanged from the beat-0 pressure-rotation revision below.
