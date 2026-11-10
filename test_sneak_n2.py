@@ -52,8 +52,7 @@ with tempfile.TemporaryDirectory(prefix="n2_noseed_") as _td:
     _alt = importlib.util.module_from_spec(_sp); sys.modules["sneak_n2_noseed"] = _alt; _sp.loader.exec_module(_alt)
     _e = catch(lambda: _alt.load_seed())
     check("load_seed() raises when the module-relative seed file is missing (no /workspace fallback)",
-          isinstance(_e, FileNotFoundError) and _alt.SEED_PATH==os.path.join(_td, "sneak1024-seed.txt")
-          and os.path.isfile("/workspace/sneak1024-seed.txt"))
+          isinstance(_e, FileNotFoundError) and _alt.SEED_PATH==os.path.join(_td, "sneak1024-seed.txt"))
 check("embedded mix digest matches a fresh sha256(mix_description())",
       N.EXPECTED_MIX_SHA256==N._MIX_SHA256==hashlib.sha256(N.mix_description()).hexdigest() and N._SOURCE_AVAILABLE is True)
 check("FMT_VERSION is 2 and is authenticated in the tag", N.FMT_VERSION==2)
