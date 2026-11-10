@@ -1079,6 +1079,151 @@ for _ in range(2000):
 ex = sum(cnt) / 256; chi = sum((o - ex) ** 2 / ex for o in cnt); print(f"ct byte chi2 over 2000 random messages (255 df, 99.9% crit 330.5): {chi:.1f}")
 check("ct byte distribution uniform-ish (chi2 < 330.5)", chi < 330.5)
 
+# ---- test-gap fix from the 2% mutation lab (lab-only; cipher unchanged)
+# Mutant C059 set MIX2_MATRIX[0][0] 1->0, so mix2 became (v, u^2v): invertible, but the
+# first output ignores u. One-round avalanche fell to ~448/1024 bits and ~111.8/128
+# changed bytes; later rounds hid it well enough that the loose statistical bounds
+# above (full dependence by round 4, mean affected bytes after 3 rounds >= 120,
+# 16-round mean in 500..524) would likely still pass. Zeroing a last-row triplet
+# coefficient likewise stayed inside those bounds. These checks close that gap:
+# every small linear mix is complete (MDS-like / branch-number, derived from the
+# live maps), and a tight one-round diffusion band is scored with a fixed seed.
+import time as _tg_time
+_tg_t0 = _tg_time.perf_counter()
+
+def field_pair_complete(mod, M):
+    """2x2 over GF(2^8) is MDS iff every entry is nonzero and det is nonzero.
+    Then a change in either input changes both outputs, for every nonzero delta."""
+    return (all(M[i][j] != 0 for i in range(2) for j in range(2))
+            and mod.bar_det(M) != 0
+            and all(all(mod.bar_apply(M, d, 0)) and all(mod.bar_apply(M, 0, d)) for d in range(1, 256)))
+
+def triplet_complete(mod, M):
+    """Each output depends on each input (every entry nonzero), a one-input change
+    always hits >=2 outputs (each row/column has >=2 odd entries; odd is a unit
+    mod 256), and det is odd (invertible over Z/256Z). Not a full MDS claim —
+    even entries are allowed, matching the live design comment."""
+    return (all(M[i][j] != 0 for i in range(3) for j in range(3))
+            and all(sum(x & 1 for x in row) >= 2 for row in M)
+            and all(sum(M[i][j] & 1 for i in range(3)) >= 2 for j in range(3))
+            and (mod.triplet_det(M) & 1) == 1)
+
+def linear_mixes_complete(mod):
+    """Structural completeness of every small linear mix on this module."""
+    if not field_pair_complete(mod, mod.MIX2_MATRIX):
+        return False
+    for name, _, _, M in mod.BARS:
+        if M is None:
+            continue  # B0 has no field matrix; its field step is mix2 via latin_pair
+        if not field_pair_complete(mod, M):
+            return False
+    for _, _, M in mod.TRIPLETS:
+        if not triplet_complete(mod, M):
+            return False
+    return True
+
+check("mix2 2x2 is MDS over GF(2^8): all entries nonzero, det nonzero, both outputs depend on both inputs",
+      field_pair_complete(N, N.MIX2_MATRIX) and N.MIX2_MATRIX == ((1, 1), (1, 2)))
+check("each field bar-pair matrix is MDS over GF(2^8) (every output depends on every input)",
+      all(M is not None and field_pair_complete(N, M) for _, _, _, M in N.BARS[1:]) and N.BARS[0][3] is None)
+_idS = list(range(256))
+check("B0 and odd-restack latin field step equals mix2 (identity S-boxes, all 65,536 pairs); both therefore inherit the MDS 2x2",
+      all(N.latin_pair(u, v, _idS, _idS) == N.mix2(u, v) == N.b0_apply(u, v, _idS, _idS)
+          for u in range(256) for v in range(256))
+      and all((lambda s: tuple(N.odd_restack(s, _idS, _idS)[t-1:t+1]) == N.mix2(s[t-1], s[t]))
+              ([u if k == t-1 else (v if k == t else 0) for k in range(8)])
+              for t in (1, 3, 5, 7) for u in range(0, 256, 17) for v in range(0, 256, 17)))
+check("staff butterfly, shell bridges, and cross-staff layers apply mix2 (the MDS 2x2), not a private matrix",
+      all("mix2(" in inspect.getsource(getattr(N, fn)) for fn in ("staff_mix", "shell_mix", "cross_staff_mix")))
+check("each triplet: every entry nonzero, >=2 odd coefficients per row and column, odd determinant",
+      all(triplet_complete(N, M) for _, _, M in N.TRIPLETS))
+check("all small linear mixes (mix2, field bars, B0/latin/restack field step, triplets) are complete",
+      linear_mixes_complete(N))
+
+# One-round diffusion, fixed cases. Calibrated on live SEED + DEMO_NONCE, round 0,
+# RNG seed 20261110, 48 single-bit + 48 single-byte differences (white=False, one
+# round_enc). Baseline means were ~512.8 / 511.3 flipped bits and ~127.5 / 127.6
+# changed bytes. C059 scored ~439 / 442 bits and ~108.9 / 110.4 bytes. Band
+# 500..524 is the same tight window as the 16-round check, with ~12 bits of
+# margin on the baseline mean; 124 changed bytes is ~3.5 below the baseline
+# mean of ~127.5 and ~13 above C059.
+_TG_RNG_SEED, _TG_NBIT, _TG_NBYTE = 20261110, 48, 48
+_TG_BIT_LO, _TG_BIT_HI, _TG_BYTE_MIN = 500, 524, 124
+
+def one_round_diffusion(mod, sch, rng_seed=_TG_RNG_SEED, n_bit=_TG_NBIT, n_byte=_TG_NBYTE):
+    """Mean flipped bits and changed bytes after exactly one round, fixed RNG."""
+    rng = random.Random(rng_seed)
+    rk = sch.rounds[0]
+    def enc(block):
+        return mod.grid_to_bytes(mod.round_enc(mod.bytes_to_grid(block), rk, 0))
+    bit_hw, bit_cb, byte_hw, byte_cb = [], [], [], []
+    for _ in range(n_bit):
+        x = bytes(rng.randrange(256) for _ in range(128))
+        bit = rng.randrange(1024)
+        y = bytes(b ^ (1 << (bit % 8)) if i == bit // 8 else b for i, b in enumerate(x))
+        xe, ye = enc(x), enc(y)
+        bit_hw.append(sum(bin(a ^ b).count("1") for a, b in zip(xe, ye)))
+        bit_cb.append(sum(a != b for a, b in zip(xe, ye)))
+    for _ in range(n_byte):
+        x = bytes(rng.randrange(256) for _ in range(128))
+        pos = rng.randrange(128)
+        dx = rng.randrange(1, 256)
+        y = bytearray(x); y[pos] ^= dx
+        xe, ye = enc(x), enc(bytes(y))
+        byte_hw.append(sum(bin(a ^ b).count("1") for a, b in zip(xe, ye)))
+        byte_cb.append(sum(a != b for a, b in zip(xe, ye)))
+    return (sum(bit_hw) / n_bit, sum(bit_cb) / n_bit, sum(byte_hw) / n_byte, sum(byte_cb) / n_byte)
+
+def one_round_in_band(stats):
+    bit_hw, bit_cb, byte_hw, byte_cb = stats
+    return (_TG_BIT_LO <= bit_hw <= _TG_BIT_HI and _TG_BIT_LO <= byte_hw <= _TG_BIT_HI
+            and bit_cb >= _TG_BYTE_MIN and byte_cb >= _TG_BYTE_MIN)
+
+_tg_live = one_round_diffusion(N, sch0)
+print(f"one-round diffusion (SEED+DEMO_NONCE, RNG {_TG_RNG_SEED}, {_TG_NBIT} bit + {_TG_NBYTE} byte): "
+      f"bit mean { _tg_live[0]:.3f}/1024 bits, {_tg_live[1]:.3f}/128 bytes; "
+      f"byte-diff mean {_tg_live[2]:.3f}/1024 bits, {_tg_live[3]:.3f}/128 bytes")
+check("one-round single-bit and single-byte means: flipped bits in 500..524, changed bytes >= 124",
+      one_round_in_band(_tg_live))
+
+# Regression: throwaway copies of the live module (nothing written to the tree).
+# C059 is the lab mutant (MIX2[0][0] 1->0 plus the two accompanying triplet tweaks).
+# The last-row-zero mutant is T0.M[2][2] 2->0, one of the lab's triplet-corner flags.
+def _rebuild_trips(mod, edits):
+    trips = []
+    for name, win, Mat in mod.TRIPLETS:
+        Mat = [list(row) for row in Mat]
+        if name in edits:
+            i, j, val = edits[name]
+            Mat[i][j] = val
+        trips.append((name, win, tuple(tuple(row) for row in Mat)))
+    mod.TRIPLETS = tuple(trips)
+    mod.TRIPLETS_INV = tuple(mod.triplet_inv(M) for _, _, M in mod.TRIPLETS)
+
+_c059 = load("mutant_c059", os.path.join(HERE, "sneak_n2.py"))
+_c059.MIX2_MATRIX = ((0, 1), (1, 2))
+_c059.MIX2_INV = _c059.bar_inv(_c059.MIX2_MATRIX)
+_rebuild_trips(_c059, {"T5": (1, 1, 7), "T3": (0, 1, 9)})
+_c059_stats = one_round_diffusion(_c059, sch0)
+print(f"C059 throwaway one-round: bit mean {_c059_stats[0]:.3f}/1024 bits, {_c059_stats[1]:.3f}/128 bytes; "
+      f"byte-diff mean {_c059_stats[2]:.3f}/1024 bits, {_c059_stats[3]:.3f}/128 bytes")
+check("C059 throwaway (MIX2[0][0] 1->0) fails the mix2 MDS check and the one-round diffusion band",
+      not field_pair_complete(_c059, _c059.MIX2_MATRIX)
+      and not linear_mixes_complete(_c059)
+      and not one_round_in_band(_c059_stats)
+      and _c059_stats[0] < _TG_BIT_LO and _c059_stats[2] < _TG_BIT_LO
+      and _c059_stats[1] < _TG_BYTE_MIN and _c059_stats[3] < _TG_BYTE_MIN)
+
+_t0z = load("mutant_t0_lastrow", os.path.join(HERE, "sneak_n2.py"))
+_rebuild_trips(_t0z, {"T0": (2, 2, 0)})
+check("triplet last-row-zero throwaway (T0.M[2][2] 2->0) fails the all-entries-nonzero / complete-mix check",
+      not triplet_complete(_t0z, _t0z.TRIPLETS[0][2])
+      and not linear_mixes_complete(_t0z)
+      and linear_mixes_complete(N)
+      and _t0z.TRIPLETS[0][2][2][2] == 0
+      and N.TRIPLETS[0][2][2][2] == 2)
+print(f"test-gap checks wall time: {_tg_time.perf_counter() - _tg_t0:.2f}s")
+
 # ---- picture header stays in sync with the live module and hello-world sample
 # render_n2.py writes sneak-staff-n2.json beside the PNG with the file SHA, key_sig,
 # and hello-world pickup/nonce/tag it was drawn from. This check fails if the
