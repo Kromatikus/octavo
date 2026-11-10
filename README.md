@@ -73,8 +73,8 @@ rule. Review finding 6 (the unused attested B0 matrix) is left alone.
 are the same. `demo-nonce.txt` is unchanged. The picture was not redrawn.
 
 - Live `sneak_n2.py` SHA-256: `2d7c18e2c9a00146361bc7cdf0708af181fb692a1c121aadb200af1cc3a6a39f`.
-- `EXPECTED_MIX_SHA256`: `8c12ae0d2a88b0aed3bf6d14e2031903a18d801ee5c7f56c7fc34cb7437ac31c`.
-- key_sig (demo seed): `6fcc97151089539a8084e4cc3886921a`.
+- `EXPECTED_MIX_SHA256`: `959f3522d0ac7436ea7ce1f7372e19052f3c0220553d7478e076d44b7690a67a`.
+- key_sig (demo seed): `eec7f5bf73eda259ea53850e50190d74`.
 - hello-world pickup `3f703b2e5515d2613767372de752343e`, nonce `0a08ea35ec9a2ac650773b407f6d93df` (empty AD; see `hello-world.txt`).
 - Blob size: 196 bytes, version byte 2.
 
@@ -94,8 +94,8 @@ stopped a fresh clone from running. Those packaging bugs are what this revision
 fixes. That review is a negative experimental result, not a security proof.
 
 **What changed (packaging only).**
-- Default seed path is `sneak1024-seed.txt` next to `sneak_n2.py`, with a fallback
-  to `/workspace/sneak1024-seed.txt` if the module-relative file is missing. The
+- Default seed path is `sneak1024-seed.txt` next to `sneak_n2.py`; no other
+  location is read. The
   runtime absolute path is not attested, so tags do not depend on the install
   location.
 - `key_signature` no longer re-hashes source on every encrypt/decrypt. At import,
@@ -118,7 +118,7 @@ not redrawn.
 
 - Live `sneak_n2.py` SHA-256: `127a9628c88fe9429bca7505a67aefb6b513106a3c1cd30d4d71a443354778cd`.
 - `EXPECTED_MIX_SHA256`: `85d7af1ea863fc44735809576b7b96dd9ff490b6d736d243a10f7cd4b826f15a`.
-- key_sig (demo seed): `e5f54546ca530ee6103b8420578a6aca`.
+- key_sig (demo seed): `eec7f5bf73eda259ea53850e50190d74`.
 - hello-world pickup `ecd5b4a32534bbea72ae2bdaaa2bb589`, nonce `408787444f355728a176e74ad1d69691` (see `hello-world.txt`).
 - Blob size: 196 bytes.
 

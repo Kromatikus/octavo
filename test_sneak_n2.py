@@ -2,6 +2,7 @@
 import inspect, sys, os, random, hashlib, subprocess
 sys.dont_write_bytecode = True
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE); import sneak_n2 as N
+WORK = os.environ.get("OCTAVO_WORK", "/workspace")  # sibling trees; checks that need them skip when absent
 SEED = N.load_seed(); R = random.Random(2); P = F = S = 0
 def check(name, cond):
     global P, F
@@ -333,7 +334,7 @@ if FIELD_OLD is None:
     skip("triplet tuples and integer helpers byte-for-byte unchanged by field retune")
 else:
     check("triplet tuples and integer helpers byte-for-byte unchanged by field retune", N.TRIPLETS == FIELD_OLD.TRIPLETS and all(inspect.getsource(getattr(N, f)) == inspect.getsource(getattr(FIELD_OLD, f)) for f in ("triplet_apply", "triplet_inv", "triplet_det", "staff_mix")))
-N3 = load("testn3", "/workspace/testn3/sneak_n2.py")                  # frozen testn3 copy (same previous cipher)
+N3 = load("testn3", os.path.join(WORK, "testn3", "sneak_n2.py"))                  # frozen testn3 copy (same previous cipher)
 PRE_ORDER = load("preclef_order", "/tmp/sneak_n2_pre_clef_encore_siv/sneak_n2.py")
 if PRE_ORDER is not None:
     PRE_ORDER.BARS, PRE_ORDER.BARS_INV = N.BARS, N.BARS_INV               # same pre-encore round, but with the new 7-mix list
@@ -379,10 +380,11 @@ def trace_order():
         g = rgrid(); out = N.round_enc(g, sch0.rounds[0], 0); N.round_dec(out, sch0.rounds[0], 0)
     return calls == (["bar_mix", "triplet_mix"] + ["bow_pressure"]*16 + ["odd_restack"]*16 + ["cross_staff_mix"])*2 + (["cross_staff_unmix"] + ["unodd_restack"]*16 + ["unbow_pressure"]*16 + ["triplet_unmix", "bar_unmix"])*2
 check("instrumented sequence: each bow -> rehair -> cross, inverse uncross -> unrehair -> unbow", trace_order())
-check("historical pair slots, S-boxes, schedule, clef, encoding, weave and butterfly/bridge routing unchanged from pre-triplet (B0 implementation intentionally changed)", N.BARS == PRET.BARS
-      and all(inspect.getsource(getattr(N,name)) == inspect.getsource(getattr(PRET,name)) for name in (
-      "Schedule", "StaffSponge", "keyed_sbox", "staff_clef", "encode_block",   # siv_nonce/_tag/encrypt/decrypt/split_blob changed by the pickup
-      "weave", "unweave", "staff_mix", "staff_unmix", "shell_mix", "shell_unmix")))
+if PRET is not None:
+  check("historical pair slots, S-boxes, schedule, clef, encoding, weave and butterfly/bridge routing unchanged from pre-triplet (B0 implementation intentionally changed)", N.BARS == PRET.BARS
+        and all(inspect.getsource(getattr(N,name)) == inspect.getsource(getattr(PRET,name)) for name in (
+        "Schedule", "StaffSponge", "keyed_sbox", "staff_clef", "encode_block",   # siv_nonce/_tag/encrypt/decrypt/split_blob changed by the pickup
+        "weave", "unweave", "staff_mix", "staff_unmix", "shell_mix", "shell_unmix")))
 def not_fused():
     rr = random.Random(9)
     for r in range(15):
@@ -567,7 +569,7 @@ check("cell-2 previous five-staff confinement broken in all 300 pairs; union all
       confined==0 and staff_union==set(range(16)) and min(active_counts)>5)
 for name, expected in (("testn4","46274b690e3d3ae53649b810591681b94f53983c72f6fb9789a19c8670003f45"),
                        ("testn3","a64dc256aab66436073e888bbb6a31210f1b5c0af00b10c14ddd875fafd1b1b1")):
-    fp = os.path.join("/workspace", name, "sneak_n2.py")
+    fp = os.path.join(WORK, name, "sneak_n2.py")
     if not os.path.isfile(fp):
         skip(name+" frozen source hash unchanged")
     else:
@@ -693,6 +695,7 @@ for u in range(256):
 print("B0 exhaustive single-input singletons (u column, v column) over 2x255x65,536, round-0 tables:",b0_single,"(ARX 2,7 had [0, 10752])")
 check("B0 exhaustive single-input singletons are 0 (pure-Python, round-0 tables)", b0_single==[0,0])
 import numpy as np
+from collections import Counter
 _u=np.repeat(np.arange(256),256); _v=np.tile(np.arange(256),256)
 def np_singletons(Fm):
     c=[0,0]
@@ -839,9 +842,10 @@ check("beat-0 readers rarely share one (r1,r2); usually all three distinct (shar
 # from attacks_octavo_beat6 (beat 6 ~2^-5.6, beat 7 ~2^-4.9, beat 0 ~2^-8.1).
 _rngd=np.random.default_rng(909); Bd=_rngd.integers(0,256,(1<<12,8),dtype=np.int64); Ad=np_bow(Bd)
 def _best_diff(t):
-    pack=lambda z:(z.astype(np.int64)*(256**np.arange(8))).sum(1); best=0
+    # exact row counts: packing 8 bytes into int64 overflows (255*256**7 > 2**63) and merges distinct outputs
+    best=0
     for d in range(1,256):
-        H=Bd.copy(); H[:,t]^=d; best=max(best,int(np.unique(pack(Ad^np_bow(H)),return_counts=True)[1].max()))
+        H=Bd.copy(); H[:,t]^=d; best=max(best,max(Counter(map(tuple,Ad^np_bow(H))).values()))
     return round(float(np.log2(best/len(Bd))),2)
 bd0,bd6,bd7=_best_diff(0),_best_diff(6),_best_diff(7)
 print(f"bow-alone best diff log2 (2^12 bases): beat0={bd0}, beat6={bd6}, beat7={bd7} (pre-fix live ~-8.1/-5.6/-4.9)")
@@ -1047,9 +1051,9 @@ check("ct byte distribution uniform-ish (chi2 < 330.5)", chi < 330.5)
 
 # ---- frozen trees untouched (sha256 baselines taken before N2 was written)
 def sha_ok(listfile):
-    r = subprocess.run(["sha256sum", "-c", "--quiet", listfile], cwd="/workspace", capture_output=True)
+    r = subprocess.run(["sha256sum", "-c", "--quiet", listfile], cwd=WORK, capture_output=True)
     return r.returncode == 0
-if os.path.isdir("/workspace/test1"):
+if os.path.isdir(os.path.join(WORK, "test1")):
     for lf in ("frozen-and-n1.sha256", "v2-v13-and-seed.sha256"):
         lp = os.path.join(HERE, "baselines", lf)
         if not os.path.isfile(lp):
@@ -1060,8 +1064,8 @@ if os.path.isdir("/workspace/test1"):
     bp = os.path.join(HERE, "baselines", "frozen-and-n1.sha256")
     if os.path.isfile(bp):
         base_files = sorted(l.split("  ", 1)[1].strip() for l in open(bp))
-        now_files = sorted(os.path.relpath(os.path.join(dp, f), "/workspace") for d in ("test1", "test3", "test13", "testn1", "sneak_t1n")
-                           for dp, _, fs in os.walk(os.path.join("/workspace", d)) for f in fs) + ["sneak-staff-t1n.png"]
+        now_files = sorted(os.path.relpath(os.path.join(dp, f), WORK) for d in ("test1", "test3", "test13", "testn1", "sneak_t1n")
+                           for dp, _, fs in os.walk(os.path.join(WORK, d)) for f in fs) + ["sneak-staff-t1n.png"]
         check("no files added/removed in test1/, test3/, test13/, testn1/, sneak_t1n/", base_files == sorted(now_files))
     else:
         skip("no files added/removed in test1/, test3/, test13/, testn1/, sneak_t1n/")
