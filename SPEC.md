@@ -1,4 +1,32 @@
-## Current live revision — info fixes (2026-11-09)
+## Current live revision — seed-only path (2026-11-10)
+
+Seed-path cleanup only: the 16-round function, S-boxes, schedule, mixes, bow,
+rehair and cross-staff layers are unchanged from the info-fix revision, the
+packaging revision, and the beat-0 pressure-rotation revision below.
+Still homemade. **Not for real secrets.** Use AES-GCM-SIV, age or libsodium.
+No picture redraw.
+
+`load_seed()` with no argument now reads only `SEED_PATH` (`sneak1024-seed.txt`
+next to this module). The previous fallback to `/workspace/sneak1024-seed.txt`
+is gone. If the module-relative file is missing, `load_seed()` raises
+(`FileNotFoundError`) instead of quietly loading another file. An explicit
+`path` argument is unchanged.
+
+Because `load_seed` is attested, `sha256(mix_description())` changed, so
+`EXPECTED_MIX_SHA256`, `key_signature`, and every HMAC tag changed. Previous
+info-fix version-2 blobs fail with **tag mismatch**. The blob format is still
+version 2 (196 bytes). `demo-nonce.txt` is unchanged.
+
+### Identifiers
+
+- Live `sneak_n2.py` SHA-256: `082d5c808085500ab5f0516bc4d032e09a0b2dc466ed5c0df97c77818cdfb331`
+- `EXPECTED_MIX_SHA256`: `90ebb01d5668d84d29567fafd4708eca90e949610085a0b6e0f7662d7950f8da`
+- key_sig (demo seed): `55daf5b7fde67625397935b918af6c1a`
+- hello-world pickup `6b8f46a0f6d032103e7bbd17dda25444`, nonce `a293ac73d853e5948e24223b9b158aab` (empty AD)
+
+---
+
+## Previous revision — info fixes (2026-11-09)
 
 API and blob-version changes only: the 16-round function, S-boxes, schedule,
 mixes, bow, rehair and cross-staff layers are unchanged from the packaging

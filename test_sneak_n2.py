@@ -44,6 +44,16 @@ check("blob starts with version byte 2 then b'SN2'", N.encrypt(b"x", SEED)[:4] =
 check("SEED_PATH is sneak1024-seed.txt next to the module",
       os.path.basename(N.SEED_PATH)=="sneak1024-seed.txt" and os.path.dirname(os.path.abspath(N.SEED_PATH))==os.path.abspath(HERE))
 check("load_seed() finds the module-relative demo seed", N.load_seed()==SEED and SEED.hex().startswith("62ba585f"))
+import importlib.util, tempfile, shutil
+with tempfile.TemporaryDirectory(prefix="n2_noseed_") as _td:
+    shutil.copy(os.path.join(HERE, "sneak_n2.py"), os.path.join(_td, "sneak_n2.py"))
+    assert not os.path.isfile(os.path.join(_td, "sneak1024-seed.txt"))
+    _sp = importlib.util.spec_from_file_location("sneak_n2_noseed", os.path.join(_td, "sneak_n2.py"))
+    _alt = importlib.util.module_from_spec(_sp); sys.modules["sneak_n2_noseed"] = _alt; _sp.loader.exec_module(_alt)
+    _e = catch(lambda: _alt.load_seed())
+    check("load_seed() raises when the module-relative seed file is missing (no /workspace fallback)",
+          isinstance(_e, FileNotFoundError) and _alt.SEED_PATH==os.path.join(_td, "sneak1024-seed.txt")
+          and os.path.isfile("/workspace/sneak1024-seed.txt"))
 check("embedded mix digest matches a fresh sha256(mix_description())",
       N.EXPECTED_MIX_SHA256==N._MIX_SHA256==hashlib.sha256(N.mix_description()).hexdigest() and N._SOURCE_AVAILABLE is True)
 check("FMT_VERSION is 2 and is authenticated in the tag", N.FMT_VERSION==2)

@@ -43,7 +43,30 @@ The rest of this README is the author's detailed revision log.
 
 ---
 
-## Current live revision — info fixes (2026-11-09)
+## Current live revision — seed-only path (2026-11-10)
+
+This section supersedes the default seed path below. The round function is
+unchanged from the info-fix revision, the packaging revision, and the beat-0
+pressure-rotation revision. Still N2 / SN2 (project name: Octavo), still homemade,
+**not for real secrets** (use AES-GCM-SIV, age or libsodium). No picture redraw.
+
+The change is the seed-path cleanup suggested in [PR #3](https://github.com/Kromatikus/octavo/pull/3)
+(@liqdmetal). Only `load_seed()` is changed: the `/workspace/sneak1024-seed.txt`
+fallback is removed. With no argument, `load_seed()` reads only `SEED_PATH`
+(`sneak1024-seed.txt` next to the module). If that file is missing, it raises
+rather than quietly loading another file. The 16-round function is untouched.
+
+Because `load_seed` is in the attested mix closure, `EXPECTED_MIX_SHA256`,
+`key_signature`, and every tag changed. Previous info-fix blobs (format version 2)
+fail with **tag mismatch**.
+
+- Live `sneak_n2.py` SHA-256: `082d5c808085500ab5f0516bc4d032e09a0b2dc466ed5c0df97c77818cdfb331`.
+- `EXPECTED_MIX_SHA256`: `90ebb01d5668d84d29567fafd4708eca90e949610085a0b6e0f7662d7950f8da`.
+- key_sig (demo seed): `55daf5b7fde67625397935b918af6c1a`.
+- hello-world pickup `6b8f46a0f6d032103e7bbd17dda25444`, nonce `a293ac73d853e5948e24223b9b158aab` (empty AD; see `hello-world.txt`).
+- Blob size: 196 bytes, version byte 2. Picture not redrawn.
+
+## Previous revision — info fixes (2026-11-09)
 
 This section supersedes the blob format, pickup, and AE API below. The round
 function is unchanged from the packaging revision and from the beat-0
@@ -126,6 +149,7 @@ not redrawn.
 Older 195-byte `SN2...` blobs now fail with **unsupported version**, not
 "tag mismatch". This revision's tags also differ because the attested
 `mix_description` and the `key_signature` sponge nonce changed.
+
 
 ---
 
