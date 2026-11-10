@@ -1,4 +1,42 @@
-## Current live revision — outer-layer fixes (2026-11-10)
+## Current live revision — movements mode (2026-11-10)
+
+This section supersedes the outer-fix section below. The round function is
+unchanged from that revision (and from octavo007). Still N2 / SN2
+(project name: Octavo), still homemade, **not for real secrets** (use AES-GCM-SIV,
+age or libsodium). The picture was redrawn from the new hello-world sample.
+
+This is the multi-block "movements" upgrade: a duplex-style chain of 128-byte
+blocks with a music-motif running state.
+
+- New API: `encrypt_movements(msg, seed=None, ad=b"", nonce=None)` and
+  `decrypt_movements(blob, seed=None, ad=b"")`. Same strict bytes-like types and
+  `MAX_AD_LEN` (65536) as the single-block API. Messages may be up to
+  `MAX_MOVEMENTS_MSG` (1,040,384 bytes, 8192 movements of 127 bytes).
+- Format version 3, so a movements blob cannot be opened as a version-2 blob and
+  vice versa. Layout: `3 || SN2 || pickup(16) || nonce(16) || nmov(4) ||
+  (ct(128) || cadence(32))*nmov || coda(32)`.
+- Pickup and an SIV nonce (now over `clef || pickup || uint64be(len(msg)) || msg || AD`)
+  as in the single-block mode.
+- A chained **theme** (`StaffSponge` domain `T`) is XOR-mixed into each movement
+  with a per-movement **tweak** (domain `W`) bound to the nonce, index and a
+  final-movement flag. Each movement ends with a **cadence** (HMAC, domain `D`).
+  The blob ends with a **coda** (HMAC, domain `O`) over the header, count, every
+  ciphertext and the associated data.
+- `decrypt_movements` verifies the coda and every cadence before building the
+  `Schedule`, then decrypts. Truncation, reordering, duplication, dropping and
+  splicing fail closed.
+- Single-block `encrypt` / `decrypt` still produce and consume version-2 196-byte
+  blobs. Because movements is attested, `EXPECTED_MIX_SHA256` and `key_signature`
+  changed, so previous outer-fix / octavo007 tags no longer verify.
+
+- Live `sneak_n2.py` SHA-256: `e5dd55e13eb0aa8df140f99aab514629477fbc60e48454bc7180243ed9692eff`.
+- `EXPECTED_MIX_SHA256`: `f7049b7f4aede9ab1ecc778220c13e982dedd890becb4510d7f954d0b528bae2`.
+- key_sig (demo seed): `925d1cd5341a9126dfa731475ef8c4fb`.
+- hello-world pickup `fdb720ab5f5641df76b480010d7e8b4e`, nonce `65283ad51c8025a7cf369f44b2dac34c` (empty AD; see `hello-world.txt`).
+- See `movements-demo.txt` for a two-movement sample (188-byte plaintext, 392-byte blob).
+- Blob size (single-block): 196 bytes, version byte 2. Picture redrawn (`sneak-staff-n2.png`).
+
+## Previous revision — outer-layer fixes (2026-11-10)
 
 This section supersedes the unused-B0 attestation section below. The round
 function is unchanged from that revision (and from octavo006). Still N2 / SN2

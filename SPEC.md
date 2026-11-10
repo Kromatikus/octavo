@@ -1,4 +1,92 @@
-## Current live revision — outer-layer fixes (2026-11-10)
+## Current live revision — movements mode (2026-11-10)
+
+Wrapper and mode addition only: the 16-round function, S-boxes, schedule, mixes, bow,
+rehair and cross-staff layers are unchanged from the outer-fix revision (octavo007).
+Still homemade. **Not for real secrets.** Use AES-GCM-SIV, age or libsodium.
+The picture was redrawn from the new hello-world sample.
+
+This adds a duplex / SpongeWrap-style multi-block mode named after musical movements.
+Single-block `encrypt` / `decrypt` stay on format version 2 (196-byte blobs) and the
+same padding, pickup, SIV nonce and HMAC string as outer-fix. Because the new mode is
+attested (`encrypt_movements`, `decrypt_movements` and their helpers are in
+`MIX_CODE_ROOTS` / `MIX_CODE_FUNCS`), `sha256(mix_description())` changed, so
+`EXPECTED_MIX_SHA256`, `key_signature`, and every version-2 HMAC tag changed.
+Outer-fix / octavo007 version-2 blobs fail with **tag mismatch**.
+
+### API
+
+`encrypt_movements(msg, seed=None, ad=b"", nonce=None)` and
+`decrypt_movements(blob, seed=None, ad=b"")` take the same bytes-like types and
+`MAX_AD_LEN` (65536) cap as the single-block API. Messages longer than
+`MAX_MOVEMENTS_MSG` (8192 × 127 = 1,040,384 bytes) raise `ValueError`.
+The empty message is one empty movement, so there is always at least one
+movement and never a "zero movements vs one empty movement" ambiguity.
+
+### Blob layout (format version 3)
+
+`version(1)=3 || b"SN2" || pickup(16) || nonce(16) || nmov(uint32be) || (ct(128) || cadence(32))*nmov || coda(32)`.
+
+A version-3 blob is rejected by `decrypt` as `UnsupportedVersion`, and a version-2
+blob is rejected by `decrypt_movements` the same way, so the two formats cannot be
+confused. Minimum size (one movement) is 232 bytes.
+
+### Pickup, SIV nonce, theme, tweak
+
+Pickup is still `_fresh_pickup()`. The synthetic nonce is
+`SHA-256(clef || pickup || uint64be(len(msg)) || msg || encode_ad(ad))[:16]`.
+The length prefix keeps the framing unambiguous for any payload up to the cap.
+A caller-supplied nonce must equal that value.
+
+The running state ("theme") starts as `StaffSponge(b"T", seed, nonce).take(128)`.
+After each movement it absorbs that movement's ciphertext, index and final flag:
+`theme' = StaffSponge(b"T", seed, SHA-256(b"SN2/T" || theme || ct || index64 || final)[:16]).take(128)`.
+Each movement is also XOR-bound to a tweak
+`StaffSponge(b"W", seed, SHA-256(b"SN2/I" || nonce || index64 || final)[:16]).take(128)`,
+so the block input is `encode_block(chunk) XOR theme XOR tweak`. Chunks are 127 bytes
+(the last may be shorter) and reuse the single-block length-byte plus zero padding,
+so a final partial movement has no length ambiguity. One `Schedule(seed, nonce)`
+encrypts every movement (duplex-style: one keyed permutation, evolving theme).
+
+New StaffSponge domains: `b"T"` theme, `b"W"` tweak, `b"D"` cadence MAC key,
+`b"O"` coda MAC key. Existing domains `C`, `G`, `K`, `M`, `P` are unchanged.
+
+### Cadence and coda
+
+Each movement carries a cadence
+`HMAC-SHA256(cad_key, clef || key_sig || version || SN2 || pickup || nonce || index64 || final || theme || ct || encode_ad(ad))`
+with `cad_key = StaffSponge(b"D", seed, nonce).take(32)`.
+
+The coda is
+`HMAC-SHA256(coda_key, clef || key_sig || version || SN2 || pickup || nonce || nmov32 || ct_0 || … || ct_{n-1} || encode_ad(ad))`
+with `coda_key = StaffSponge(b"O", seed, nonce).take(32)`. It covers the header,
+the movement count, every ciphertext and the associated data.
+
+`decrypt_movements` checks the version byte, length, magic and count, then verifies
+the coda and every cadence with `compare_digest` before constructing `Schedule`.
+A junk blob is rejected without expanding 16 rounds of key material. After the tags
+pass, each block is decrypted, un-XORed, checked for a well-formed length/padding,
+concatenated, and checked against the synthetic SIV nonce.
+
+Truncating, extending, flipping bits, reordering movements, dropping or duplicating
+one, splicing a movement from another message, using the wrong seed or AD, or
+presenting a version-2 blob all fail closed.
+
+### FEATURES
+
+The picture-header strings now also say `movements mode (v3 theme/cadence/coda)`.
+`REVISION` is `movements` (2026-11-10). Those labels remain in `_ATTEST_SKIP`.
+
+### Identifiers
+
+- Live `sneak_n2.py` SHA-256: `e5dd55e13eb0aa8df140f99aab514629477fbc60e48454bc7180243ed9692eff`
+- `EXPECTED_MIX_SHA256`: `f7049b7f4aede9ab1ecc778220c13e982dedd890becb4510d7f954d0b528bae2`
+- key_sig (demo seed): `925d1cd5341a9126dfa731475ef8c4fb`
+- hello-world pickup `fdb720ab5f5641df76b480010d7e8b4e`, nonce `65283ad51c8025a7cf369f44b2dac34c` (empty AD)
+- movements-demo (188-byte plaintext, 2 movements, 392-byte blob) pickup `f3cc61bbbae5e9adf3fd26be68968a00`
+
+---
+
+## Previous revision — outer-layer fixes (2026-11-10)
 
 Wrapper fixes only: the 16-round function, S-boxes, schedule, mixes, bow,
 rehair and cross-staff layers are unchanged from the unused-B0 attestation

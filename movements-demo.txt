@@ -1,0 +1,18 @@
+Sneak staff-core N2 (Octavo) — movements-mode demo (format version 3).
+Homemade; NOT for real secrets. Use AES-GCM-SIV, age, or libsodium.
+seed: sneak1024-seed.txt next to sneak_n2.py
+live sneak_n2.py SHA-256: e5dd55e13eb0aa8df140f99aab514629477fbc60e48454bc7180243ed9692eff
+key_sig (16 bytes): 925d1cd5341a9126dfa731475ef8c4fb
+revision: movements / 2026-11-10
+plaintext (188 bytes): Octavo movements: a chained duplex over the staff-core. Each section is a movement, the running theme is carried forward, a cadence closes every section, and a coda covers the whole piece.
+plaintext_hex: 4f637461766f206d6f76656d656e74733a206120636861696e6564206475706c6578206f766572207468652073746166662d636f72652e20456163682073656374696f6e2069732061206d6f76656d656e742c207468652072756e6e696e67207468656d65206973206361727269656420666f72776172642c206120636164656e636520636c6f7365732065766572792073656374696f6e2c20616e64206120636f646120636f76657273207468652077686f6c652070696563652e
+associated data: (empty)
+pickup (16 bytes): f3cc61bbbae5e9adf3fd26be68968a00
+nonce (16 bytes; SHA-256(clef || pickup || uint64be(len(msg)) || msg || encode_ad(ad))[:16]): d3592a5f0932008b53694fbaad25c8cd
+nmov (uint32be): 2
+first movement ciphertext (128 bytes): fb99a5796521b09e05939e1355a3d9ea55e7e5afa9f4dae14806a495e1a9afa16966e965231c72e5bba76c00953e018a744be72a4727ec69f63694b381872e775c47eb25446b4704770abcdace95bc3861b5eabac9ebc90392865d10618af9988244044bf89785cec7dd9277797b52f3ecbbf6041bf078c0d7209280baf970c7
+first cadence (32 bytes): c97b0b3a9b75c3e523599f425f9a4e9affb913acecde1293dc8ce39d96bfd60d
+coda (32 bytes; HMAC over header, count, all ciphertext, and AD): 9e1b2e08d78f6272bc849b2dad08713bb6b0c8c3fed49bf3482492375191ad36
+blob (392 bytes = version || SN2 || pickup || nonce || nmov || (ct||cadence)*nmov || coda): 03534e32f3cc61bbbae5e9adf3fd26be68968a00d3592a5f0932008b53694fbaad25c8cd00000002fb99a5796521b09e05939e1355a3d9ea55e7e5afa9f4dae14806a495e1a9afa16966e965231c72e5bba76c00953e018a744be72a4727ec69f63694b381872e775c47eb25446b4704770abcdace95bc3861b5eabac9ebc90392865d10618af9988244044bf89785cec7dd9277797b52f3ecbbf6041bf078c0d7209280baf970c7c97b0b3a9b75c3e523599f425f9a4e9affb913acecde1293dc8ce39d96bfd60d06d765d5e97ab885400f484c4805a28d3f9be9f3b193ec8d35bb4191a8508547d89ffb8017b62bae45aa21781c0b4e6d401a29a976db1392272ec5acab12851576c5199bf1b329450677f4110e068e6bdf20d12da50651d8f985334c0f1a6084ad931dbe86bc554250527ad59afc39cb894e59f2e57cdd8d6ed997737f878ab04f8d1c4165f988eea478325597c3e97fab27ce79b879e9fc407c161659aee1f09e1b2e08d78f6272bc849b2dad08713bb6b0c8c3fed49bf3482492375191ad36
+recovered plaintext matches.
+A version-2 single-block blob cannot be opened by decrypt_movements, and this blob cannot be opened by decrypt.

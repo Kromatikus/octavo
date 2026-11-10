@@ -918,9 +918,9 @@ else:
     check("pre-sig-gap 195-byte hello-world pickup 24d554eb fails as unsupported version, not DecodeError",
           len(sig_blob)==195 and sig_blob[3:19].hex()=="24d554eb3d22f0b6412d7da59e504df1"
           and isinstance(er,N.UnsupportedVersion) and str(er)=="unsupported version")
-# Independent call-graph walk (own AST walker over the module's globals, from encrypt/decrypt/siv_nonce/key_signature/split_blob).
+# Independent call-graph walk (own AST walker over the module's globals, from MIX_CODE_ROOTS).
 def indep_closure():
-    seen=set(); data=set(); todo=["encrypt","decrypt","siv_nonce","key_signature","split_blob","mix_description"]
+    seen=set(); data=set(); todo=list(N.MIX_CODE_ROOTS)
     skip=set(N._ATTEST_SKIP)
     while todo:
         n=todo.pop()
@@ -934,7 +934,7 @@ def indep_closure():
 reach,reach_data=indep_closure()
 IMPORT_TIME_BUILDERS={"_gf_mul_raw","bar_det","bar_inv","triplet_det","triplet_inv"}
 print("reachable functions/classes:",len(reach),"; reachable module data:",sorted(reach_data))
-check("nothing reachable from encrypt/decrypt/siv_nonce/key_signature/split_blob is missing from MIX_CODE_FUNCS; listed extras are only the import-time table builders",
+check("nothing reachable from MIX_CODE_ROOTS is missing from MIX_CODE_FUNCS; listed extras are only the import-time table builders",
       reach <= set(N.MIX_CODE_FUNCS) and set(N.MIX_CODE_FUNCS)-reach==IMPORT_TIME_BUILDERS
       and (reach,reach_data)==N.mix_code_closure() and len(N.MIX_CODE_FUNCS)==len(set(N.MIX_CODE_FUNCS)))
 mod_defs={n for n,o in vars(N).items() if (inspect.isfunction(o) or inspect.isclass(o)) and getattr(o,"__module__",None)==N.__name__}
@@ -948,7 +948,7 @@ check("module data hashed includes BARS, BARS_INV, TRIPLETS(_INV), CROSS_*, BOW_
       {"BARS","BARS_INV","TRIPLETS","TRIPLETS_INV","CROSS_OPPOSITE","CROSS_RADIAL","CROSS_ADJACENT","CROSS_BRIDGE","CROSS_LAYERS",
        "BOW_STROKES","BOW_PRESSURE_ROT","BOW_ROT_BASE","BOW_ROT_MOD","BOW_R2_SHIFT","LAYERS","SM4_SBOX","_GF_MUL","MIX2_MATRIX","MIX2_INV","FIELD_POLY",
        "NF","NB","NR","BLOCK_LEN","VERSION","MAX_AD_LEN"} <= reach_data and json.loads(N.mix_description())["mix_data"]["names"]==sorted(reach_data)
-      and len(reach_data)==37)
+      and len(reach_data)==43)
 def frame(h,parts):
     for part in parts: b=part.encode(); h.update(len(b).to_bytes(8,"big")); h.update(b)
 desc5=json.loads(N.mix_description())
@@ -1274,7 +1274,151 @@ check("bad tag is rejected without building Schedule; a valid blob still builds 
 check("FEATURES mention the version byte and AD in the HMAC description, and AD in the SIV nonce",
       any("HMAC" in f and "version" in f and "AD" in f for f in N.FEATURES)
       and any("SIV" in f and "AD" in f for f in N.FEATURES)
-      and N.REVISION == "outer-fix" and N.REVISION_DATE == "2026-11-10")
+      and any("movements" in f and "theme" in f and "cadence" in f and "coda" in f for f in N.FEATURES)
+      and N.REVISION == "movements" and N.REVISION_DATE == "2026-11-10")
+
+# ---- movements mode (format version 3)
+check("FMT_MOVEMENTS is 3, distinct from single-block version 2, and the header/stride sizes match the layout",
+      N.FMT_MOVEMENTS == 3 and N.FMT_VERSION == 2
+      and N.MAX_MOVEMENTS == 8192 and N.MAX_MOVEMENTS_MSG == 8192 * 127
+      and N.MOVEMENT_STRIDE == 160 and N.MOVEMENTS_HDR_LEN == 40)
+_mv_lens = (0, 1, 126, 127, 128, 129, 253, 254, 255, 256, 381, 400)
+_mv_ok = True
+_mv_n = {}
+for _L in _mv_lens:
+    _m = bytes((_L + i) % 256 for i in range(_L))
+    _b = N.encrypt_movements(_m, SEED)
+    _n = int.from_bytes(_b[36:40], "big")
+    _mv_n[_L] = _n
+    _exp_n = 1 if _L == 0 else (_L + 126) // 127
+    _exp_len = N.MOVEMENTS_HDR_LEN + _exp_n * N.MOVEMENT_STRIDE + N.TAG_LEN
+    if not (_b[:4] == b"\x03SN2" and _n == _exp_n and len(_b) == _exp_len and N.decrypt_movements(_b, SEED) == _m):
+        _mv_ok = False
+check("movements round-trip lengths 0,1,126,127,128,129,253,254,255,256,381,400 with expected movement counts",
+      _mv_ok and _mv_n[0] == _mv_n[1] == _mv_n[127] == 1 and _mv_n[128] == _mv_n[254] == 2 and _mv_n[255] == 3)
+_mv_big = bytes(range(256)) * 16  # 4096 bytes, 33 movements
+_mv_big_blob = N.encrypt_movements(_mv_big, SEED)
+check("movements round-trip a 4096-byte message (33 movements)",
+      int.from_bytes(_mv_big_blob[36:40], "big") == 33 and N.decrypt_movements(_mv_big_blob, SEED) == _mv_big)
+_mv_ad = b"from:orchestra"
+_mv_msg = b"theme " * 40  # 240 bytes -> 2 movements
+_mv_ad_blob = N.encrypt_movements(_mv_msg, SEED, ad=_mv_ad)
+check("movements AD round-trip and empty AD matches omitted AD",
+      N.decrypt_movements(_mv_ad_blob, SEED, ad=_mv_ad) == _mv_msg
+      and N.decrypt_movements(N.encrypt_movements(b"solo", SEED), SEED) == b"solo"
+      and N.decrypt_movements(N.encrypt_movements(b"solo", SEED, ad=b""), SEED, ad=b"") == b"solo")
+check("movements rejects int/list/str/None msg and ad with TypeError",
+      all(isinstance(catch(lambda m=m: N.encrypt_movements(m, SEED)), TypeError) for m in _bad_types)
+      and all(isinstance(catch(lambda a=a: N.encrypt_movements(b"x", SEED, ad=a)), TypeError) for a in (3, 0, [1, 2], "ad", None))
+      and all(isinstance(catch(lambda b=b: N.decrypt_movements(b, SEED)), TypeError) for b in _bad_types))
+check("movements oversize message and MAX_AD_LEN+1 are rejected",
+      isinstance(catch(lambda: N.encrypt_movements(bytes(N.MAX_MOVEMENTS_MSG + 1), SEED)), ValueError)
+      and isinstance(catch(lambda: N.encrypt_movements(b"x", SEED, ad=b"A" * (N.MAX_AD_LEN + 1))), ValueError)
+      and isinstance(catch(lambda: N.decrypt_movements(_mv_ad_blob, SEED, ad=b"A" * (N.MAX_AD_LEN + 1))), ValueError))
+check("movements wrong seed, wrong AD, and empty-vs-absent AD mismatch fail closed",
+      isinstance(catch(lambda: N.decrypt_movements(_mv_ad_blob, bytes(range(128)))), N.AuthError)
+      and isinstance(catch(lambda: N.decrypt_movements(_mv_ad_blob, SEED, ad=b"from:balcony")), N.AuthError)
+      and isinstance(catch(lambda: N.decrypt_movements(_mv_ad_blob, SEED)), N.AuthError)
+      and isinstance(catch(lambda: N.decrypt_movements(_mv_ad_blob, SEED, ad=b"")), N.AuthError))
+check("version confusion: decrypt rejects a movements blob; decrypt_movements rejects a version-2 blob",
+      isinstance(catch(lambda: N.decrypt(_mv_ad_blob, SEED, ad=_mv_ad)), N.UnsupportedVersion)
+      and isinstance(catch(lambda: N.decrypt_movements(HW_BLOB, SEED)), N.UnsupportedVersion)
+      and str(catch(lambda: N.decrypt(_mv_ad_blob, SEED, ad=_mv_ad))) == "unsupported version"
+      and str(catch(lambda: N.decrypt_movements(HW_BLOB, SEED))) == "unsupported version")
+# synthetic nonce binding
+_pk = _mv_ad_blob[4:20]
+_syn = N.siv_nonce_movements(_mv_msg, _pk, SEED, _mv_ad)
+check("movements SIV nonce matches sha256(clef||pickup||len||msg||encode_ad(ad)) and a wrong caller nonce is rejected",
+      _mv_ad_blob[20:36] == _syn
+      and _syn == __import__("hashlib").sha256(N.staff_clef(SEED) + _pk + len(_mv_msg).to_bytes(8, "big") + _mv_msg + N._encode_ad(_mv_ad)).digest()[:16]
+      and isinstance(catch(lambda: N.encrypt_movements(_mv_msg, SEED, ad=_mv_ad, nonce=bytes(16))), ValueError))
+
+def _mv_tamper_ok():
+    blob = N.encrypt_movements(b"twelve notes make a row and then some more" * 5, SEED, ad=b"score")
+    n = int.from_bytes(blob[36:40], "big")
+    assert n >= 2
+    cases = []
+    # truncate / extend
+    cases.append(isinstance(catch(lambda: N.decrypt_movements(blob[:-1], SEED, ad=b"score")), N.AuthError))
+    cases.append(isinstance(catch(lambda: N.decrypt_movements(blob + b"\x00", SEED, ad=b"score")), N.AuthError))
+    # bit flips in every region
+    regions = {
+        "version": 0, "magic": 2, "pickup": 10, "nonce": 24, "nmov": 38,
+        "ct0": N.MOVEMENTS_HDR_LEN + 10, "cadence0": N.MOVEMENTS_HDR_LEN + N.BLOCK_LEN + 3,
+        "coda": len(blob) - 1,
+    }
+    for off in regions.values():
+        bad = bytearray(blob); bad[off] ^= 1
+        cases.append(isinstance(catch(lambda b=bytes(bad): N.decrypt_movements(b, SEED, ad=b"score")), (N.AuthError, N.UnsupportedVersion)))
+    # reorder movements 0 and 1
+    swapped = bytearray(blob)
+    s, st = N.MOVEMENTS_HDR_LEN, N.MOVEMENT_STRIDE
+    swapped[s:s+st], swapped[s+st:s+2*st] = blob[s+st:s+2*st], blob[s:s+st]
+    cases.append(isinstance(catch(lambda: N.decrypt_movements(bytes(swapped), SEED, ad=b"score")), N.AuthError))
+    # drop last movement and rewrite count to n-1
+    dropped = bytearray(blob[:s] + blob[s:s+(n-1)*st] + blob[-32:])
+    dropped[36:40] = (n-1).to_bytes(4, "big")
+    cases.append(len(dropped) == N.MOVEMENTS_HDR_LEN + (n-1)*st + N.TAG_LEN)
+    cases.append(isinstance(catch(lambda: N.decrypt_movements(bytes(dropped), SEED, ad=b"score")), N.AuthError))
+    # duplicate first movement at the end and rewrite count to n+1
+    dup = bytearray(blob[:s] + blob[s:s+n*st] + blob[s:s+st] + blob[-32:])
+    dup[36:40] = (n+1).to_bytes(4, "big")
+    cases.append(isinstance(catch(lambda: N.decrypt_movements(bytes(dup), SEED, ad=b"score")), N.AuthError))
+    # splice movement 0 from another message
+    other = N.encrypt_movements(b"a different piece altogether that also spans two movements.." + b"!" * 80, SEED, ad=b"score")
+    spliced = bytearray(blob)
+    spliced[s:s+st] = other[s:s+st]
+    cases.append(isinstance(catch(lambda: N.decrypt_movements(bytes(spliced), SEED, ad=b"score")), N.AuthError))
+    # downgrade version byte to 2
+    down = bytearray(blob); down[0] = 2
+    cases.append(isinstance(catch(lambda: N.decrypt_movements(bytes(down), SEED, ad=b"score")), N.UnsupportedVersion))
+    cases.append(isinstance(catch(lambda: N.decrypt(bytes(down), SEED, ad=b"score")), N.AuthError))  # wrong length for v2
+    return all(cases)
+check("movements tampers fail closed: truncate, extend, bit flips, reorder, drop, duplicate, splice, downgrade",
+      _mv_tamper_ok())
+
+# verify-then-decrypt: bad coda / flipped cadence must not build Schedule
+_seen_mv = []
+_orig_mv_sch = N.Schedule.__init__
+def _sch_probe_mv(self, seed, nonce):
+    _seen_mv.append("Schedule")
+    return _orig_mv_sch(self, seed, nonce)
+N.Schedule.__init__ = _sch_probe_mv
+try:
+    _good_mv = N.encrypt_movements(b"cadence check " * 12, SEED)
+    _seen_mv.clear()
+    _bad_coda = bytearray(_good_mv); _bad_coda[-1] ^= 1
+    _e_coda = catch(lambda: N.decrypt_movements(bytes(_bad_coda), SEED))
+    _n_coda = list(_seen_mv); _seen_mv.clear()
+    _bad_cad = bytearray(_good_mv)
+    _bad_cad[N.MOVEMENTS_HDR_LEN + N.BLOCK_LEN] ^= 1  # first cadence byte
+    _e_cad = catch(lambda: N.decrypt_movements(bytes(_bad_cad), SEED))
+    _n_cad = list(_seen_mv); _seen_mv.clear()
+    _ok_mv = N.decrypt_movements(_good_mv, SEED)
+    _n_ok = list(_seen_mv)
+finally:
+    N.Schedule.__init__ = _orig_mv_sch
+check("movements: bad coda or cadence is rejected without building Schedule; a valid blob still builds Schedule then decrypts",
+      isinstance(_e_coda, N.AuthError) and str(_e_coda) == "coda mismatch"
+      and isinstance(_e_cad, N.AuthError) and str(_e_cad) == "cadence mismatch"
+      and _n_coda == [] and _n_cad == [] and _n_ok == ["Schedule"]
+      and _ok_mv == b"cadence check " * 12)
+
+_mv_demo = os.path.join(HERE, "movements-demo.txt")
+if os.path.isfile(_mv_demo):
+    _mv_demo_blob = None
+    _mv_demo_plain = None
+    for _line in open(_mv_demo):
+        if _line.startswith("blob"):
+            _mv_demo_blob = bytes.fromhex(_line.split()[-1])
+        if _line.startswith("plaintext_hex"):
+            _mv_demo_plain = bytes.fromhex(_line.split()[-1])
+    check("movements-demo.txt decrypts to its recorded plaintext",
+          _mv_demo_blob is not None and _mv_demo_plain is not None
+          and _mv_demo_blob[:4] == b"\x03SN2"
+          and N.decrypt_movements(_mv_demo_blob, SEED) == _mv_demo_plain)
+else:
+    check("movements-demo.txt is present beside the tests", False)
 
 # ---- picture header stays in sync with the live module and hello-world sample
 # render_n2.py writes sneak-staff-n2.json beside the PNG with the file SHA, key_sig,

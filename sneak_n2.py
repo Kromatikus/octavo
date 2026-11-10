@@ -21,6 +21,11 @@ PICKUP_LEN = 16                   # hardened anacrusis: sha256(SN2/P || urandom 
 BLOB_LEN = 1 + len(VERSION) + PICKUP_LEN + NONCE_LEN + BLOCK_LEN + TAG_LEN    # 196
 MAX_MSG = 127
 MAX_AD_LEN = 65536            # associated-data cap (bytes); encrypt and decrypt reject anything longer
+FMT_MOVEMENTS = 3             # multi-block movements blobs; never confused with single-block version 2
+MAX_MOVEMENTS = 8192          # sane cap: 8192 x 127-byte payloads
+MAX_MOVEMENTS_MSG = MAX_MOVEMENTS * MAX_MSG   # 1_040_384 bytes
+MOVEMENT_STRIDE = BLOCK_LEN + TAG_LEN         # 160 = ct(128) || cadence(32)
+MOVEMENTS_HDR_LEN = 1 + len(VERSION) + PICKUP_LEN + NONCE_LEN + 4   # 40 = ver||SN2||pickup||nonce||nmov
 PK0, N0 = 1 + len(VERSION), 1 + len(VERSION) + PICKUP_LEN      # pickup = blob[4:20], nonce = blob[20:36]
 CT0, CT1 = N0 + NONCE_LEN, N0 + NONCE_LEN + BLOCK_LEN          # ct = blob[36:164], tag = blob[164:196]
 # Resolved next to this file so a clone works. The runtime absolute value is not attested
@@ -28,22 +33,23 @@ CT0, CT1 = N0 + NONCE_LEN, N0 + NONCE_LEN + BLOCK_LEN          # ct = blob[36:16
 SEED_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sneak1024-seed.txt")
 # sha256(mix_description()) hex; used as the StaffSponge nonce for key_signature.
 # Excluded from attestation so this constant is not part of what it names (chicken-and-egg).
-EXPECTED_MIX_SHA256 = "389b90afbc68ab02636b922a0331a7d7ed4f55d97db164a044cfbe1a096d1641"
+EXPECTED_MIX_SHA256 = "f7049b7f4aede9ab1ecc778220c13e982dedd890becb4510d7f954d0b528bae2"
 
 # Picture / documentation metadata. Not part of the mix or tag; excluded from
 # attestation so a label or feature-list edit does not change key_sig or ciphertext.
-REVISION = "outer-fix"
+REVISION = "movements"
 REVISION_DATE = "2026-11-10"
 FEATURES = (
-    "keyed SM4-affine S-boxes",
+    "keyed SM4 S-boxes",
     "latin B0 + field bar pairs",
     "six triplets",
-    "bow-pressure (beat-0 readers rotl 0/3/5)",
+    "bow-pressure",
     "latin odd restack",
     "cross-staff mix",
     "open 8-beat staffs",
     "SIV nonce from clef‖pickup‖msg‖AD",
     "HMAC tag over clef‖key_sig‖version‖SN2‖pickup‖nonce‖ct‖AD",
+    "movements (theme/cadence/coda)",
     "grid IS ciphertext",
 )
 WARNING_LINE = "NOT for real secrets — use AES-GCM-SIV, age, or libsodium"
@@ -484,7 +490,7 @@ def unodd_restack(staff, SIa, SIb):
 # helpers defined in OTHER modules that a foreign replacement function calls, mutation of
 # objects inside a function's runtime state, code whose __code__ differs from the file
 # inspect reads, or an attacker who also patches inspect/mix_description consistently.
-MIX_CODE_ROOTS = ("encrypt", "decrypt", "siv_nonce", "key_signature", "split_blob", "mix_description")
+MIX_CODE_ROOTS = ("encrypt", "decrypt", "siv_nonce", "key_signature", "split_blob", "mix_description", "encrypt_movements", "decrypt_movements", "siv_nonce_movements")
 MIX_CODE_FUNCS = (
     "bar_mix", "bar_unmix", "triplet_mix", "triplet_unmix", "triplet_apply",
     "triplet_det", "triplet_inv", "bow_pressure", "unbow_pressure",
@@ -500,6 +506,9 @@ MIX_CODE_FUNCS = (
     "staff_clef", "siv_nonce", "_tag", "_encode_ad", "_as_bytes", "_normalize_ad", "_fresh_pickup", "encrypt", "decrypt", "split_blob",
     "key_signature", "mix_description", "mix_code_closure", "_referenced_globals", "_canon_data",
     "_seed_bytes", "load_seed", "AuthError", "DecodeError", "UnsupportedVersion",
+    "encrypt_movements", "decrypt_movements", "siv_nonce_movements",
+    "_chunk_movements", "_xor_bytes", "_theme_start", "_theme_next", "_movement_tweak",
+    "_cadence_key", "_coda_key", "_cadence_tag", "_coda_tag", "_final_flag",
 )
 
 def _referenced_globals(obj):
@@ -769,6 +778,152 @@ def decrypt(blob: bytes, seed=None, ad: bytes = b"") -> bytes:
     if L > MAX_MSG or any(b[1 + L:]): raise DecodeError("tag valid but block malformed")
     msg = b[1:1 + L]
     if not hmac.compare_digest(nonce, hashlib.sha256(clef + pickup + encode_block(msg) + _encode_ad(ad)).digest()[:NONCE_LEN]):
+        raise AuthError("SIV nonce mismatch")
+    return msg
+
+
+# ---------------------------------------------------------------- movements mode (format version 3)
+def _final_flag(final: bool) -> bytes:
+    return b"\x01" if final else b"\x00"
+
+def _xor_bytes(a: bytes, b: bytes) -> bytes:
+    return bytes(x ^ y for x, y in zip(a, b))
+
+def _chunk_movements(msg: bytes):
+    """Split msg into 127-byte payloads. The empty message is one empty movement."""
+    if len(msg) > MAX_MOVEMENTS_MSG:
+        raise ValueError("message too long (max %d bytes)" % MAX_MOVEMENTS_MSG)
+    if not msg:
+        return [b""]
+    return [msg[i:i + MAX_MSG] for i in range(0, len(msg), MAX_MSG)]
+
+def siv_nonce_movements(msg: bytes, pickup: bytes, seed=None, ad: bytes = b"") -> bytes:
+    """SIV-style nonce = SHA-256(clef || pickup || uint64be(len(msg)) || msg || encode_ad(ad))[:16].
+    Length-prefixed so the framing is unambiguous for any payload up to MAX_MOVEMENTS_MSG."""
+    msg = _as_bytes("msg", msg)
+    pickup = _as_bytes("pickup", pickup)
+    ad = _normalize_ad(ad)
+    if len(msg) > MAX_MOVEMENTS_MSG:
+        raise ValueError("message too long (max %d bytes)" % MAX_MOVEMENTS_MSG)
+    if len(pickup) != PICKUP_LEN:
+        raise ValueError("pickup must be 16 bytes")
+    return hashlib.sha256(staff_clef(seed) + pickup + len(msg).to_bytes(8, "big") + msg + _encode_ad(ad)).digest()[:NONCE_LEN]
+
+def _theme_start(seed, nonce: bytes) -> bytes:
+    """Opening theme: StaffSponge domain b'T' over the message nonce, one block."""
+    return StaffSponge(b"T", _seed_bytes(seed), nonce).take(BLOCK_LEN)
+
+def _theme_next(seed, theme: bytes, ct: bytes, index: int, final: bool) -> bytes:
+    """Carry the theme forward by absorbing this movement's ciphertext, index and final flag."""
+    n = hashlib.sha256(b"SN2/T" + theme + ct + index.to_bytes(8, "big") + _final_flag(final)).digest()[:NONCE_LEN]
+    return StaffSponge(b"T", _seed_bytes(seed), n).take(BLOCK_LEN)
+
+def _movement_tweak(seed, nonce: bytes, index: int, final: bool) -> bytes:
+    """Per-movement tweak bound to the nonce, index and final-movement flag."""
+    mid = hashlib.sha256(b"SN2/I" + nonce + index.to_bytes(8, "big") + _final_flag(final)).digest()[:NONCE_LEN]
+    return StaffSponge(b"W", _seed_bytes(seed), mid).take(BLOCK_LEN)
+
+def _cadence_key(seed, nonce: bytes) -> bytes:
+    return StaffSponge(b"D", _seed_bytes(seed), nonce).take(32)
+
+def _coda_key(seed, nonce: bytes) -> bytes:
+    return StaffSponge(b"O", _seed_bytes(seed), nonce).take(32)
+
+def _cadence_tag(cad_key, pickup, nonce, index, final, theme, ct, clef, key_sig, ad: bytes = b""):
+    return hmac.new(cad_key, clef + key_sig + bytes([FMT_MOVEMENTS]) + VERSION + pickup + nonce
+                    + index.to_bytes(8, "big") + _final_flag(final) + theme + ct + _encode_ad(ad), hashlib.sha256).digest()
+
+def _coda_tag(coda_key, pickup, nonce, nmov, cts, clef, key_sig, ad: bytes = b""):
+    """Coda covers version, SN2, pickup, nonce, movement count, every ciphertext, and AD."""
+    return hmac.new(coda_key, clef + key_sig + bytes([FMT_MOVEMENTS]) + VERSION + pickup + nonce
+                    + nmov.to_bytes(4, "big") + cts + _encode_ad(ad), hashlib.sha256).digest()
+
+def encrypt_movements(msg: bytes, seed=None, ad: bytes = b"", nonce: bytes = None) -> bytes:
+    """blob = version(1)=3 || b"SN2" || pickup(16) || nonce(16) || nmov(4) || (ct(128)||cadence(32))*nmov || coda(32).
+    pickup = _fresh_pickup(); nonce = siv_nonce_movements(msg, pickup, seed, ad).
+    Each movement encrypts encode_block(chunk) XOR theme XOR tweak under one Schedule(seed, nonce).
+    The theme is chained through ciphertext; each cadence authenticates that movement; the coda
+    authenticates the header, count, every ciphertext and the associated data.
+    msg and ad must be bytes-like; associated data longer than MAX_AD_LEN or a message longer
+    than MAX_MOVEMENTS_MSG raises ValueError. A caller nonce must equal the synthetic one."""
+    msg = _as_bytes("msg", msg); ad = _normalize_ad(ad)
+    chunks = _chunk_movements(msg)
+    nmov = len(chunks)
+    adb = _encode_ad(ad); clef = staff_clef(seed); key_sig = key_signature(seed)
+    pickup = _fresh_pickup()
+    syn = hashlib.sha256(clef + pickup + len(msg).to_bytes(8, "big") + msg + adb).digest()[:NONCE_LEN]
+    if nonce is not None and not hmac.compare_digest(_as_bytes("nonce", nonce), syn):
+        raise ValueError("nonce must be the synthetic (SIV) nonce for this message and pickup")
+    nonce = syn
+    theme = _theme_start(seed, nonce)
+    cad_key = _cadence_key(seed, nonce)
+    coda_key = _coda_key(seed, nonce)
+    sch = Schedule(seed, nonce)
+    parts = []
+    cts = []
+    for i, chunk in enumerate(chunks):
+        final = (i == nmov - 1)
+        tweak = _movement_tweak(seed, nonce, i, final)
+        block = encode_block(chunk)
+        xored = _xor_bytes(_xor_bytes(block, theme), tweak)
+        ct = grid_to_bytes(encrypt_grid(bytes_to_grid(xored), sch))
+        cadence = _cadence_tag(cad_key, pickup, nonce, i, final, theme, ct, clef, key_sig, ad)
+        parts.append(ct + cadence)
+        cts.append(ct)
+        theme = _theme_next(seed, theme, ct, i, final)
+    coda = _coda_tag(coda_key, pickup, nonce, nmov, b"".join(cts), clef, key_sig, ad)
+    return bytes([FMT_MOVEMENTS]) + VERSION + pickup + nonce + nmov.to_bytes(4, "big") + b"".join(parts) + coda
+
+def decrypt_movements(blob: bytes, seed=None, ad: bytes = b"") -> bytes:
+    """Format version is checked first, then length and movement count, then the coda and every
+    cadence (constant-time compares). On any mismatch: AuthError, no payload. The full round
+    Schedule is built only after every tag passes. blob and ad must be bytes-like; AD longer
+    than MAX_AD_LEN raises ValueError."""
+    blob = _as_bytes("blob", blob); ad = _normalize_ad(ad)
+    if len(blob) < 1: raise AuthError("bad blob length")
+    if blob[0] != FMT_MOVEMENTS: raise UnsupportedVersion("unsupported version")
+    if len(blob) < MOVEMENTS_HDR_LEN + MOVEMENT_STRIDE + TAG_LEN: raise AuthError("bad blob length")
+    if blob[1:4] != VERSION: raise AuthError("bad version prefix")
+    pickup = blob[4:20]
+    nonce = blob[20:36]
+    nmov = int.from_bytes(blob[36:40], "big")
+    if nmov < 1 or nmov > MAX_MOVEMENTS: raise AuthError("bad movement count")
+    expected = MOVEMENTS_HDR_LEN + nmov * MOVEMENT_STRIDE + TAG_LEN
+    if len(blob) != expected: raise AuthError("bad blob length")
+    body = blob[MOVEMENTS_HDR_LEN:-TAG_LEN]
+    coda = blob[-TAG_LEN:]
+    cts, cadences = [], []
+    for i in range(nmov):
+        off = i * MOVEMENT_STRIDE
+        cts.append(body[off:off + BLOCK_LEN])
+        cadences.append(body[off + BLOCK_LEN:off + MOVEMENT_STRIDE])
+    clef = staff_clef(seed); key_sig = key_signature(seed)
+    cad_key = _cadence_key(seed, nonce)
+    coda_key = _coda_key(seed, nonce)
+    if not hmac.compare_digest(coda, _coda_tag(coda_key, pickup, nonce, nmov, b"".join(cts), clef, key_sig, ad)):
+        raise AuthError("coda mismatch")
+    theme = _theme_start(seed, nonce)
+    cad_ok = True
+    themes = []
+    for i in range(nmov):
+        final = (i == nmov - 1)
+        themes.append(theme)
+        cad_ok = hmac.compare_digest(cadences[i], _cadence_tag(cad_key, pickup, nonce, i, final, theme, cts[i], clef, key_sig, ad)) and cad_ok
+        theme = _theme_next(seed, theme, cts[i], i, final)
+    if not cad_ok:
+        raise AuthError("cadence mismatch")
+    sch = Schedule(seed, nonce)
+    pieces = []
+    for i in range(nmov):
+        final = (i == nmov - 1)
+        tweak = _movement_tweak(seed, nonce, i, final)
+        xored = grid_to_bytes(decrypt_grid(bytes_to_grid(cts[i]), sch))
+        block = _xor_bytes(_xor_bytes(xored, themes[i]), tweak)
+        L = block[0]
+        if L > MAX_MSG or any(block[1 + L:]): raise DecodeError("tag valid but block malformed")
+        pieces.append(block[1:1 + L])
+    msg = b"".join(pieces)
+    if not hmac.compare_digest(nonce, hashlib.sha256(clef + pickup + len(msg).to_bytes(8, "big") + msg + _encode_ad(ad)).digest()[:NONCE_LEN]):
         raise AuthError("SIV nonce mismatch")
     return msg
 
