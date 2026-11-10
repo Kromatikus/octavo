@@ -1,4 +1,34 @@
-## Current live revision — seed-only path (2026-11-10)
+## Current live revision — unused-B0 attestation and picture (2026-11-10)
+
+Attestation and picture only: the 16-round function, S-boxes, schedule, mixes,
+bow, rehair and cross-staff layers are unchanged from the seed-only revision,
+the info-fix revision, the packaging revision, and the beat-0 pressure-rotation
+revision below.
+Still homemade. **Not for real secrets.** Use AES-GCM-SIV, age or libsodium.
+The picture was redrawn from the new hello-world sample.
+
+`BARS[0]` no longer stores the unused field matrix `((1, 5), (1, 6))` that
+`bar_mix` never applied. The slot is `None`, and `BARS_INV[0]` is `None`, so
+the dead matrix is not hashed into `key_signature`. `_canon_data` encodes
+set, frozenset, bytearray, memoryview, float and complex deterministically,
+and raises `TypeError` for any other type.
+
+Because those attested values and the `_canon_data` source changed,
+`sha256(mix_description())` changed, so `EXPECTED_MIX_SHA256`, `key_signature`,
+and every HMAC tag changed. Previous seed-only version-2 blobs fail with
+**tag mismatch**. The blob format is still version 2 (196 bytes).
+`demo-nonce.txt` is unchanged.
+
+### Identifiers
+
+- Live `sneak_n2.py` SHA-256: `3eb1da8fd3aec1c9b76a1e962b0973cdde15224e895672fad0aca0ba75f8798d`
+- `EXPECTED_MIX_SHA256`: `a368523b89b85d2e7bbfa2f0c0934086c1908b83fac55d68b79d356e1a00f1b1`
+- key_sig (demo seed): `f716aa939283e46ea7760717a22a7307`
+- hello-world pickup `25e3a20bca148ff3931e8c2eaef008b0`, nonce `6eff97c6129e9a14ba3d75dd4e119490` (empty AD)
+
+---
+
+## Previous revision — seed-only path (2026-11-10)
 
 Seed-path cleanup only: the 16-round function, S-boxes, schedule, mixes, bow,
 rehair and cross-staff layers are unchanged from the info-fix revision, the

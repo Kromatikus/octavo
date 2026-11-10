@@ -43,7 +43,37 @@ The rest of this README is the author's detailed revision log.
 
 ---
 
-## Current live revision — seed-only path (2026-11-10)
+## Current live revision — unused-B0 attestation and picture (2026-11-10)
+
+This section supersedes the seed-only path below. The round function is
+unchanged from the seed-only revision, the info-fix revision, the packaging
+revision, and the beat-0 pressure-rotation revision. Still N2 / SN2 (project
+name: Octavo), still homemade, **not for real secrets** (use AES-GCM-SIV, age
+or libsodium). The picture was redrawn from the new hello-world sample.
+
+Review finding 6: `BARS[0]` kept an unused field matrix `((1, 5), (1, 6))` that
+`bar_mix` never applied (B0 is the keyed Latin pair). That matrix and
+`BARS_INV[0]` were still hashed into `key_signature`, so editing them moved
+every tag without changing a ciphertext byte. The unused slot is now `None`,
+and `BARS_INV[0]` is `None`. `_canon_data` encodes set, frozenset, bytearray,
+memoryview, float and complex deterministically, and still raises `TypeError`
+for any other type.
+
+Because the attested mix data and `_canon_data` source changed,
+`EXPECTED_MIX_SHA256`, `key_signature`, and every tag changed. Previous
+seed-only blobs (format version 2) fail with **tag mismatch**. The blob format
+is still version 2 (196 bytes). `demo-nonce.txt` is unchanged.
+
+- Live `sneak_n2.py` SHA-256: `3eb1da8fd3aec1c9b76a1e962b0973cdde15224e895672fad0aca0ba75f8798d`.
+- `EXPECTED_MIX_SHA256`: `a368523b89b85d2e7bbfa2f0c0934086c1908b83fac55d68b79d356e1a00f1b1`.
+- key_sig (demo seed): `f716aa939283e46ea7760717a22a7307`.
+- hello-world pickup `25e3a20bca148ff3931e8c2eaef008b0`, nonce `6eff97c6129e9a14ba3d75dd4e119490` (empty AD; see `hello-world.txt`).
+- Blob size: 196 bytes, version byte 2. Picture redrawn (`sneak-staff-n2.png`).
+- `render_n2.py` now resolves paths from the script folder, reads hello-world
+  fields from the start of their lines, and prepends `FMT_VERSION` when
+  rebuilding the sample blob.
+
+## Previous revision — seed-only path (2026-11-10)
 
 This section supersedes the default seed path below. The round function is
 unchanged from the info-fix revision, the packaging revision, and the beat-0

@@ -1,16 +1,16 @@
-# octavo005 — frozen Octavo snapshot
+# octavo006 — frozen Octavo snapshot
 
 Saved 2026-11-10 from live /workspace/sneak_n2 (Python caches excluded), plus sneak1024-seed.txt.
 
-This is the seed-only revision on top of octavo004. The round function is unchanged from octavo004. The picture was not redrawn.
+This is the unused-B0 attestation and picture revision on top of octavo005 (seed-only). The round function is unchanged from octavo005. The picture was redrawn from the new hello-world sample.
 
-- sneak_n2.py SHA-256: 082d5c808085500ab5f0516bc4d032e09a0b2dc466ed5c0df97c77818cdfb331
-- EXPECTED_MIX_SHA256: 90ebb01d5668d84d29567fafd4708eca90e949610085a0b6e0f7662d7950f8da
-- key_sig (demo seed): 55daf5b7fde67625397935b918af6c1a
-- Tests at freeze: 254/254 (0 skipped on the author's machine)
+- sneak_n2.py SHA-256: 3eb1da8fd3aec1c9b76a1e962b0973cdde15224e895672fad0aca0ba75f8798d
+- EXPECTED_MIX_SHA256: a368523b89b85d2e7bbfa2f0c0934086c1908b83fac55d68b79d356e1a00f1b1
+- key_sig (demo seed): f716aa939283e46ea7760717a22a7307
+- Tests at freeze: 258/258 (0 skipped on the author's machine)
 - Blob size: 196 bytes (version byte 2 || SN2 || pickup || nonce || ct || tag)
-- hello-world pickup 6b8f46a0f6d032103e7bbd17dda25444, nonce a293ac73d853e5948e24223b9b158aab (empty AD)
-- Change: `load_seed()` no longer falls back to `/workspace/sneak1024-seed.txt`. With no argument it reads only the module-relative seed file. If that file is missing, it raises instead of quietly loading another file. Round function unchanged vs octavo004.
-- Picture not redrawn.
+- hello-world pickup 25e3a20bca148ff3931e8c2eaef008b0, nonce 6eff97c6129e9a14ba3d75dd4e119490 (empty AD)
+- Changes: drop the unused B0 field matrix from BARS and BARS_INV (both slots are None) so it is no longer hashed into key_signature; _canon_data encodes set/frozenset/bytearray/memoryview/float/complex deterministically and still raises TypeError for any other type; regenerate hello-world.txt; redraw sneak-staff-n2.png; render_n2.py resolves paths from the script folder, reads hello-world fields from the start of their lines, and prepends FMT_VERSION. Round function unchanged vs octavo005.
+- Picture redrawn from this sample.
 
 Homemade, NOT for real secrets. Use AES-GCM-SIV, age, or libsodium.

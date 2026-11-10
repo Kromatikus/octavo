@@ -27,7 +27,7 @@ CT0, CT1 = N0 + NONCE_LEN, N0 + NONCE_LEN + BLOCK_LEN          # ct = blob[36:16
 SEED_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sneak1024-seed.txt")
 # sha256(mix_description()) hex; used as the StaffSponge nonce for key_signature.
 # Excluded from attestation so this constant is not part of what it names (chicken-and-egg).
-EXPECTED_MIX_SHA256 = "90ebb01d5668d84d29567fafd4708eca90e949610085a0b6e0f7662d7950f8da"
+EXPECTED_MIX_SHA256 = "a368523b89b85d2e7bbfa2f0c0934086c1908b83fac55d68b79d356e1a00f1b1"
 
 # SM4 (SMS4) 8-bit S-box, GB/T 32907-2016 Fig./Table "S-box", as printed in draft-ribose-cfrg-sm4-10 sec. 6.2.3
 # (Tse, Wong, Saarinen, IRTF CFRG, 2018). Published DDT max 4/256 (2^-6), nonlinearity 112 (LAT max |bias| 16/256).
@@ -252,8 +252,8 @@ def cross_staff_unmix(g):
 # (pairs overlap at beats 1 and 6, so order matters); decrypt applies the inverses in reverse order.
 # Plus two interior measure joins M2 (2,3) and M3 (4,5) so every adjacent pair 0-1..6-7 is mixed; 7 mixes total,
 # applied in beat order B0,B1,M2,B2,M3,B3,B4 (mid-round bars AND the encore). No end-to-end loop: beat 7 is never paired with beat 0.
-BARS = (                                   # (name, boundary, (i, j), matrix [[a, b], [c, d]]) : field products and XOR sums
-    ("B0 start",  0, (0, 1), ((1, 5), (1, 6))),  # historical matrix retained, NEVER applied
+BARS = (                                   # (name, boundary, (i, j), matrix [[a, b], [c, d]] or None) : field products and XOR sums
+    ("B0 start",  0, (0, 1), None),              # keyed Latin pair; no unused field matrix (review finding 6)
     ("B1 bar 2",  2, (1, 2), ((1, 1), (1, 2))),
     ("M2 beats 3-4", 3, (2, 3), ((3, 5), (1, 2))),   # interior measure join (not a bar line)
     ("B2 center", 4, (3, 4), ((1, 3), (1, 4))),
@@ -290,7 +290,7 @@ def bar_inv(M):
     return ((gf_mul(M[1][1], di), gf_mul(M[0][1], di)),
             (gf_mul(M[1][0], di), gf_mul(M[0][0], di)))
 MIX2_INV = bar_inv(MIX2_MATRIX)
-BARS_INV = tuple(bar_inv(M) for _, _, _, M in BARS)
+BARS_INV = tuple(None if M is None else bar_inv(M) for _, _, _, M in BARS)
 def bar_apply(M, u, v):
     return (gf_mul(M[0][0], u) ^ gf_mul(M[0][1], v),
             gf_mul(M[1][0], u) ^ gf_mul(M[1][1], v))
@@ -512,10 +512,25 @@ def mix_code_closure(roots=None):
     return code, data
 
 def _canon_data(x):
-    """Canonical text for module data: None/bool/int/str/bytes, tuples, lists, str-keyed dicts."""
-    if x is None or isinstance(x, (bool, int, str, bytes)): return type(x).__name__ + ":" + repr(x)
-    if isinstance(x, (tuple, list)): return type(x).__name__ + "[" + ",".join(_canon_data(y) for y in x) + "]"
-    if isinstance(x, dict): return "dict{" + ",".join(_canon_data(k) + "=" + _canon_data(x[k]) for k in sorted(x)) + "}"
+    """Canonical text for module data reached by the mix closure.
+
+    None/bool/int/float/complex/str/bytes use type-name plus repr. bytearray and
+    memoryview are encoded as their type name plus repr(bytes(...)). set and
+    frozenset are encoded in _canon_data-sorted order so the digest does not
+    depend on iteration order. tuples, lists, and dicts (keys sorted the same
+    way) are nested. Any other type raises TypeError with the type name, so a
+    new constant type is an explicit error rather than a silent skip.
+    """
+    if x is None or isinstance(x, (bool, int, float, complex, str, bytes)):
+        return type(x).__name__ + ":" + repr(x)
+    if isinstance(x, (bytearray, memoryview)):
+        return type(x).__name__ + ":" + repr(bytes(x))
+    if isinstance(x, (tuple, list)):
+        return type(x).__name__ + "[" + ",".join(_canon_data(y) for y in x) + "]"
+    if isinstance(x, (set, frozenset)):
+        return type(x).__name__ + "{" + ",".join(_canon_data(y) for y in sorted(x, key=_canon_data)) + "}"
+    if isinstance(x, dict):
+        return "dict{" + ",".join(_canon_data(k) + "=" + _canon_data(x[k]) for k in sorted(x, key=_canon_data)) + "}"
     raise TypeError("cannot attest object of type " + type(x).__name__)
 
 def mix_description():

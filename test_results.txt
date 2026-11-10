@@ -82,7 +82,7 @@ PASS S-boxes are keyed: 16 distinct boxes among the 16 demo rounds, none equal t
 PASS no AES S-box / MixColumns / GF(2^8) AES poly / AES libraries in library
 PASS 2-cell SM4-field mix is a bijection on all 65536 byte pairs, exhaustive inverse
 PASS five bar lines (boundaries 0,2,4,6,8) plus two interior joins M2 (2,3), M3 (4,5) = 7 mixes in beat order; every adjacent pair mixed; no (7,0) end-to-end pair
-PASS historical matrix slots stay distinct; six active field pairs retain determinants (B0 slot unused)
+PASS six active field pairs have distinct invertible matrices; B0 slot is unused (None)
 PASS bar B1 bar 2 mix ((1, 1), (1, 2)) is a bijection on all 65536 byte pairs and its inverse ((173, 172), (172, 172)) undoes it
 PASS bar M2 beats 3-4 mix ((3, 5), (1, 2)) is a bijection on all 65536 byte pairs and its inverse ((173, 3), (172, 1)) undoes it
 PASS bar B2 center mix ((1, 3), (1, 4)) is a bijection on all 65536 byte pairs and its inverse ((75, 74), (149, 149)) undoes it
@@ -168,7 +168,11 @@ PASS BOW_PRESSURE_ROT aligned with BOW_STROKES: beat-0 readers use 0,3,5; others
 PASS bow stroke inverse, exhaustive byte pairs for pressures 0, 127, 255
 PASS bow pressure two-sided inverse: 20,000 random staffs plus uniform edge staffs
 PASS bow pressure is nonidentity and copies its input
-PASS historical B0 matrix witness remains (0,3), distinct from live keyed B0 (round-0 tables)
+PASS B0 has no unused field matrix to attest (slot and inverse are None)
+PASS live keyed B0 is not the retired field witness (5,1)->(0,3)
+PASS _canon_data encodes set/frozenset/bytearray/memoryview/float deterministically
+PASS _canon_data raises TypeError for an unsupported type (explicit, not silent)
+PASS re-inserting the retired B0 matrix changes mix_description (it would be attested if kept)
 PASS CROSS_OPPOSITE is an oriented perfect matching of 16 staffs
 PASS CROSS_RADIAL is an oriented perfect matching of 16 staffs
 PASS CROSS_ADJACENT is an oriented perfect matching of 16 staffs
@@ -233,7 +237,7 @@ pre-fix beat-6 witnesses, bow+rehair changed bytes per round table: [[4, 4, 4, 4
 PASS the 4 pre-fix beat-6 witnesses (3 all-table + REPORT mechanism example) now change >=2 bytes for all 16 rounds' tables
 PASS negative control: with pre-beat6 (4,5,6) strokes AND all-zero BOW_PRESSURE_ROT patched in, the 4 beat-6 witnesses are single-byte under all 16 tables
 PASS NumPy bow/rehair model equals live bow_pressure/odd_restack on 5,000 random staffs
-NumPy bow+rehair singleton scan (round-0 tables), cases per beat [4177920, 4177920, 4177920, 4177920, 4177920, 4177920, 16711680, 4177920], singletons [0, 0, 0, 0, 0, 0, 0, 0], 15.7s
+NumPy bow+rehair singleton scan (round-0 tables), cases per beat [4177920, 4177920, 4177920, 4177920, 4177920, 4177920, 16711680, 4177920], singletons [0, 0, 0, 0, 0, 0, 0, 0], 17.3s
 PASS beat-6 scan: 0 singletons in 16,711,680 beat-6 cases (65,536 random bases x 255 deltas; pre-fix layout gave ~19) and 0 on every other beat (4,177,920 each)
 PASS pre-beat6-fix 195-byte hello-world pickup ee95ddb2 fails as unsupported version, not DecodeError
 PASS pre-beat0rot 195-byte hello-world pickup d450337d fails as unsupported version, not DecodeError
@@ -290,7 +294,7 @@ bit avalanche  4 rounds: mean 511.3/1024, min 462, max 550
 bit avalanche 16 rounds: mean 511.9/1024, min 462, max 567
 PASS 4-round bit avalanche mean within 496..528 (of 1024)
 PASS 16-round bit avalanche mean within 500..524, min > 440
-ct byte chi2 over 2000 random messages (255 df, 99.9% crit 330.5): 256.7
+ct byte chi2 over 2000 random messages (255 df, 99.9% crit 330.5): 253.7
 PASS ct byte distribution uniform-ish (chi2 < 330.5)
 baseline frozen-and-n1.sha256: 58 files
 PASS unchanged vs baseline frozen-and-n1.sha256
@@ -298,4 +302,4 @@ baseline v2-v13-and-seed.sha256: 116 files
 PASS unchanged vs baseline v2-v13-and-seed.sha256
 PASS no files added/removed in test1/, test3/, test13/, testn1/, sneak_t1n/
 
-254/254 passed, 0 failed, 0 skipped
+258/258 passed, 0 failed, 0 skipped

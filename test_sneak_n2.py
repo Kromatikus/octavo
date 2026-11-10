@@ -252,8 +252,10 @@ check("five bar lines (boundaries 0,2,4,6,8) plus two interior joins M2 (2,3), M
       [b[1] for b in N.BARS] == [0, 2, 3, 4, 5, 6, 8] and [b[2] for b in N.BARS] == [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7)]
       and [b[0] for b in N.BARS if b[0].startswith("B")] == ["B0 start", "B1 bar 2", "B2 center", "B3 bar 6", "B4 end"]
       and all(set(b[2]) != {0, 7} for b in N.BARS))
-check("historical matrix slots stay distinct; six active field pairs retain determinants (B0 slot unused)",
-      len(N.BARS) == 7 and len({b[3] for b in N.BARS}) == 7 and [N.bar_det(b[3]) for b in N.BARS] == [3, 3, 3, 7, 1, 3, 1])
+check("six active field pairs have distinct invertible matrices; B0 slot is unused (None)",
+      len(N.BARS) == 7 and N.BARS[0][3] is None and N.BARS_INV[0] is None
+      and len({b[3] for b in N.BARS[1:]}) == 6
+      and [N.bar_det(b[3]) for b in N.BARS[1:]] == [3, 3, 7, 1, 3, 1])
 for k, (name, _, _, M) in enumerate(N.BARS):
     if name == "B0 start": continue  # covered by exhaustive keyed-Latin checks below
     Mi = N.BARS_INV[k]
@@ -388,7 +390,10 @@ def trace_order():
         g = rgrid(); out = N.round_enc(g, sch0.rounds[0], 0); N.round_dec(out, sch0.rounds[0], 0)
     return calls == (["bar_mix", "triplet_mix"] + ["bow_pressure"]*16 + ["odd_restack"]*16 + ["cross_staff_mix"])*2 + (["cross_staff_unmix"] + ["unodd_restack"]*16 + ["unbow_pressure"]*16 + ["triplet_unmix", "bar_unmix"])*2
 check("instrumented sequence: each bow -> rehair -> cross, inverse uncross -> unrehair -> unbow", trace_order())
-check("historical pair slots, S-boxes, schedule, clef, encoding, weave and butterfly/bridge routing unchanged from pre-triplet (B0 implementation intentionally changed)", N.BARS == PRET.BARS
+check("historical pair slots, S-boxes, schedule, clef, encoding, weave and butterfly/bridge routing unchanged from pre-triplet (B0 implementation intentionally changed)",
+      [b[:3] for b in N.BARS] == [b[:3] for b in PRET.BARS]
+      and [b[3] for b in N.BARS[1:]] == [b[3] for b in PRET.BARS[1:]]
+      and N.BARS[0][3] is None
       and all(inspect.getsource(getattr(N,name)) == inspect.getsource(getattr(PRET,name)) for name in (
       "Schedule", "StaffSponge", "keyed_sbox", "staff_clef", "encode_block",   # siv_nonce/_tag/encrypt/decrypt/split_blob changed by the pickup
       "weave", "unweave", "staff_mix", "staff_unmix", "shell_mix", "shell_unmix")))
@@ -499,9 +504,29 @@ check("bow pressure two-sided inverse: 20,000 random staffs plus uniform edge st
       for s in staffs + [[v]*8 for v in range(256)]))
 check("bow pressure is nonidentity and copies its input", all(N.bow_pressure(s) != s for s in staffs[:100])
       and all((lambda x: N.bow_pressure(x) is not x and x==s)(s[:]) for s in staffs[:100]))
-# Historical B0 matrix still exhibits its old witness, but is no longer executed.
-check("historical B0 matrix witness remains (0,3), distinct from live keyed B0 (round-0 tables)",
-      N.bar_apply(N.BARS[0][3],5,1) == (0,3) and N.b0_apply(5,1,*TS) != (0,3))
+# Retired field matrix ((1,5),(1,6)) is no longer stored or attested. The witness
+# is kept only here so we can show live keyed B0 is a different map.
+check("B0 has no unused field matrix to attest (slot and inverse are None)",
+      N.BARS[0][3] is None and N.BARS_INV[0] is None
+      and "((1, 5), (1, 6))" not in N._canon_data(N.BARS)
+      and "NoneType:None" in N._canon_data(N.BARS[:1]))
+check("live keyed B0 is not the retired field witness (5,1)->(0,3)",
+      N.bar_apply(((1, 5), (1, 6)), 5, 1) == (0, 3) and N.b0_apply(5, 1, *TS) != (0, 3))
+check("_canon_data encodes set/frozenset/bytearray/memoryview/float deterministically",
+      N._canon_data({3, 1, 2}) == N._canon_data({1, 2, 3}) == "set{int:1,int:2,int:3}"
+      and N._canon_data(frozenset({2, 1})) == "frozenset{int:1,int:2}"
+      and N._canon_data(bytearray(b"ab")) == "bytearray:b'ab'"
+      and N._canon_data(memoryview(b"ab")) == "memoryview:b'ab'"
+      and N._canon_data(1.25) == "float:1.25")
+_untyped = catch(lambda: N._canon_data(object()))
+check("_canon_data raises TypeError for an unsupported type (explicit, not silent)",
+      isinstance(_untyped, TypeError) and "cannot attest object of type object" in str(_untyped))
+# Putting the retired matrix back would change the description, but not the round function.
+_desc0 = N.mix_description()
+_ghost = (("B0 start", 0, (0, 1), ((1, 5), (1, 6))),) + N.BARS[1:]
+with patch.object(N, "BARS", _ghost):
+    _changed = N.mix_description() != _desc0
+check("re-inserting the retired B0 matrix changes mix_description (it would be attested if kept)", _changed)
 
 # ---- cross-staff geometry, commitment, inverses and old confinement regression
 import json
