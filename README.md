@@ -1,49 +1,37 @@
-<p align="center"><img src="sneak-staff-n2.png" alt="Octavo: dual octahedra seed shells and the 16-staff by 8-beat hex grid of the hello-world ciphertext" width="100%"></p>
+## Current live revision — outer-layer fixes (2026-11-10)
 
-# Octavo
+This section supersedes the unused-B0 attestation section below. The round
+function is unchanged from that revision (and from octavo006). Still N2 / SN2
+(project name: Octavo), still homemade, **not for real secrets** (use AES-GCM-SIV,
+age or libsodium). The picture was redrawn from the new hello-world sample.
 
-**Octavo** is an experimental homemade block cipher with a 1024-bit block and a 1024-bit key, built like a piece of music: 16 staffs of 8 beats, mixed by keyed S-boxes, field "bar" pairs, overlapping triplets, a bow-pressure ARX layer and a cross-staff mix. Every message is authenticated (SIV-style nonce plus an HMAC-SHA256 tag). The picture above draws the key as two octahedra and the hello-world ciphertext as a hex grid. The code files are still named `sneak_n2`, its working name.
+These are the four wrapper fixes suggested by `attacks_octavo_outer/REPORT.md`:
 
-> **Not for real secrets.** Octavo has had no independent expert review. For real data use AES-GCM-SIV, [age](https://age-encryption.org) or [libsodium](https://doc.libsodium.org). See [SECURITY.md](SECURITY.md).
+- `encrypt` / `decrypt` (and `siv_nonce`) accept only bytes-like `msg`, `blob`,
+  and `ad` (`bytes`, `bytearray`, `memoryview`). Integers, lists, strings and
+  `None` raise `TypeError`, so `ad=3` is no longer three NUL bytes and
+  `encrypt(5)` is no longer five NULs. Omitted AD still defaults to `b""`.
+- `decrypt` derives only the MAC key (`StaffSponge` domain `b"M"`) and checks
+  the HMAC before building the full per-nonce `Schedule`. A garbage blob is
+  rejected without expanding 16 rounds of key material.
+- Associated data longer than `MAX_AD_LEN` (65536 bytes) raises `ValueError` on
+  both encrypt and decrypt.
+- `FEATURES` now mentions the format-version byte and associated data in the
+  HMAC and SIV descriptions. `REVISION` is `outer-fix`.
 
-## Quick start
+Because `encrypt`, `decrypt`, `siv_nonce` and `_encode_ad` changed (and two
+helpers plus `MAX_AD_LEN` were added), `EXPECTED_MIX_SHA256`, `key_signature`,
+and every tag changed. Previous unused-B0 / octavo006 blobs (format version 2,
+same mix as each other) fail with **tag mismatch**. The blob format is still
+version 2 (196 bytes). `demo-nonce.txt` is unchanged.
 
-Pure Python 3, no dependencies.
+- Live `sneak_n2.py` SHA-256: `3e61bdcd151771001b9d0e0307bde5d2f373a1fa31c21ccb173b110e958cb7ed`.
+- `EXPECTED_MIX_SHA256`: `389b90afbc68ab02636b922a0331a7d7ed4f55d97db164a044cfbe1a096d1641`.
+- key_sig (demo seed): `42ded003543b35fa0695a2e767f4415e`.
+- hello-world pickup `f50732d765b08bbb2556fc989087f4fa`, nonce `b2ab07a9cc0d1f1e46b1812316eb69a8` (empty AD; see `hello-world.txt`).
+- Blob size: 196 bytes, version byte 2. Picture redrawn (`sneak-staff-n2.png`).
 
-```python
-import os
-from sneak_n2 import encrypt, decrypt
-
-key = os.urandom(128)                  # 1024-bit key
-blob = encrypt(b"meet at noon", key)   # 196-byte blob: version 2 | SN2 | pickup | nonce | ciphertext | tag
-print(decrypt(blob, key))              # b'meet at noon'
-# optional associated data (authenticated, not stored in the blob):
-sealed = encrypt(b"meet at noon", key, ad=b"from:alice")
-print(decrypt(sealed, key, ad=b"from:alice"))
-```
-
-Messages are limited to one block (127 bytes). Associated data is optional. `sneak1024-seed.txt` is the public demo key used for `hello-world.txt`; never use it for anything else. Run `python3 quick_check.py` for a portable sanity check. The full `test_sneak_n2.py` suite runs on a fresh clone (historical `/tmp` comparisons are skipped when those copies are missing).
-
-## What's here
-
-| File | What it is |
-|---|---|
-| `sneak_n2.py` | The cipher |
-| `SPEC.md` | Full design spec and the reasoning behind each layer |
-| `ATTACKS.md` | All ten attack rounds, what each found and what was fixed |
-| `attacks_octavo_beat6/` | The latest full attack report, with replay scripts |
-| `fix_beat0rot_verification/` | Verification of the latest fix |
-| `render_n2.py` | Draws the picture |
-
-## Try to break it
-
-Attacks are welcome. The most promising open leads are listed in [the latest report](attacks_octavo_beat6/REPORT.md) and include the shared beat-0 rotations (now hardened but not yet re-attacked), layer-level linear relations, and the partial proof on beat 2. Open an issue with a reproducing script, and credible results get credited in `ATTACKS.md`.
-
-The rest of this README is the author's detailed revision log.
-
----
-
-## Current live revision — unused-B0 attestation and picture (2026-11-10)
+## Previous revision — unused-B0 attestation and picture (2026-11-10)
 
 This section supersedes the seed-only path below. The round function is
 unchanged from the seed-only revision, the info-fix revision, the packaging
@@ -188,8 +176,6 @@ Older 195-byte `SN2...` blobs now fail with **unsupported version**, not
 "tag mismatch". This revision's tags also differ because the attested
 `mix_description` and the `key_signature` sponge nonce changed.
 
-
----
 
 # Sneak staff-core N2 (8-bit cells)
 

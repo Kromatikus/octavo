@@ -20,6 +20,7 @@ NONCE_LEN, BLOCK_LEN, TAG_LEN = 16, 128, 32
 PICKUP_LEN = 16                   # hardened anacrusis: sha256(SN2/P || urandom || time_ns || counter || pid)[:16]
 BLOB_LEN = 1 + len(VERSION) + PICKUP_LEN + NONCE_LEN + BLOCK_LEN + TAG_LEN    # 196
 MAX_MSG = 127
+MAX_AD_LEN = 65536            # associated-data cap (bytes); encrypt and decrypt reject anything longer
 PK0, N0 = 1 + len(VERSION), 1 + len(VERSION) + PICKUP_LEN      # pickup = blob[4:20], nonce = blob[20:36]
 CT0, CT1 = N0 + NONCE_LEN, N0 + NONCE_LEN + BLOCK_LEN          # ct = blob[36:164], tag = blob[164:196]
 # Resolved next to this file so a clone works. The runtime absolute value is not attested
@@ -27,11 +28,11 @@ CT0, CT1 = N0 + NONCE_LEN, N0 + NONCE_LEN + BLOCK_LEN          # ct = blob[36:16
 SEED_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sneak1024-seed.txt")
 # sha256(mix_description()) hex; used as the StaffSponge nonce for key_signature.
 # Excluded from attestation so this constant is not part of what it names (chicken-and-egg).
-EXPECTED_MIX_SHA256 = "a368523b89b85d2e7bbfa2f0c0934086c1908b83fac55d68b79d356e1a00f1b1"
+EXPECTED_MIX_SHA256 = "389b90afbc68ab02636b922a0331a7d7ed4f55d97db164a044cfbe1a096d1641"
 
 # Picture / documentation metadata. Not part of the mix or tag; excluded from
 # attestation so a label or feature-list edit does not change key_sig or ciphertext.
-REVISION = "loose-ends"
+REVISION = "outer-fix"
 REVISION_DATE = "2026-11-10"
 FEATURES = (
     "keyed SM4-affine S-boxes",
@@ -41,8 +42,8 @@ FEATURES = (
     "latin odd restack",
     "cross-staff mix",
     "open 8-beat staffs",
-    "SIV nonce from clef‖pickup‖msg",
-    "HMAC tag over clef‖key_sig‖SN2‖pickup‖nonce‖ct",
+    "SIV nonce from clef‖pickup‖msg‖AD",
+    "HMAC tag over clef‖key_sig‖version‖SN2‖pickup‖nonce‖ct‖AD",
     "grid IS ciphertext",
 )
 WARNING_LINE = "NOT for real secrets — use AES-GCM-SIV, age, or libsodium"
@@ -496,7 +497,7 @@ MIX_CODE_FUNCS = (
     "staff_mix", "staff_unmix", "shell_mix", "shell_unmix", "weave", "unweave", "xor_grid",
     "encrypt_grid", "decrypt_grid", "bytes_to_grid", "grid_to_bytes", "encode_block",
     "Schedule", "StaffSponge", "keyed_sbox", "mat_apply", "mat_invertible",
-    "staff_clef", "siv_nonce", "_tag", "_encode_ad", "_fresh_pickup", "encrypt", "decrypt", "split_blob",
+    "staff_clef", "siv_nonce", "_tag", "_encode_ad", "_as_bytes", "_normalize_ad", "_fresh_pickup", "encrypt", "decrypt", "split_blob",
     "key_signature", "mix_description", "mix_code_closure", "_referenced_globals", "_canon_data",
     "_seed_bytes", "load_seed", "AuthError", "DecodeError", "UnsupportedVersion",
 )
@@ -687,9 +688,22 @@ def staff_clef(seed=None) -> bytes:
     """seed-only clef: StaffSponge(b"C", seed, 16 zero bytes).take(16). Never stored in the blob."""
     return StaffSponge(b"C", _seed_bytes(seed), bytes(NONCE_LEN)).take(16)
 
+def _as_bytes(name, value) -> bytes:
+    """Accept bytes, bytearray, or memoryview; reject anything else with TypeError."""
+    if isinstance(value, (bytes, bytearray, memoryview)):
+        return bytes(value)
+    raise TypeError("%s must be bytes-like, not %s" % (name, type(value).__name__))
+
+def _normalize_ad(ad) -> bytes:
+    """Type-check associated data and enforce MAX_AD_LEN."""
+    ad = _as_bytes("ad", ad)
+    if len(ad) > MAX_AD_LEN:
+        raise ValueError("associated data too long (max %d bytes)" % MAX_AD_LEN)
+    return ad
+
 def _encode_ad(ad: bytes = b"") -> bytes:
     """Unambiguous associated-data encoding: uint64be(len(ad)) || ad. Not stored in the blob."""
-    ad = bytes(ad)
+    ad = _normalize_ad(ad)
     return len(ad).to_bytes(8, "big") + ad
 
 def _fresh_pickup() -> bytes:
@@ -705,9 +719,11 @@ _fresh_pickup.n = 0
 
 def siv_nonce(msg: bytes, pickup: bytes, seed=None, ad: bytes = b"") -> bytes:
     """homemade SIV-style nonce = SHA-256(clef || pickup || encode_block(msg) || encode_ad(ad))[:16]"""
-    pickup = bytes(pickup)
+    msg = _as_bytes("msg", msg)
+    pickup = _as_bytes("pickup", pickup)
+    ad = _normalize_ad(ad)
     if len(pickup) != PICKUP_LEN: raise ValueError("pickup must be 16 bytes")
-    return hashlib.sha256(staff_clef(seed) + pickup + encode_block(bytes(msg)) + _encode_ad(ad)).digest()[:NONCE_LEN]
+    return hashlib.sha256(staff_clef(seed) + pickup + encode_block(msg) + _encode_ad(ad)).digest()[:NONCE_LEN]
 
 def _tag(mac_key, pickup, nonce, ct, clef, key_sig, ad: bytes = b""):
     return hmac.new(mac_key, clef + key_sig + bytes([FMT_VERSION]) + VERSION + pickup + nonce + ct + _encode_ad(ad), hashlib.sha256).digest()
@@ -716,11 +732,13 @@ def encrypt(msg: bytes, seed=None, nonce: bytes = None, ad: bytes = b"") -> byte
     """blob = version(1) || b"SN2" || pickup(16) || nonce(16) || ct(128) || HMAC-SHA256(mac_key, clef || key_sig || version || b"SN2" || pickup || nonce || ct || encode_ad(ad)).
     pickup = _fresh_pickup() every call (no public pickup argument, by design);
     nonce = SHA-256(clef || pickup || encode_block(msg) || encode_ad(ad))[:16]; a caller nonce must equal it (ValueError otherwise).
-    ad is authenticated and not stored in the blob; empty and omitted AD are the same."""
-    msg = bytes(msg); ad = bytes(ad); block = encode_block(msg); adb = _encode_ad(ad); clef = staff_clef(seed)
+    ad is authenticated and not stored in the blob; empty and omitted AD are the same.
+    msg and ad must be bytes-like (bytes, bytearray, memoryview); other types raise TypeError.
+    Associated data longer than MAX_AD_LEN raises ValueError."""
+    msg = _as_bytes("msg", msg); ad = _normalize_ad(ad); block = encode_block(msg); adb = _encode_ad(ad); clef = staff_clef(seed)
     pickup = _fresh_pickup()
     syn = hashlib.sha256(clef + pickup + block + adb).digest()[:NONCE_LEN]
-    if nonce is not None and not hmac.compare_digest(bytes(nonce), syn):
+    if nonce is not None and not hmac.compare_digest(_as_bytes("nonce", nonce), syn):
         raise ValueError("nonce must be the synthetic (SIV) nonce for this message and pickup")
     nonce = syn
     sch = Schedule(seed, nonce)
@@ -733,15 +751,19 @@ def split_blob(blob: bytes):
 
 def decrypt(blob: bytes, seed=None, ad: bytes = b"") -> bytes:
     """Format version is checked first, then length, then the tag (constant-time compare). On any mismatch: AuthError, no payload.
-    The same associated data supplied to encrypt must be supplied here; it is not in the blob."""
-    blob = bytes(blob); ad = bytes(ad)
+    The same associated data supplied to encrypt must be supplied here; it is not in the blob.
+    blob and ad must be bytes-like; other types raise TypeError. AD longer than MAX_AD_LEN raises ValueError.
+    The HMAC is verified from the MAC key alone; the full round Schedule is built only after the tag passes."""
+    blob = _as_bytes("blob", blob); ad = _normalize_ad(ad)
     if len(blob) < 1: raise AuthError("bad blob length")
     if blob[0] != FMT_VERSION: raise UnsupportedVersion("unsupported version")
     if len(blob) != BLOB_LEN: raise AuthError("bad blob length")
     v, pickup, nonce, ct, tag = split_blob(blob)
     if not hmac.compare_digest(v, bytes([FMT_VERSION]) + VERSION): raise AuthError("bad version prefix")
-    clef = staff_clef(seed); sch = Schedule(seed, nonce)
-    if not hmac.compare_digest(tag, _tag(sch.mac_key, pickup, nonce, ct, clef, key_signature(seed), ad)): raise AuthError("tag mismatch")
+    clef = staff_clef(seed)
+    mac_key = StaffSponge(b"M", _seed_bytes(seed), nonce).take(32)
+    if not hmac.compare_digest(tag, _tag(mac_key, pickup, nonce, ct, clef, key_signature(seed), ad)): raise AuthError("tag mismatch")
+    sch = Schedule(seed, nonce)
     b = grid_to_bytes(decrypt_grid(bytes_to_grid(ct), sch))
     L = b[0]                                   # secondary sanity check only; the MAC is the authenticity check
     if L > MAX_MSG or any(b[1 + L:]): raise DecodeError("tag valid but block malformed")

@@ -1,14 +1,14 @@
 {
   "blob_len": 196,
-  "file_sha256": "8f9b7aec51f9264a932c3db07e084cb97f1338e4a4a710646135a06628791bab",
+  "file_sha256": "3e61bdcd151771001b9d0e0307bde5d2f373a1fa31c21ccb173b110e958cb7ed",
   "fmt_version": 2,
-  "key_sig": "f716aa939283e46ea7760717a22a7307",
-  "nonce": "6eff97c6129e9a14ba3d75dd4e119490",
-  "pickup": "25e3a20bca148ff3931e8c2eaef008b0",
-  "revision": "loose-ends",
+  "key_sig": "42ded003543b35fa0695a2e767f4415e",
+  "nonce": "b2ab07a9cc0d1f1e46b1812316eb69a8",
+  "pickup": "f50732d765b08bbb2556fc989087f4fa",
+  "revision": "outer-fix",
   "revision_date": "2026-11-10",
-  "subtitle": "keyed SM4-affine S-boxes \u00b7 latin B0 + field bar pairs \u00b7 six triplets \u00b7 bow-pressure (beat-0 readers rotl 0/3/5) \u00b7 latin odd restack \u00b7 cross-staff mix \u00b7 open 8-beat staffs \u00b7 SIV nonce from clef\u2016pickup\u2016msg \u00b7 HMAC tag over clef\u2016key_sig\u2016SN2\u2016pickup\u2016nonce\u2016ct \u00b7 grid IS ciphertext",
-  "tag": "863b731e5916fa692e54d65e342447c537733e6dfc989fe068c9185556bd8691",
-  "title": "Octavo (sneak staff-core N2)  \u00b7  loose-ends  \u00b7  v2  \u00b7  196-byte blob  \u00b7  SHA 8f9b7aec\u2026  \u00b7  key_sig f716aa93\u2026  \u00b7  2026-11-10",
+  "subtitle": "keyed SM4-affine S-boxes \u00b7 latin B0 + field bar pairs \u00b7 six triplets \u00b7 bow-pressure (beat-0 readers rotl 0/3/5) \u00b7 latin odd restack \u00b7 cross-staff mix \u00b7 open 8-beat staffs \u00b7 SIV nonce from clef\u2016pickup\u2016msg\u2016AD \u00b7 HMAC tag over clef\u2016key_sig\u2016version\u2016SN2\u2016pickup\u2016nonce\u2016ct\u2016AD \u00b7 grid IS ciphertext",
+  "tag": "b471fe559733547a6463d0d3940952c16b4f8f14977c084d563db0a36f813805",
+  "title": "Octavo (sneak staff-core N2)  \u00b7  outer-fix  \u00b7  v2  \u00b7  196-byte blob  \u00b7  SHA 3e61bdcd\u2026  \u00b7  key_sig 42ded003\u2026  \u00b7  2026-11-10",
   "warning": "NOT for real secrets \u2014 use AES-GCM-SIV, age, or libsodium"
 }

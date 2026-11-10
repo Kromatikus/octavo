@@ -1,4 +1,58 @@
-## Current live revision — unused-B0 attestation and picture (2026-11-10)
+## Current live revision — outer-layer fixes (2026-11-10)
+
+Wrapper fixes only: the 16-round function, S-boxes, schedule, mixes, bow,
+rehair and cross-staff layers are unchanged from the unused-B0 attestation
+revision, the seed-only revision, and octavo006.
+Still homemade. **Not for real secrets.** Use AES-GCM-SIV, age or libsodium.
+The picture was redrawn from the new hello-world sample.
+
+These close the two Minor findings and the FEATURES/AD-cap Info items from
+`attacks_octavo_outer/REPORT.md`.
+
+### Strict bytes-like inputs
+
+`encrypt(msg, seed=None, nonce=None, ad=b"")` and `decrypt(blob, seed=None, ad=b"")`
+require `msg`, `blob` and `ad` to be `bytes`, `bytearray` or `memoryview`.
+Anything else, including `int`, `list`, `str` and `None`, raises `TypeError`.
+Omitted AD still defaults to `b""`; empty and omitted AD remain the same.
+`siv_nonce` applies the same rule to `msg`, `pickup` and `ad`.
+
+### Verify the tag before expanding the schedule
+
+`decrypt` now computes `mac_key = StaffSponge(b"M", seed, nonce).take(32)` and
+checks the HMAC with `compare_digest` before constructing `Schedule`. The tag
+string is unchanged: `clef || key_sig || version || SN2 || pickup || nonce || ct || encode_ad(ad)`.
+On a mismatch the full 16-round schedule is never built. A valid blob still
+builds `Schedule` after the tag passes (the MAC key is derived again inside
+`Schedule`, same as before).
+
+### Associated-data length cap
+
+`MAX_AD_LEN = 65536`. Longer AD raises `ValueError("associated data too long
+(max 65536 bytes)")` on encrypt and decrypt, before the tag is checked.
+
+### FEATURES
+
+The picture-header strings now say `SIV nonce from clef‖pickup‖msg‖AD` and
+`HMAC tag over clef‖key_sig‖version‖SN2‖pickup‖nonce‖ct‖AD`. `REVISION` is
+`outer-fix` (2026-11-10). Those labels remain in `_ATTEST_SKIP`.
+
+Because the attested wrapper source and `MAX_AD_LEN` changed,
+`sha256(mix_description())` changed, so `EXPECTED_MIX_SHA256`, `key_signature`,
+and every HMAC tag changed. Previous unused-B0 / octavo006 version-2 blobs fail
+with **tag mismatch**. The blob format is still version 2 (196 bytes).
+`demo-nonce.txt` is unchanged.
+
+### Identifiers
+
+- Live `sneak_n2.py` SHA-256: `3e61bdcd151771001b9d0e0307bde5d2f373a1fa31c21ccb173b110e958cb7ed`
+- `EXPECTED_MIX_SHA256`: `389b90afbc68ab02636b922a0331a7d7ed4f55d97db164a044cfbe1a096d1641`
+- key_sig (demo seed): `42ded003543b35fa0695a2e767f4415e`
+- hello-world pickup `f50732d765b08bbb2556fc989087f4fa`, nonce `b2ab07a9cc0d1f1e46b1812316eb69a8` (empty AD)
+
+---
+
+## Previous revision — unused-B0 attestation and picture (2026-11-10)
 
 Attestation and picture only: the 16-round function, S-boxes, schedule, mixes,
 bow, rehair and cross-staff layers are unchanged from the seed-only revision,

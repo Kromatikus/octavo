@@ -237,7 +237,7 @@ pre-fix beat-6 witnesses, bow+rehair changed bytes per round table: [[4, 4, 4, 4
 PASS the 4 pre-fix beat-6 witnesses (3 all-table + REPORT mechanism example) now change >=2 bytes for all 16 rounds' tables
 PASS negative control: with pre-beat6 (4,5,6) strokes AND all-zero BOW_PRESSURE_ROT patched in, the 4 beat-6 witnesses are single-byte under all 16 tables
 PASS NumPy bow/rehair model equals live bow_pressure/odd_restack on 5,000 random staffs
-NumPy bow+rehair singleton scan (round-0 tables), cases per beat [4177920, 4177920, 4177920, 4177920, 4177920, 4177920, 16711680, 4177920], singletons [0, 0, 0, 0, 0, 0, 0, 0], 17.1s
+NumPy bow+rehair singleton scan (round-0 tables), cases per beat [4177920, 4177920, 4177920, 4177920, 4177920, 4177920, 16711680, 4177920], singletons [0, 0, 0, 0, 0, 0, 0, 0], 17.4s
 PASS beat-6 scan: 0 singletons in 16,711,680 beat-6 cases (65,536 random bases x 255 deltas; pre-fix layout gave ~19) and 0 on every other beat (4,177,920 each)
 PASS pre-beat6-fix 195-byte hello-world pickup ee95ddb2 fails as unsupported version, not DecodeError
 PASS pre-beat0rot 195-byte hello-world pickup d450337d fails as unsupported version, not DecodeError
@@ -251,14 +251,14 @@ PASS pre-beat7-fix 195-byte hello-world pickup 76908595 fails as unsupported ver
 keyed pair exact affine output bits per round (col,bit,u_mask,v_mask,const): [[], [], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
 PASS keyed pair: no output bit is an exact affine function of the inputs (all 16 rounds' tables)
 PASS pre-sig-gap 195-byte hello-world pickup 24d554eb fails as unsupported version, not DecodeError
-reachable functions/classes: 60 ; reachable module data: ['BARS', 'BARS_INV', 'BLOB_LEN', 'BLOCK_LEN', 'BOW_PRESSURE_ROT', 'BOW_R2_SHIFT', 'BOW_ROT_BASE', 'BOW_ROT_MOD', 'BOW_STROKES', 'CROSS_ADJACENT', 'CROSS_BRIDGE', 'CROSS_LAYERS', 'CROSS_OPPOSITE', 'CROSS_RADIAL', 'CT0', 'CT1', 'FIELD_POLY', 'FMT_VERSION', 'LAYERS', 'MAX_MSG', 'MIX2_INV', 'MIX2_MATRIX', 'MIX_CODE_FUNCS', 'MIX_CODE_ROOTS', 'N0', 'NB', 'NF', 'NONCE_LEN', 'NR', 'PICKUP_LEN', 'PK0', 'SM4_SBOX', 'TRIPLETS', 'TRIPLETS_INV', 'VERSION', '_GF_MUL']
+reachable functions/classes: 62 ; reachable module data: ['BARS', 'BARS_INV', 'BLOB_LEN', 'BLOCK_LEN', 'BOW_PRESSURE_ROT', 'BOW_R2_SHIFT', 'BOW_ROT_BASE', 'BOW_ROT_MOD', 'BOW_STROKES', 'CROSS_ADJACENT', 'CROSS_BRIDGE', 'CROSS_LAYERS', 'CROSS_OPPOSITE', 'CROSS_RADIAL', 'CT0', 'CT1', 'FIELD_POLY', 'FMT_VERSION', 'LAYERS', 'MAX_AD_LEN', 'MAX_MSG', 'MIX2_INV', 'MIX2_MATRIX', 'MIX_CODE_FUNCS', 'MIX_CODE_ROOTS', 'N0', 'NB', 'NF', 'NONCE_LEN', 'NR', 'PICKUP_LEN', 'PK0', 'SM4_SBOX', 'TRIPLETS', 'TRIPLETS_INV', 'VERSION', '_GF_MUL']
 PASS nothing reachable from encrypt/decrypt/siv_nonce/key_signature/split_blob is missing from MIX_CODE_FUNCS; listed extras are only the import-time table builders
 module functions/classes NOT in coverage: ['_init_attestation', 'ddt_max', 'encrypt_hello', 'grid_rows', 'lat_max']
 PASS only non-cipher helpers are outside coverage (ddt_max, lat_max, grid_rows, encrypt_hello, import attestation)
 PASS closure includes staff_mix/staff_unmix/shell_mix/shell_unmix/weave/unweave/xor_grid/Schedule/keyed_sbox/encode_block/encrypt_grid/decrypt_grid
 PASS module data hashed includes BARS, BARS_INV, TRIPLETS(_INV), CROSS_*, BOW_* (incl. BOW_PRESSURE_ROT), LAYERS, SM4_SBOX, _GF_MUL, MIX2_*, sizes
 PASS independent recomputation of mix_code and mix_data digests matches
-modified-file revisions: 62 functions/classes; key_sig changed AND live decrypt of alt blob -> tag mismatch for 62; failures []
+modified-file revisions: 64 functions/classes; key_sig changed AND live decrypt of alt blob -> tag mismatch for 64; failures []
 PASS modified file of staff_mix: key_sig changes and its blob fails live with AuthError tag mismatch
 PASS modified file of staff_unmix: key_sig changes and its blob fails live with AuthError tag mismatch
 PASS modified file of shell_mix: key_sig changes and its blob fails live with AuthError tag mismatch
@@ -294,8 +294,31 @@ bit avalanche  4 rounds: mean 511.3/1024, min 462, max 550
 bit avalanche 16 rounds: mean 511.9/1024, min 462, max 567
 PASS 4-round bit avalanche mean within 496..528 (of 1024)
 PASS 16-round bit avalanche mean within 500..524, min > 440
-ct byte chi2 over 2000 random messages (255 df, 99.9% crit 330.5): 243.7
+ct byte chi2 over 2000 random messages (255 df, 99.9% crit 330.5): 248.6
 PASS ct byte distribution uniform-ish (chi2 < 330.5)
+PASS mix2 2x2 is MDS over GF(2^8): all entries nonzero, det nonzero, both outputs depend on both inputs
+PASS each field bar-pair matrix is MDS over GF(2^8) (every output depends on every input)
+PASS B0 and odd-restack latin field step equals mix2 (identity S-boxes, all 65,536 pairs); both therefore inherit the MDS 2x2
+PASS staff butterfly, shell bridges, and cross-staff layers apply mix2 (the MDS 2x2), not a private matrix
+PASS each triplet: every entry nonzero, >=2 odd coefficients per row and column, odd determinant
+PASS all small linear mixes (mix2, field bars, B0/latin/restack field step, triplets) are complete
+one-round diffusion (SEED+DEMO_NONCE, RNG 20261110, 48 bit + 48 byte): bit mean 512.750/1024 bits, 127.542/128 bytes; byte-diff mean 511.333/1024 bits, 127.562/128 bytes
+PASS one-round single-bit and single-byte means: flipped bits in 500..524, changed bytes >= 124
+C059 throwaway one-round: bit mean 439.479/1024 bits, 108.938/128 bytes; byte-diff mean 442.250/1024 bits, 110.354/128 bytes
+PASS C059 throwaway (MIX2[0][0] 1->0) fails the mix2 MDS check and the one-round diffusion band
+PASS triplet last-row-zero throwaway (T0.M[2][2] 2->0) fails the all-entries-nonzero / complete-mix check
+test-gap checks wall time: 0.32s
+PASS encrypt rejects int/list/str/None msg with TypeError (no bytes() coercion)
+PASS encrypt rejects int/list/str/None ad with TypeError (no bytes() coercion)
+PASS decrypt rejects int/list/str/None blob with TypeError
+PASS decrypt rejects int/list/str/None ad with TypeError
+PASS encrypt/decrypt accept bytearray and memoryview for msg, blob, and ad
+PASS explicit ad=None is TypeError, not empty AD
+PASS MAX_AD_LEN is 65536 and is enforced on encrypt and decrypt
+PASS AD of exactly MAX_AD_LEN round-trips
+PASS AD of MAX_AD_LEN+1 raises ValueError on encrypt and decrypt
+PASS bad tag is rejected without building Schedule; a valid blob still builds Schedule then decrypts
+PASS FEATURES mention the version byte and AD in the HMAC description, and AD in the SIV nonce
 PASS sneak-staff-n2.json matches live sneak_n2.py SHA, key_sig, and hello-world pickup/nonce/tag
 baseline frozen-and-n1.sha256: 58 files
 PASS unchanged vs baseline frozen-and-n1.sha256
@@ -303,4 +326,4 @@ baseline v2-v13-and-seed.sha256: 116 files
 PASS unchanged vs baseline v2-v13-and-seed.sha256
 PASS no files added/removed in test1/, test3/, test13/, testn1/, sneak_t1n/
 
-259/259 passed, 0 failed, 0 skipped
+279/279 passed, 0 failed, 0 skipped

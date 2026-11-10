@@ -1,35 +1,35 @@
-Sneak staff-core N2 (Octavo) — unused-B0 attestation: BARS[0] matrix dropped (None); _canon_data encodes extra types or errors.
+Sneak staff-core N2 (Octavo) — outer-fix: strict bytes-like inputs, verify-HMAC-before-Schedule, MAX_AD_LEN=65536, FEATURES mention version and AD.
 Homemade; NOT for real secrets. Use AES-GCM-SIV, age, or libsodium. Picture redrawn from this sample.
 seed: sneak1024-seed.txt next to sneak_n2.py (same bytes as /workspace/sneak1024-seed.txt)
-live sneak_n2.py SHA-256: 3eb1da8fd3aec1c9b76a1e962b0973cdde15224e895672fad0aca0ba75f8798d
-key_sig (16 bytes): f716aa939283e46ea7760717a22a7307
-pickup (16 bytes; sha256(SN2/P || urandom || time_ns || counter || pid)[:16]): 25e3a20bca148ff3931e8c2eaef008b0
-nonce (16 bytes; SHA-256(clef || pickup || encode_block(msg) || encode_ad(ad))[:16], empty AD): 6eff97c6129e9a14ba3d75dd4e119490
-ciphertext (128 bytes): 82f0ca44461da88b4e9239dceec53f22d2a2ef3123c15210e504da6c0c2938628b9f8487cb54828f874a4eb1bd8709d2a5cc04cc14aa36244bd6ecce269570803d11c29eb97febe06910ec62c87df0a2bb9ad71c351c9990766b8dd8648deff8f133accc76ef91055e1cba98d42e6fcbfd74ec1b66e1e92d57ffd0614907e2f3
-tag (32 bytes; HMAC-SHA256 over clef || key_sig || version || SN2 || pickup || nonce || ct || encode_ad(ad)): 863b731e5916fa692e54d65e342447c537733e6dfc989fe068c9185556bd8691
-blob (196 bytes = version || SN2 || pickup || nonce || ct || tag): 02534e3225e3a20bca148ff3931e8c2eaef008b06eff97c6129e9a14ba3d75dd4e11949082f0ca44461da88b4e9239dceec53f22d2a2ef3123c15210e504da6c0c2938628b9f8487cb54828f874a4eb1bd8709d2a5cc04cc14aa36244bd6ecce269570803d11c29eb97febe06910ec62c87df0a2bb9ad71c351c9990766b8dd8648deff8f133accc76ef91055e1cba98d42e6fcbfd74ec1b66e1e92d57ffd0614907e2f3863b731e5916fa692e54d65e342447c537733e6dfc989fe068c9185556bd8691
+live sneak_n2.py SHA-256: 3e61bdcd151771001b9d0e0307bde5d2f373a1fa31c21ccb173b110e958cb7ed
+key_sig (16 bytes): 42ded003543b35fa0695a2e767f4415e
+pickup (16 bytes; sha256(SN2/P || urandom || time_ns || counter || pid)[:16]): f50732d765b08bbb2556fc989087f4fa
+nonce (16 bytes; SHA-256(clef || pickup || encode_block(msg) || encode_ad(ad))[:16], empty AD): b2ab07a9cc0d1f1e46b1812316eb69a8
+ciphertext (128 bytes): 778e184bd9bed27fc30061a3f7cf1b59f2c3710dfbacdd739fbef734b7ab522f969653d2fd34b207ca28ecf49758215b8621e3755df75439568a121da764f50825135f2df418887b6c0aa95a21fa6e9d2200fd0df9232c8f83a3a6ebb74f0ed242b4ed5ac773f5962a7a882092cdd95e2a6db1c02e9b7d851b6f708dc22c3f63
+tag (32 bytes; HMAC-SHA256 over clef || key_sig || version || SN2 || pickup || nonce || ct || encode_ad(ad)): b471fe559733547a6463d0d3940952c16b4f8f14977c084d563db0a36f813805
+blob (196 bytes = version || SN2 || pickup || nonce || ct || tag): 02534e32f50732d765b08bbb2556fc989087f4fab2ab07a9cc0d1f1e46b1812316eb69a8778e184bd9bed27fc30061a3f7cf1b59f2c3710dfbacdd739fbef734b7ab522f969653d2fd34b207ca28ecf49758215b8621e3755df75439568a121da764f50825135f2df418887b6c0aa95a21fa6e9d2200fd0df9232c8f83a3a6ebb74f0ed242b4ed5ac773f5962a7a882092cdd95e2a6db1c02e9b7d851b6f708dc22c3f63b471fe559733547a6463d0d3940952c16b4f8f14977c084d563db0a36f813805
 
 hex grid: 16 faces x 8 byte-beats, open staffs, four measures of 2/4:
-  inner 1    | 82 F0 | CA 44 | 46 1D | A8 8B |
-  inner 2    | 4E 92 | 39 DC | EE C5 | 3F 22 |
-  inner 3    | D2 A2 | EF 31 | 23 C1 | 52 10 |
-  inner 4    | E5 04 | DA 6C | 0C 29 | 38 62 |
-  inner 5    | 8B 9F | 84 87 | CB 54 | 82 8F |
-  inner 6    | 87 4A | 4E B1 | BD 87 | 09 D2 |
-  inner 7    | A5 CC | 04 CC | 14 AA | 36 24 |
-  inner 8    | 4B D6 | EC CE | 26 95 | 70 80 |
-  outer o1   | 3D 11 | C2 9E | B9 7F | EB E0 |
-  outer o2   | 69 10 | EC 62 | C8 7D | F0 A2 |
-  outer o3   | BB 9A | D7 1C | 35 1C | 99 90 |
-  outer o4   | 76 6B | 8D D8 | 64 8D | EF F8 |
-  outer o5   | F1 33 | AC CC | 76 EF | 91 05 |
-  outer o6   | 5E 1C | BA 98 | D4 2E | 6F CB |
-  outer o7   | FD 74 | EC 1B | 66 E1 | E9 2D |
-  outer o8   | 57 FF | D0 61 | 49 07 | E2 F3 |
+  inner 1    | 77 8E | 18 4B | D9 BE | D2 7F |
+  inner 2    | C3 00 | 61 A3 | F7 CF | 1B 59 |
+  inner 3    | F2 C3 | 71 0D | FB AC | DD 73 |
+  inner 4    | 9F BE | F7 34 | B7 AB | 52 2F |
+  inner 5    | 96 96 | 53 D2 | FD 34 | B2 07 |
+  inner 6    | CA 28 | EC F4 | 97 58 | 21 5B |
+  inner 7    | 86 21 | E3 75 | 5D F7 | 54 39 |
+  inner 8    | 56 8A | 12 1D | A7 64 | F5 08 |
+  outer o1   | 25 13 | 5F 2D | F4 18 | 88 7B |
+  outer o2   | 6C 0A | A9 5A | 21 FA | 6E 9D |
+  outer o3   | 22 00 | FD 0D | F9 23 | 2C 8F |
+  outer o4   | 83 A3 | A6 EB | B7 4F | 0E D2 |
+  outer o5   | 42 B4 | ED 5A | C7 73 | F5 96 |
+  outer o6   | 2A 7A | 88 20 | 92 CD | D9 5E |
+  outer o7   | 2A 6D | B1 C0 | 2E 9B | 7D 85 |
+  outer o8   | 1B 6F | 70 8D | C2 2C | 3F 63 |
 
 recovered plaintext: b'hello world'
 1-bit flip (blob byte 100, bit 0) rejected: AuthError: tag mismatch
 Re-encrypting differs (fresh pickup and blob); this is one recorded sample with empty AD.
-Previous sample (pickup 6b8f46a0f6d032103e7bbd17dda25444, seed-only path) now fails closed: tag mismatch.
+Previous sample (pickup 25e3a20bca148ff3931e8c2eaef008b0, unused-B0 / octavo006) now fails closed: tag mismatch.
 The picture (sneak-staff-n2.png) was regenerated from this sample.
 demo-nonce.txt is unchanged: an older fixed schedule-test nonce, not this sample's nonce.

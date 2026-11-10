@@ -947,8 +947,8 @@ check("closure includes staff_mix/staff_unmix/shell_mix/shell_unmix/weave/unweav
 check("module data hashed includes BARS, BARS_INV, TRIPLETS(_INV), CROSS_*, BOW_* (incl. BOW_PRESSURE_ROT), LAYERS, SM4_SBOX, _GF_MUL, MIX2_*, sizes",
       {"BARS","BARS_INV","TRIPLETS","TRIPLETS_INV","CROSS_OPPOSITE","CROSS_RADIAL","CROSS_ADJACENT","CROSS_BRIDGE","CROSS_LAYERS",
        "BOW_STROKES","BOW_PRESSURE_ROT","BOW_ROT_BASE","BOW_ROT_MOD","BOW_R2_SHIFT","LAYERS","SM4_SBOX","_GF_MUL","MIX2_MATRIX","MIX2_INV","FIELD_POLY",
-       "NF","NB","NR","BLOCK_LEN","VERSION"} <= reach_data and json.loads(N.mix_description())["mix_data"]["names"]==sorted(reach_data)
-      and len(reach_data)==36)
+       "NF","NB","NR","BLOCK_LEN","VERSION","MAX_AD_LEN"} <= reach_data and json.loads(N.mix_description())["mix_data"]["names"]==sorted(reach_data)
+      and len(reach_data)==37)
 def frame(h,parts):
     for part in parts: b=part.encode(); h.update(len(b).to_bytes(8,"big")); h.update(b)
 desc5=json.loads(N.mix_description())
@@ -1223,6 +1223,58 @@ check("triplet last-row-zero throwaway (T0.M[2][2] 2->0) fails the all-entries-n
       and _t0z.TRIPLETS[0][2][2][2] == 0
       and N.TRIPLETS[0][2][2][2] == 2)
 print(f"test-gap checks wall time: {_tg_time.perf_counter() - _tg_t0:.2f}s")
+
+# ---- outer-layer fixes (strict types, verify-before-expand, AD cap, FEATURES)
+_bad_types = (5, 0, [104, 105], "hi", None)
+check("encrypt rejects int/list/str/None msg with TypeError (no bytes() coercion)",
+      all(isinstance(catch(lambda m=m: N.encrypt(m, SEED)), TypeError) for m in _bad_types))
+check("encrypt rejects int/list/str/None ad with TypeError (no bytes() coercion)",
+      all(isinstance(catch(lambda a=a: N.encrypt(b"x", SEED, ad=a)), TypeError) for a in (3, 0, [1, 2], "ad", None)))
+check("decrypt rejects int/list/str/None blob with TypeError",
+      all(isinstance(catch(lambda b=b: N.decrypt(b, SEED)), TypeError) for b in _bad_types))
+check("decrypt rejects int/list/str/None ad with TypeError",
+      all(isinstance(catch(lambda a=a: N.decrypt(HW_BLOB, SEED, ad=a)), TypeError) for a in (3, 0, [1, 2], "ad", None)))
+check("encrypt/decrypt accept bytearray and memoryview for msg, blob, and ad",
+      N.decrypt(bytearray(N.encrypt(bytearray(b"hi"), SEED, ad=memoryview(b"ad"))), SEED, ad=bytearray(b"ad")) == b"hi"
+      and N.decrypt(memoryview(N.encrypt(memoryview(b"ok"), SEED, ad=bytearray(b""))), SEED) == b"ok")
+check("explicit ad=None is TypeError, not empty AD",
+      isinstance(catch(lambda: N.encrypt(b"x", SEED, ad=None)), TypeError)
+      and N.decrypt(N.encrypt(b"x", SEED), SEED, ad=b"") == b"x")
+
+check("MAX_AD_LEN is 65536 and is enforced on encrypt and decrypt",
+      N.MAX_AD_LEN == 65536)
+_ad_max = b"A" * N.MAX_AD_LEN
+check("AD of exactly MAX_AD_LEN round-trips",
+      N.decrypt(N.encrypt(b"cap", SEED, ad=_ad_max), SEED, ad=_ad_max) == b"cap")
+_e_ad = catch(lambda: N.encrypt(b"x", SEED, ad=b"A" * (N.MAX_AD_LEN + 1)))
+_e_ad_d = catch(lambda: N.decrypt(HW_BLOB, SEED, ad=b"A" * (N.MAX_AD_LEN + 1)))
+check("AD of MAX_AD_LEN+1 raises ValueError on encrypt and decrypt",
+      isinstance(_e_ad, ValueError) and "associated data too long" in str(_e_ad)
+      and isinstance(_e_ad_d, ValueError) and "associated data too long" in str(_e_ad_d))
+
+_seen = []
+_orig_sch = N.Schedule.__init__
+def _sch_probe(self, seed, nonce):
+    _seen.append("Schedule")
+    return _orig_sch(self, seed, nonce)
+N.Schedule.__init__ = _sch_probe
+try:
+    _bad = bytearray(HW_BLOB); _bad[-1] ^= 1
+    _e_bad = catch(lambda: N.decrypt(bytes(_bad), SEED))
+    _n_bad = list(_seen)
+    _seen.clear()
+    _ok = N.decrypt(HW_BLOB, SEED)
+    _n_good = list(_seen)
+finally:
+    N.Schedule.__init__ = _orig_sch
+check("bad tag is rejected without building Schedule; a valid blob still builds Schedule then decrypts",
+      isinstance(_e_bad, N.AuthError) and str(_e_bad) == "tag mismatch"
+      and _n_bad == [] and _n_good == ["Schedule"] and _ok == b"hello world")
+
+check("FEATURES mention the version byte and AD in the HMAC description, and AD in the SIV nonce",
+      any("HMAC" in f and "version" in f and "AD" in f for f in N.FEATURES)
+      and any("SIV" in f and "AD" in f for f in N.FEATURES)
+      and N.REVISION == "outer-fix" and N.REVISION_DATE == "2026-11-10")
 
 # ---- picture header stays in sync with the live module and hello-world sample
 # render_n2.py writes sneak-staff-n2.json beside the PNG with the file SHA, key_sig,
