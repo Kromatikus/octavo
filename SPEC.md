@@ -154,7 +154,7 @@ follows. Still N2 / SN2 (project name: Octavo), still homemade, **not for real s
 AES-GCM-SIV, age or libsodium). `BOW_STROKES` unchanged; new `BOW_PRESSURE_ROT` and updated
 `bow_pressure` / `unbow_pressure`. No table name, sponge domain, blob format or API changed.
 No PNG, renderer, seed, frozen snapshot, attack folder, baseline, GitHub clone or demo-nonce
-was changed; the picture is stale (previous revision's hello-world cells).
+was changed; the picture was regenerated from the current hello-world cells.
 
 **Motivation** (`attacks_octavo_beat6/REPORT.md` §6). Three strokes share beat 0's rotations.
 Proposed and lab-screened fix: distinct views of beat 0 before r1/r2.
@@ -202,7 +202,7 @@ unchanged ⇒ rotations fixed" (still true under a fixed per-stroke function of 
 - Scan folder: `/workspace/sneak_n2/fix_beat0rot_verification/` — A: 0/534.8 M per even beat
   (2^21); B: 0 on all 8 beats (2^18); diffs beat 0/6/7 → 2^-10.19 / 2^-7.07 / 2^-7.33.
   Forced changes: beat 0→{0,1,2}, beat 4→{5,6}, beat 6→{5,7}. Does not modify any `attacks_*`.
-- Tests: **237/237 passed**. Picture / `render_n2.py` untouched (stale).
+- Tests: **237/237 passed**. Picture / `render_n2.py` untouched (not redrawn for this revision).
 
 **Honest limits.** Fixed-rotation ARX integrals/cubes when beat 0 is constant remain; this
 fix only splits the shared `(r1,r2)`. Still homemade — use AES-GCM-SIV, age, or libsodium.
@@ -724,7 +724,7 @@ Encryption is no longer deterministic. Each `encrypt` call draws a fresh **16-by
 - **Tag:** `HMAC-SHA256(mac_key, clef ‖ "SN2" ‖ pickup ‖ nonce ‖ ct)`, checked first with `compare_digest`.
 - **Decrypt:** length must be exactly 195 (old 179-byte blobs → `AuthError` on length), version, tag (binds the pickup), decrypt, decode, then recheck `nonce == SHA-256(clef ‖ pickup ‖ encode_block(msg))[:16]` → `AuthError` on mismatch.
 - **API:** `encrypt(msg, seed=None, nonce=None)` has **no public `pickup=` argument** (passing a target's pickup back in would rebuild the dictionary attack). A supplied `nonce` is checked against the synthetic nonce for the fresh pickup and almost always raises `ValueError`. `siv_nonce(msg, pickup, seed)` now needs the pickup.
-- **Demo:** hello-world pickup `8b9291ce06eaf92767cfa2c89d68b639`, nonce `4ea3cefffeabc7257c7f26181a63f08a` (one random sample; see `hello-world.txt`). Decrypts to `b'hello world'`. `demo-nonce.txt` still holds the old pre-pickup nonce and is used only as a fixed test schedule nonce. `sneak-staff-n2.png` was **not** regenerated and is stale.
+- **Demo:** hello-world pickup `bf0fe984df4772193690bf6b55ffd0bd`, nonce `9851541f41dc771fb136d978105bd9fc` (one random sample; see `hello-world.txt`). Decrypts to `b'hello world'`. `demo-nonce.txt` still holds the old pre-pickup nonce and is used only as a fixed test schedule nonce. `sneak-staff-n2.png` was regenerated from these cells.
 - **Unchanged:** BARS, TRIPLETS, mix2, S-boxes, schedule, clef derivation, encoding, `SN2` magic, 16 rounds.
 
 **Honest leftovers:**

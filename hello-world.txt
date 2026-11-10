@@ -31,5 +31,5 @@ recovered plaintext: b'hello world'
 1-bit flip (blob byte 100, bit 0) rejected: AuthError: tag mismatch
 Re-encrypting differs (fresh pickup and blob); this is one recorded sample with empty AD.
 Previous sample (pickup 3f703b2e5515d2613767372de752343e, version-2 era, re-attested cipher) now fails closed: tag mismatch.
-The picture (sneak-staff-n2.png) was NOT regenerated; it still shows an earlier revision's hello-world cells.
+The picture (sneak-staff-n2.png) was regenerated from these hello-world cells (render_n2.py).
 demo-nonce.txt is unchanged: an older fixed schedule-test nonce, not this sample's nonce.
