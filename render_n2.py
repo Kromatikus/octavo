@@ -6,19 +6,20 @@
 # OUTER seed (last 128) on the amber shell around the outer octahedron.
 import sys, math, os, re
 sys.dont_write_bytecode = True
-sys.path.insert(0,'/workspace/sneak_n2')
+HERE=os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
 from PIL import Image, ImageDraw, ImageFont
 import sneak_n2 as N
 KEY=N.load_seed()
-HW=open('/workspace/sneak_n2/hello-world.txt').read()
+HW=open(os.path.join(HERE, 'hello-world.txt')).read()
 def _hx(label):
-    m=re.search(rf'{label}.*?: ([0-9a-f]+)', HW, re.I|re.S)
+    m=re.search(rf'(?m)^{re.escape(label)} \(.*\): ([0-9a-f]+)\s*$', HW, re.I)
     if not m: raise SystemExit(f'missing {label} in hello-world.txt')
     return bytes.fromhex(m.group(1))
 pickup=_hx('pickup'); nonce=_hx('nonce'); ct=_hx('ciphertext'); tag=_hx('tag')
 assert len(pickup)==N.PICKUP_LEN and len(nonce)==N.NONCE_LEN and len(ct)==N.BLOCK_LEN and len(tag)==N.TAG_LEN
 assert nonce==N.siv_nonce(b'hello world', pickup, KEY)
-blob=N.VERSION+pickup+nonce+ct+tag
+blob=bytes([N.FMT_VERSION])+N.VERSION+pickup+nonce+ct+tag
 rec=N.decrypt(blob,KEY); assert rec==b'hello world'
 final=N.bytes_to_grid(ct); sch=N.Schedule(KEY,nonce)
 # round-0 shell bridges, aggregated to face pairs (inner f <-> outer 8+g), weight = number of bridged cells
@@ -287,8 +288,11 @@ d.line([(tx0-20,ty0+8*rowh+gap/2),(tx0+tw_,ty0+8*rowh+gap/2)],fill=ink,width=4)
 # compact legend: seven named pair mixes + bow / triplets / restack / cross
 leg_pairs=[]
 for name, boundary, pair, M in N.BARS:
-    kind='latin S/S2' if name.startswith('B0') else 'GF(2^8)'
-    leg_pairs.append(f"{name}: beats ({pair[0]+1},{pair[1]+1}) → ({M[0][0]}u+{M[0][1]}v, {M[1][0]}u+{M[1][1]}v)  [{kind}]")
+    if name.startswith('B0') or M is None:
+        leg_pairs.append(f"{name}: beats ({pair[0]+1},{pair[1]+1}) → latin (x=u⊕v, y=u⊕2v) then S/S2")
+    else:
+        kind='GF(2^8)'
+        leg_pairs.append(f"{name}: beats ({pair[0]+1},{pair[1]+1}) → ({M[0][0]}u+{M[0][1]}v, {M[1][0]}u+{M[1][1]}v)  [{kind}]")
 head_lines=[
     'seven named pair mixes (latin B0 + field B1/M2/B2/M3/B3/B4) · six overlapping triplets · bow-pressure · latin odd restack',
     'cross-staff · red clef bound into the tag · encore after late S2 · open staffs (no loop)',
@@ -318,7 +322,7 @@ bb=d.textbbox((0,0),warn,font=headf); d.text(((W-bb[2])/2,178),warn,font=headf,f
 footf=ImageFont.truetype(Fd+'DejaVuSans.ttf',30)
 lines=[
     f"pickup {pickup.hex()}   ·   nonce {nonce.hex()}",
-    f"tag {tag.hex()}   ·   blob = SN2 ‖ pickup ‖ nonce ‖ ct ‖ tag   ·   \"hello world\" sample",
+    f"tag {tag.hex()}   ·   blob = version ‖ SN2 ‖ pickup ‖ nonce ‖ ct ‖ tag   ·   \"hello world\" sample",
     "seed split: INNER seed (wine, first 128 digits) ↔ inner octahedron 1–8 · OUTER seed (amber, last 128 digits) ↔ outer octahedron o1–o8 · thin grey: round-0 inner↔outer ciphertext bridges",
     "each round: ⊕key → keyed S-box → weave → staff butterfly → shell bridges → bars+triplets → bow → odd restack → cross-staff → late S2 → encore (bars+triplets+bow+restack+cross) · code-closure key signature",
 ]
@@ -329,4 +333,8 @@ parts=[('inner ',wine),(INNER_SEED.upper(),wine),(' | ',ink),(OUTER_SEED.upper()
 tw=sum(d.textlength(t_,font=seedcap) for t_,_ in parts); x_=(W-tw)/2; y_=H-340+4*48+4
 for t_,c_ in parts: d.text((x_,y_),t_,font=seedcap,fill=c_); x_+=d.textlength(t_,font=seedcap)
 print('seed shell extents:',[tuple(round(c) for c in P(tuple(RS*v for v in VX[k]))) for k in VX])
-img.convert('RGB').save('/workspace/sneak-staff-n2.png'); img.convert('RGB').save('/workspace/sneak_n2/sneak-staff-n2.png'); print('wrote',img.size)
+png=os.path.join(HERE,'sneak-staff-n2.png')
+img.convert('RGB').save(png)
+if os.path.isdir('/workspace'):
+    img.convert('RGB').save('/workspace/sneak-staff-n2.png')
+print('wrote', png, img.size)
