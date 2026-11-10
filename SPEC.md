@@ -1,4 +1,59 @@
-## Current live revision — movements mode (2026-11-10)
+## Current live revision — movements-polish (2026-11-10)
+
+Wrapper polish only: the 16-round function, S-boxes, schedule, mixes, bow,
+rehair and cross-staff layers are unchanged from the movements revision and
+from the outer-fix revision (octavo007).
+Still homemade. **Not for real secrets.** Use AES-GCM-SIV, age or libsodium.
+The picture was redrawn from the new hello-world sample.
+
+Format version stays 3 and the blob layout is unchanged, but the coda HMAC
+now includes every cadence byte, so earlier movements blobs fail closed.
+
+### Cadence and coda (polished)
+
+Each movement carries a cadence
+`HMAC-SHA256(cad_key, clef || key_sig || version || SN2 || pickup || nonce || index64 || final || theme || ct || encode_ad(ad))`
+with `cad_key = StaffSponge(b"D", seed, nonce).take(32)`.
+
+The coda is
+`HMAC-SHA256(coda_key, clef || key_sig || version || SN2 || pickup || nonce || nmov32 || ct_0 || … || ct_{n-1} || cadence_0 || … || cadence_{n-1} || encode_ad(ad))`
+with `coda_key = StaffSponge(b"O", seed, nonce).take(32)`. It covers the header,
+the movement count, every ciphertext, every cadence and the associated data.
+
+`decrypt_movements` checks the version byte, length, magic and count, then
+verifies the coda with `compare_digest`. The cadence key is derived only after
+that check passes. Every cadence is then verified before constructing
+`Schedule`. A junk blob is rejected without expanding 16 rounds of key material.
+A cadence-only edit fails the coda check.
+
+StaffSponge domains remain `b"T"` theme, `b"W"` tweak, `b"D"` cadence MAC key,
+`b"O"` coda MAC key, plus `b"SN2/T"` and `b"SN2/I"` for theme chaining and the
+tweak mid-hash. Existing domains `C`, `G`, `K`, `M`, `P` are unchanged.
+
+### FEATURES
+
+The picture-header string now says `movements: theme T; cadence HMAC-D over
+theme‖index‖ct; coda HMAC-O over header‖count‖ct‖cadences‖AD`.
+`REVISION` is `movements-polish` (2026-11-10). Those labels remain in
+`_ATTEST_SKIP`.
+
+Because the attested wrapper source (`_coda_tag`, `encrypt_movements`,
+`decrypt_movements`) changed, `sha256(mix_description())` changed, so
+`EXPECTED_MIX_SHA256`, `key_signature`, and every HMAC tag changed.
+Previous movements and outer-fix / octavo007 blobs fail with **tag mismatch**
+or **coda mismatch**. Single-block blobs are still version 2 (196 bytes).
+
+### Identifiers
+
+- Live `sneak_n2.py` SHA-256: `48cf88aca92a7157b3a4522d1afb3437deddb7a41852a4b9cfadfa305ac0b559`
+- `EXPECTED_MIX_SHA256`: `4e9a7ded574924fe9635e2b7b908ba7c5fa5c489062137203d3ce03341a06ee6`
+- key_sig (demo seed): `d8a1358aae4116aaafcee90ec74a4d8e`
+- hello-world pickup `c9a332594dfc60c3f16795a3cba3b16b`, nonce `eeb1b7f8afbc85008b1258efe3dc038d` (empty AD)
+- movements-demo (188-byte plaintext, 2 movements, 392-byte blob) pickup `5e223cf6d0e24a0defccc9fb0bbf735a`
+
+---
+
+## Previous revision — movements mode (2026-11-10)
 
 Wrapper and mode addition only: the 16-round function, S-boxes, schedule, mixes, bow,
 rehair and cross-staff layers are unchanged from the outer-fix revision (octavo007).

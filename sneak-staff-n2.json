@@ -1,14 +1,14 @@
 {
   "blob_len": 196,
-  "file_sha256": "e5dd55e13eb0aa8df140f99aab514629477fbc60e48454bc7180243ed9692eff",
+  "file_sha256": "48cf88aca92a7157b3a4522d1afb3437deddb7a41852a4b9cfadfa305ac0b559",
   "fmt_version": 2,
-  "key_sig": "925d1cd5341a9126dfa731475ef8c4fb",
-  "nonce": "65283ad51c8025a7cf369f44b2dac34c",
-  "pickup": "fdb720ab5f5641df76b480010d7e8b4e",
-  "revision": "movements",
+  "key_sig": "d8a1358aae4116aaafcee90ec74a4d8e",
+  "nonce": "eeb1b7f8afbc85008b1258efe3dc038d",
+  "pickup": "c9a332594dfc60c3f16795a3cba3b16b",
+  "revision": "movements-polish",
   "revision_date": "2026-11-10",
-  "subtitle": "keyed SM4 S-boxes \u00b7 latin B0 + field bar pairs \u00b7 six triplets \u00b7 bow-pressure \u00b7 latin odd restack \u00b7 cross-staff mix \u00b7 open 8-beat staffs \u00b7 SIV nonce from clef\u2016pickup\u2016msg\u2016AD \u00b7 HMAC tag over clef\u2016key_sig\u2016version\u2016SN2\u2016pickup\u2016nonce\u2016ct\u2016AD \u00b7 movements (theme/cadence/coda) \u00b7 grid IS ciphertext",
-  "tag": "01abec851bfbea0d0112d71c53e326d2cb3f3e88c574c2734aef8bb6ef5f9f75",
-  "title": "Octavo (sneak staff-core N2)  \u00b7  movements  \u00b7  v2  \u00b7  196-byte blob  \u00b7  SHA e5dd55e1\u2026  \u00b7  key_sig 925d1cd5\u2026  \u00b7  2026-11-10",
+  "subtitle": "keyed SM4 S-boxes \u00b7 latin B0 + field bar pairs \u00b7 six triplets \u00b7 bow-pressure \u00b7 latin odd restack \u00b7 cross-staff mix \u00b7 open 8-beat staffs \u00b7 SIV nonce from clef\u2016pickup\u2016msg\u2016AD \u00b7 HMAC tag over clef\u2016key_sig\u2016version\u2016SN2\u2016pickup\u2016nonce\u2016ct\u2016AD \u00b7 movements: theme T; cadence HMAC-D over theme\u2016index\u2016ct; coda HMAC-O over header\u2016count\u2016ct\u2016cadences\u2016AD \u00b7 grid IS ciphertext",
+  "tag": "149b6de64746caf7a7b77157ce622c8a361d047ebe590665b3e5a70aba447655",
+  "title": "Octavo (sneak staff-core N2)  \u00b7  movements-polish  \u00b7  v2  \u00b7  196-byte blob  \u00b7  SHA 48cf88ac\u2026  \u00b7  key_sig d8a1358a\u2026  \u00b7  2026-11-10",
   "warning": "NOT for real secrets \u2014 use AES-GCM-SIV, age, or libsodium"
 }

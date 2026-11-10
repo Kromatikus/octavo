@@ -237,7 +237,7 @@ pre-fix beat-6 witnesses, bow+rehair changed bytes per round table: [[4, 4, 4, 4
 PASS the 4 pre-fix beat-6 witnesses (3 all-table + REPORT mechanism example) now change >=2 bytes for all 16 rounds' tables
 PASS negative control: with pre-beat6 (4,5,6) strokes AND all-zero BOW_PRESSURE_ROT patched in, the 4 beat-6 witnesses are single-byte under all 16 tables
 PASS NumPy bow/rehair model equals live bow_pressure/odd_restack on 5,000 random staffs
-NumPy bow+rehair singleton scan (round-0 tables), cases per beat [4177920, 4177920, 4177920, 4177920, 4177920, 4177920, 16711680, 4177920], singletons [0, 0, 0, 0, 0, 0, 0, 0], 17.6s
+NumPy bow+rehair singleton scan (round-0 tables), cases per beat [4177920, 4177920, 4177920, 4177920, 4177920, 4177920, 16711680, 4177920], singletons [0, 0, 0, 0, 0, 0, 0, 0], 18.7s
 PASS beat-6 scan: 0 singletons in 16,711,680 beat-6 cases (65,536 random bases x 255 deltas; pre-fix layout gave ~19) and 0 on every other beat (4,177,920 each)
 PASS pre-beat6-fix 195-byte hello-world pickup ee95ddb2 fails as unsupported version, not DecodeError
 PASS pre-beat0rot 195-byte hello-world pickup d450337d fails as unsupported version, not DecodeError
@@ -294,7 +294,7 @@ bit avalanche  4 rounds: mean 511.3/1024, min 462, max 550
 bit avalanche 16 rounds: mean 511.9/1024, min 462, max 567
 PASS 4-round bit avalanche mean within 496..528 (of 1024)
 PASS 16-round bit avalanche mean within 500..524, min > 440
-ct byte chi2 over 2000 random messages (255 df, 99.9% crit 330.5): 214.8
+ct byte chi2 over 2000 random messages (255 df, 99.9% crit 330.5): 252.5
 PASS ct byte distribution uniform-ish (chi2 < 330.5)
 PASS mix2 2x2 is MDS over GF(2^8): all entries nonzero, det nonzero, both outputs depend on both inputs
 PASS each field bar-pair matrix is MDS over GF(2^8) (every output depends on every input)
@@ -307,7 +307,7 @@ PASS one-round single-bit and single-byte means: flipped bits in 500..524, chang
 C059 throwaway one-round: bit mean 439.479/1024 bits, 108.938/128 bytes; byte-diff mean 442.250/1024 bits, 110.354/128 bytes
 PASS C059 throwaway (MIX2[0][0] 1->0) fails the mix2 MDS check and the one-round diffusion band
 PASS triplet last-row-zero throwaway (T0.M[2][2] 2->0) fails the all-entries-nonzero / complete-mix check
-test-gap checks wall time: 0.31s
+test-gap checks wall time: 0.35s
 PASS encrypt rejects int/list/str/None msg with TypeError (no bytes() coercion)
 PASS encrypt rejects int/list/str/None ad with TypeError (no bytes() coercion)
 PASS decrypt rejects int/list/str/None blob with TypeError
@@ -330,6 +330,10 @@ PASS version confusion: decrypt rejects a movements blob; decrypt_movements reje
 PASS movements SIV nonce matches sha256(clef||pickup||len||msg||encode_ad(ad)) and a wrong caller nonce is rejected
 PASS movements tampers fail closed: truncate, extend, bit flips, reorder, drop, duplicate, splice, downgrade
 PASS movements: bad coda or cadence is rejected without building Schedule; a valid blob still builds Schedule then decrypts
+PASS movements: cadence-only edit is caught by the coda, and the cadence key is derived only after the coda passes
+PASS movements domains T/D/O/W/I match independent SHA-256 squeezes (theme, cadence key, coda key, tweak)
+PASS movements cadence HMAC covers ct, theme, index and AD; coda HMAC covers header, count, all ct, all cadences and AD
+PASS movements gap mutants (theme domain T->M; coda omits cadences) fail the new pins
 PASS movements-demo.txt decrypts to its recorded plaintext
 PASS sneak-staff-n2.json matches live sneak_n2.py SHA, key_sig, and hello-world pickup/nonce/tag
 baseline frozen-and-n1.sha256: 58 files
@@ -338,4 +342,4 @@ baseline v2-v13-and-seed.sha256: 116 files
 PASS unchanged vs baseline v2-v13-and-seed.sha256
 PASS no files added/removed in test1/, test3/, test13/, testn1/, sneak_t1n/
 
-291/291 passed, 0 failed, 0 skipped
+295/295 passed, 0 failed, 0 skipped

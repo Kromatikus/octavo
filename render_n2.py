@@ -320,13 +320,30 @@ def _centered(text, font, y, fill, label):
     if bb[2]-bb[0] > W-80:
         raise SystemExit(f'{label} does not fit the header: width {bb[2]-bb[0]} > {W-80}')
     d.text(((W-bb[2])/2,y),text,font=font,fill=fill)
+def _wrap_features(features, font, max_w):
+    """One centered line if it fits; otherwise the earliest split where both lines fit."""
+    items=list(features)
+    one=" · ".join(items)
+    if d.textbbox((0,0),one,font=font)[2] <= max_w:
+        return [one]
+    for i in range(1, len(items)):
+        a=" · ".join(items[:i]); b=" · ".join(items[i:])
+        if d.textbbox((0,0),a,font=font)[2] <= max_w and d.textbbox((0,0),b,font=font)[2] <= max_w:
+            return [a, b]
+    raise SystemExit('feature subtitle does not fit the header even when wrapped')
 title=(f"Octavo (sneak staff-core N2)  ·  {N.REVISION}  ·  v{N.FMT_VERSION}  ·  "
        f"{N.BLOB_LEN}-byte blob  ·  SHA {file_sha[:8]}…  ·  key_sig {key_sig[:8]}…  ·  {N.REVISION_DATE}")
 subtitle=" · ".join(N.FEATURES)
 warn=N.WARNING_LINE
 _centered(title,titf,36,ink,'title')
-_centered(subtitle,subf,128,muted,'feature subtitle')
-_centered(warn,headf,178,red,'warning')
+_sub_lines=_wrap_features(N.FEATURES, subf, W-80)
+if len(_sub_lines)==1:
+    _centered(_sub_lines[0],subf,128,muted,'feature subtitle')
+    _centered(warn,headf,178,red,'warning')
+else:
+    _centered(_sub_lines[0],subf,114,muted,'feature subtitle line 1')
+    _centered(_sub_lines[1],subf,152,muted,'feature subtitle line 2')
+    _centered(warn,headf,196,red,'warning')
 meta={
     "file_sha256": file_sha,
     "key_sig": key_sig,

@@ -1274,8 +1274,8 @@ check("bad tag is rejected without building Schedule; a valid blob still builds 
 check("FEATURES mention the version byte and AD in the HMAC description, and AD in the SIV nonce",
       any("HMAC" in f and "version" in f and "AD" in f for f in N.FEATURES)
       and any("SIV" in f and "AD" in f for f in N.FEATURES)
-      and any("movements" in f and "theme" in f and "cadence" in f and "coda" in f for f in N.FEATURES)
-      and N.REVISION == "movements" and N.REVISION_DATE == "2026-11-10")
+      and any("movements" in f and "theme" in f and "cadence" in f and "coda" in f and "cadences" in f and "AD" in f for f in N.FEATURES)
+      and N.REVISION == "movements-polish" and N.REVISION_DATE == "2026-11-10")
 
 # ---- movements mode (format version 3)
 check("FMT_MOVEMENTS is 3, distinct from single-block version 2, and the header/stride sizes match the layout",
@@ -1378,31 +1378,144 @@ check("movements tampers fail closed: truncate, extend, bit flips, reorder, drop
       _mv_tamper_ok())
 
 # verify-then-decrypt: bad coda / flipped cadence must not build Schedule
+# A cadence-only edit is caught by the coda (which now covers cadence bytes);
+# the cadence key is derived only after the coda check passes.
 _seen_mv = []
+_seen_cadkey = []
 _orig_mv_sch = N.Schedule.__init__
+_orig_cadkey = N._cadence_key
 def _sch_probe_mv(self, seed, nonce):
     _seen_mv.append("Schedule")
     return _orig_mv_sch(self, seed, nonce)
+def _cadkey_probe(seed, nonce):
+    _seen_cadkey.append("cadence_key")
+    return _orig_cadkey(seed, nonce)
 N.Schedule.__init__ = _sch_probe_mv
+N._cadence_key = _cadkey_probe
 try:
     _good_mv = N.encrypt_movements(b"cadence check " * 12, SEED)
-    _seen_mv.clear()
+    _seen_mv.clear(); _seen_cadkey.clear()
     _bad_coda = bytearray(_good_mv); _bad_coda[-1] ^= 1
     _e_coda = catch(lambda: N.decrypt_movements(bytes(_bad_coda), SEED))
-    _n_coda = list(_seen_mv); _seen_mv.clear()
+    _n_coda = list(_seen_mv); _k_coda = list(_seen_cadkey)
+    _seen_mv.clear(); _seen_cadkey.clear()
     _bad_cad = bytearray(_good_mv)
     _bad_cad[N.MOVEMENTS_HDR_LEN + N.BLOCK_LEN] ^= 1  # first cadence byte
     _e_cad = catch(lambda: N.decrypt_movements(bytes(_bad_cad), SEED))
-    _n_cad = list(_seen_mv); _seen_mv.clear()
+    _n_cad = list(_seen_mv); _k_cad = list(_seen_cadkey)
+    _seen_mv.clear(); _seen_cadkey.clear()
     _ok_mv = N.decrypt_movements(_good_mv, SEED)
-    _n_ok = list(_seen_mv)
+    _n_ok = list(_seen_mv); _k_ok = list(_seen_cadkey)
 finally:
     N.Schedule.__init__ = _orig_mv_sch
+    N._cadence_key = _orig_cadkey
 check("movements: bad coda or cadence is rejected without building Schedule; a valid blob still builds Schedule then decrypts",
       isinstance(_e_coda, N.AuthError) and str(_e_coda) == "coda mismatch"
-      and isinstance(_e_cad, N.AuthError) and str(_e_cad) == "cadence mismatch"
+      and isinstance(_e_cad, N.AuthError) and str(_e_cad) == "coda mismatch"
       and _n_coda == [] and _n_cad == [] and _n_ok == ["Schedule"]
       and _ok_mv == b"cadence check " * 12)
+check("movements: cadence-only edit is caught by the coda, and the cadence key is derived only after the coda passes",
+      str(_e_cad) == "coda mismatch" and _k_coda == [] and _k_cad == [] and _k_ok == ["cadence_key"])
+
+# ---- movements tag domains and authenticated inputs (independent of attestation hashing)
+def _sponge_take(domain, seed, nonce, n):
+    out, ctr = b"", 0
+    while len(out) < n:
+        out += hashlib.sha256(b"SN2/" + domain + ctr.to_bytes(4, "big") + seed + nonce).digest()
+        ctr += 1
+    return out[:n]
+
+_pin_msg = b"twelve notes make a row and then some more" * 5  # two movements
+_pin_ad = b"score"
+_pin_blob = N.encrypt_movements(_pin_msg, SEED, ad=_pin_ad)
+_pin_n = int.from_bytes(_pin_blob[36:40], "big")
+assert _pin_n == 2
+_pin_pk, _pin_nn = _pin_blob[4:20], _pin_blob[20:36]
+_pin_body = _pin_blob[N.MOVEMENTS_HDR_LEN:-N.TAG_LEN]
+_pin_cts = [_pin_body[i*N.MOVEMENT_STRIDE:i*N.MOVEMENT_STRIDE+N.BLOCK_LEN] for i in range(_pin_n)]
+_pin_cads = [_pin_body[i*N.MOVEMENT_STRIDE+N.BLOCK_LEN:(i+1)*N.MOVEMENT_STRIDE] for i in range(_pin_n)]
+_pin_coda = _pin_blob[-N.TAG_LEN:]
+_pin_clef = N.staff_clef(SEED)
+_pin_ks = N.key_signature(SEED)
+_pin_theme0 = _sponge_take(b"T", SEED, _pin_nn, N.BLOCK_LEN)
+_pin_themes = [_pin_theme0]
+for _i in range(_pin_n - 1):
+    _nxt = hashlib.sha256(b"SN2/T" + _pin_themes[-1] + _pin_cts[_i] + _i.to_bytes(8, "big") + b"\x00").digest()[:16]
+    _pin_themes.append(_sponge_take(b"T", SEED, _nxt, N.BLOCK_LEN))
+_pin_cad_key = _sponge_take(b"D", SEED, _pin_nn, 32)
+_pin_coda_key = _sponge_take(b"O", SEED, _pin_nn, 32)
+import hmac as _hmac
+_pin_cad_ok = True
+for _i in range(_pin_n):
+    _final = b"\x01" if _i == _pin_n - 1 else b"\x00"
+    _exp_cad = _hmac.new(_pin_cad_key, _pin_clef + _pin_ks + bytes([N.FMT_MOVEMENTS]) + b"SN2" + _pin_pk + _pin_nn
+                         + _i.to_bytes(8, "big") + _final + _pin_themes[_i] + _pin_cts[_i] + N._encode_ad(_pin_ad),
+                         hashlib.sha256).digest()
+    _pin_cad_ok = _pin_cad_ok and (_exp_cad == _pin_cads[_i])
+_pin_exp_coda = _hmac.new(_pin_coda_key, _pin_clef + _pin_ks + bytes([N.FMT_MOVEMENTS]) + b"SN2" + _pin_pk + _pin_nn
+                          + _pin_n.to_bytes(4, "big") + b"".join(_pin_cts) + b"".join(_pin_cads) + N._encode_ad(_pin_ad),
+                          hashlib.sha256).digest()
+_pin_old_coda = _hmac.new(_pin_coda_key, _pin_clef + _pin_ks + bytes([N.FMT_MOVEMENTS]) + b"SN2" + _pin_pk + _pin_nn
+                          + _pin_n.to_bytes(4, "big") + b"".join(_pin_cts) + N._encode_ad(_pin_ad),
+                          hashlib.sha256).digest()
+_pin_tweak0_mid = hashlib.sha256(b"SN2/I" + _pin_nn + (0).to_bytes(8, "big") + b"\x00").digest()[:16]
+_pin_tweak0 = _sponge_take(b"W", SEED, _pin_tweak0_mid, N.BLOCK_LEN)
+
+check("movements domains T/D/O/W/I match independent SHA-256 squeezes (theme, cadence key, coda key, tweak)",
+      N._theme_start(SEED, _pin_nn) == _pin_theme0 == _pin_themes[0]
+      and N._cadence_key(SEED, _pin_nn) == _pin_cad_key
+      and N._coda_key(SEED, _pin_nn) == _pin_coda_key
+      and N._movement_tweak(SEED, _pin_nn, 0, False) == _pin_tweak0
+      and N._theme_next(SEED, _pin_themes[0], _pin_cts[0], 0, False) == _pin_themes[1])
+check("movements cadence HMAC covers ct, theme, index and AD; coda HMAC covers header, count, all ct, all cadences and AD",
+      _pin_cad_ok and _pin_exp_coda == _pin_coda and _pin_old_coda != _pin_coda
+      and _pin_blob[20:36] == _pin_nn)
+
+# Gap mutants from mutation_lab_2pct_movements: changing a domain letter or
+# dropping cadence bytes from the coda must fail these pins (and fail closed).
+def _mv_gap_mutants_caught():
+    src = open(os.path.join(HERE, "sneak_n2.py")).read()
+    src = src.replace('EXPECTED_MIX_SHA256 = "' + N.EXPECTED_MIX_SHA256 + '"',
+                      'EXPECTED_MIX_SHA256 = "TO_BE_FILLED"', 1)
+    cases = []
+    mutants = {
+        "theme domain T->M": ('StaffSponge(b"T", _seed_bytes(seed), nonce).take(BLOCK_LEN)',
+                              'StaffSponge(b"M", _seed_bytes(seed), nonce).take(BLOCK_LEN)'),
+        "coda omits cadences": ("+ cts + cadences + _encode_ad(ad)",
+                                "+ cts + _encode_ad(ad)"),
+    }
+    for name, (a, b) in mutants.items():
+        if a not in src:
+            return False
+        alt_src = src.replace(a, b, 1)
+        td = tempfile.mkdtemp(prefix="n2_mvgap_")
+        try:
+            path = os.path.join(td, "sneak_n2.py")
+            open(path, "w").write(alt_src)
+            open(os.path.join(td, "sneak1024-seed.txt"), "w").write(open(os.path.join(HERE, "sneak1024-seed.txt")).read())
+            modname = "sneak_n2_gap_" + "".join(ch if ch.isalnum() else "_" for ch in name)
+            alt = load(modname, path)
+            if "theme domain" in name:
+                cases.append(alt._theme_start(SEED, _pin_nn) != _sponge_take(b"T", SEED, _pin_nn, N.BLOCK_LEN))
+            else:
+                blob = alt.encrypt_movements(_pin_msg, SEED, ad=_pin_ad)
+                nn = blob[20:36]; nmov = int.from_bytes(blob[36:40], "big")
+                body = blob[alt.MOVEMENTS_HDR_LEN:-alt.TAG_LEN]
+                cts = [body[i*alt.MOVEMENT_STRIDE:i*alt.MOVEMENT_STRIDE+alt.BLOCK_LEN] for i in range(nmov)]
+                cads = [body[i*alt.MOVEMENT_STRIDE+alt.BLOCK_LEN:(i+1)*alt.MOVEMENT_STRIDE] for i in range(nmov)]
+                coda_key = _sponge_take(b"O", SEED, nn, 32)
+                exp_with_cads = _hmac.new(coda_key, alt.staff_clef(SEED) + alt.key_signature(SEED)
+                                          + bytes([alt.FMT_MOVEMENTS]) + b"SN2" + blob[4:20] + nn
+                                          + nmov.to_bytes(4, "big") + b"".join(cts) + b"".join(cads)
+                                          + alt._encode_ad(_pin_ad), hashlib.sha256).digest()
+                cases.append(blob[-32:] != exp_with_cads)
+                # live decrypt of mutant blob (different key_sig / coda) fails closed
+                cases.append(isinstance(catch(lambda b=blob: N.decrypt_movements(b, SEED, ad=_pin_ad)), N.AuthError))
+        finally:
+            shutil.rmtree(td)
+    return all(cases) and len(cases) == 3
+check("movements gap mutants (theme domain T->M; coda omits cadences) fail the new pins",
+      _mv_gap_mutants_caught())
 
 _mv_demo = os.path.join(HERE, "movements-demo.txt")
 if os.path.isfile(_mv_demo):

@@ -1,7 +1,39 @@
-## Current live revision — movements mode (2026-11-10)
+## Current live revision — movements-polish (2026-11-10)
+
+This section supersedes the movements-mode section below. The round function is
+unchanged from that revision (and from octavo007). Still N2 / SN2
+(project name: Octavo), still homemade, **not for real secrets** (use AES-GCM-SIV,
+age or libsodium). The picture was redrawn from the new hello-world sample.
+
+This is polish on format-version-3 movements mode. The wire layout is unchanged
+(still version 3) but the coda bytes change, so earlier movements blobs will not
+open.
+
+- The **coda** (HMAC, domain `O`) now covers the header, movement count, every
+  ciphertext, **every cadence**, and the associated data.
+- `decrypt_movements` derives the cadence key (domain `D`) only after the coda
+  check passes, then verifies every cadence, then builds the `Schedule`.
+- `FEATURES` describes what the movements tags cover: theme `T`, cadence HMAC-D
+  over theme‖index‖ct, coda HMAC-O over header‖count‖ct‖cadences‖AD.
+- Tests pin the domain letters `T`/`D`/`O`/`W`/`I` with independent SHA-256
+  squeezes and independently recompute the cadence and coda HMACs. A cadence-only
+  edit is now caught by the coda.
+- Single-block `encrypt` / `decrypt` still produce and consume version-2 196-byte
+  blobs. Because the attested wrapper source changed, `EXPECTED_MIX_SHA256` and
+  `key_signature` changed, so previous movements / octavo007 tags no longer verify.
+
+- Live `sneak_n2.py` SHA-256: `48cf88aca92a7157b3a4522d1afb3437deddb7a41852a4b9cfadfa305ac0b559`.
+- `EXPECTED_MIX_SHA256`: `4e9a7ded574924fe9635e2b7b908ba7c5fa5c489062137203d3ce03341a06ee6`.
+- key_sig (demo seed): `d8a1358aae4116aaafcee90ec74a4d8e`.
+- hello-world pickup `c9a332594dfc60c3f16795a3cba3b16b`, nonce `eeb1b7f8afbc85008b1258efe3dc038d` (empty AD; see `hello-world.txt`).
+- See `movements-demo.txt` for a two-movement sample (188-byte plaintext, 392-byte blob, pickup `5e223cf6d0e24a0defccc9fb0bbf735a`).
+- Blob size (single-block): 196 bytes, version byte 2. Picture redrawn (`sneak-staff-n2.png`).
+
+## Previous revision — movements mode (2026-11-10)
 
 This section supersedes the outer-fix section below. The round function is
-unchanged from that revision (and from octavo007). Still N2 / SN2
+unchanged from that revision (and from octavo007). It is the movements-mode base
+that movements-polish above revises. Still N2 / SN2
 (project name: Octavo), still homemade, **not for real secrets** (use AES-GCM-SIV,
 age or libsodium). The picture was redrawn from the new hello-world sample.
 

@@ -1,15 +1,15 @@
 # Live tree note (not a freeze)
 
-Live `/workspace/sneak_n2` is the movements revision (2026-11-10)
-on top of the outer-fix / octavo007 tree. The round function is unchanged.
+Live `/workspace/sneak_n2` is the movements-polish revision (2026-11-10)
+on top of the movements / octavo007 tree. The round function is unchanged.
 The picture header is generated from live module metadata so a re-render stays current.
 This is not a frozen snapshot.
 
-- sneak_n2.py SHA-256: e5dd55e13eb0aa8df140f99aab514629477fbc60e48454bc7180243ed9692eff
-- EXPECTED_MIX_SHA256: f7049b7f4aede9ab1ecc778220c13e982dedd890becb4510d7f954d0b528bae2
-- key_sig (demo seed): 925d1cd5341a9126dfa731475ef8c4fb
-- hello-world pickup fdb720ab5f5641df76b480010d7e8b4e, nonce 65283ad51c8025a7cf369f44b2dac34c (empty AD)
-- Changes: encrypt_movements / decrypt_movements (format version 3, theme/cadence/coda); MAX_MOVEMENTS_MSG=1040384; single-block version 2 kept; attestation updated so key_sig changed; regenerate hello-world.txt and movements-demo.txt; redraw sneak-staff-n2.png.
+- sneak_n2.py SHA-256: 48cf88aca92a7157b3a4522d1afb3437deddb7a41852a4b9cfadfa305ac0b559
+- EXPECTED_MIX_SHA256: 4e9a7ded574924fe9635e2b7b908ba7c5fa5c489062137203d3ce03341a06ee6
+- key_sig (demo seed): d8a1358aae4116aaafcee90ec74a4d8e
+- hello-world pickup c9a332594dfc60c3f16795a3cba3b16b, nonce eeb1b7f8afbc85008b1258efe3dc038d (empty AD)
+- Changes: coda HMAC (domain O) also covers every cadence; decrypt_movements derives the cadence key (domain D) only after the coda check; FEATURES describes the movements tags; tests pin domains T/D/O/W/I and tag inputs; regenerate hello-world.txt and movements-demo.txt; redraw sneak-staff-n2.png.
 
 # octavo004 — frozen Octavo snapshot
 

@@ -33,11 +33,11 @@ CT0, CT1 = N0 + NONCE_LEN, N0 + NONCE_LEN + BLOCK_LEN          # ct = blob[36:16
 SEED_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sneak1024-seed.txt")
 # sha256(mix_description()) hex; used as the StaffSponge nonce for key_signature.
 # Excluded from attestation so this constant is not part of what it names (chicken-and-egg).
-EXPECTED_MIX_SHA256 = "f7049b7f4aede9ab1ecc778220c13e982dedd890becb4510d7f954d0b528bae2"
+EXPECTED_MIX_SHA256 = "4e9a7ded574924fe9635e2b7b908ba7c5fa5c489062137203d3ce03341a06ee6"
 
 # Picture / documentation metadata. Not part of the mix or tag; excluded from
 # attestation so a label or feature-list edit does not change key_sig or ciphertext.
-REVISION = "movements"
+REVISION = "movements-polish"
 REVISION_DATE = "2026-11-10"
 FEATURES = (
     "keyed SM4 S-boxes",
@@ -49,7 +49,7 @@ FEATURES = (
     "open 8-beat staffs",
     "SIV nonce from clef‖pickup‖msg‖AD",
     "HMAC tag over clef‖key_sig‖version‖SN2‖pickup‖nonce‖ct‖AD",
-    "movements (theme/cadence/coda)",
+    "movements: theme T; cadence HMAC-D over theme‖index‖ct; coda HMAC-O over header‖count‖ct‖cadences‖AD",
     "grid IS ciphertext",
 )
 WARNING_LINE = "NOT for real secrets — use AES-GCM-SIV, age, or libsodium"
@@ -833,17 +833,17 @@ def _cadence_tag(cad_key, pickup, nonce, index, final, theme, ct, clef, key_sig,
     return hmac.new(cad_key, clef + key_sig + bytes([FMT_MOVEMENTS]) + VERSION + pickup + nonce
                     + index.to_bytes(8, "big") + _final_flag(final) + theme + ct + _encode_ad(ad), hashlib.sha256).digest()
 
-def _coda_tag(coda_key, pickup, nonce, nmov, cts, clef, key_sig, ad: bytes = b""):
-    """Coda covers version, SN2, pickup, nonce, movement count, every ciphertext, and AD."""
+def _coda_tag(coda_key, pickup, nonce, nmov, cts, cadences, clef, key_sig, ad: bytes = b""):
+    """Coda covers version, SN2, pickup, nonce, movement count, every ciphertext, every cadence, and AD."""
     return hmac.new(coda_key, clef + key_sig + bytes([FMT_MOVEMENTS]) + VERSION + pickup + nonce
-                    + nmov.to_bytes(4, "big") + cts + _encode_ad(ad), hashlib.sha256).digest()
+                    + nmov.to_bytes(4, "big") + cts + cadences + _encode_ad(ad), hashlib.sha256).digest()
 
 def encrypt_movements(msg: bytes, seed=None, ad: bytes = b"", nonce: bytes = None) -> bytes:
     """blob = version(1)=3 || b"SN2" || pickup(16) || nonce(16) || nmov(4) || (ct(128)||cadence(32))*nmov || coda(32).
     pickup = _fresh_pickup(); nonce = siv_nonce_movements(msg, pickup, seed, ad).
     Each movement encrypts encode_block(chunk) XOR theme XOR tweak under one Schedule(seed, nonce).
     The theme is chained through ciphertext; each cadence authenticates that movement; the coda
-    authenticates the header, count, every ciphertext and the associated data.
+    authenticates the header, count, every ciphertext, every cadence and the associated data.
     msg and ad must be bytes-like; associated data longer than MAX_AD_LEN or a message longer
     than MAX_MOVEMENTS_MSG raises ValueError. A caller nonce must equal the synthetic one."""
     msg = _as_bytes("msg", msg); ad = _normalize_ad(ad)
@@ -861,6 +861,7 @@ def encrypt_movements(msg: bytes, seed=None, ad: bytes = b"", nonce: bytes = Non
     sch = Schedule(seed, nonce)
     parts = []
     cts = []
+    cadences = []
     for i, chunk in enumerate(chunks):
         final = (i == nmov - 1)
         tweak = _movement_tweak(seed, nonce, i, final)
@@ -870,15 +871,17 @@ def encrypt_movements(msg: bytes, seed=None, ad: bytes = b"", nonce: bytes = Non
         cadence = _cadence_tag(cad_key, pickup, nonce, i, final, theme, ct, clef, key_sig, ad)
         parts.append(ct + cadence)
         cts.append(ct)
+        cadences.append(cadence)
         theme = _theme_next(seed, theme, ct, i, final)
-    coda = _coda_tag(coda_key, pickup, nonce, nmov, b"".join(cts), clef, key_sig, ad)
+    coda = _coda_tag(coda_key, pickup, nonce, nmov, b"".join(cts), b"".join(cadences), clef, key_sig, ad)
     return bytes([FMT_MOVEMENTS]) + VERSION + pickup + nonce + nmov.to_bytes(4, "big") + b"".join(parts) + coda
 
 def decrypt_movements(blob: bytes, seed=None, ad: bytes = b"") -> bytes:
     """Format version is checked first, then length and movement count, then the coda and every
-    cadence (constant-time compares). On any mismatch: AuthError, no payload. The full round
-    Schedule is built only after every tag passes. blob and ad must be bytes-like; AD longer
-    than MAX_AD_LEN raises ValueError."""
+    cadence (constant-time compares). The cadence key is derived only after the coda check
+    passes. On any mismatch: AuthError, no payload. The full round Schedule is built only
+    after every tag passes. blob and ad must be bytes-like; AD longer than MAX_AD_LEN
+    raises ValueError."""
     blob = _as_bytes("blob", blob); ad = _normalize_ad(ad)
     if len(blob) < 1: raise AuthError("bad blob length")
     if blob[0] != FMT_MOVEMENTS: raise UnsupportedVersion("unsupported version")
@@ -898,10 +901,10 @@ def decrypt_movements(blob: bytes, seed=None, ad: bytes = b"") -> bytes:
         cts.append(body[off:off + BLOCK_LEN])
         cadences.append(body[off + BLOCK_LEN:off + MOVEMENT_STRIDE])
     clef = staff_clef(seed); key_sig = key_signature(seed)
-    cad_key = _cadence_key(seed, nonce)
     coda_key = _coda_key(seed, nonce)
-    if not hmac.compare_digest(coda, _coda_tag(coda_key, pickup, nonce, nmov, b"".join(cts), clef, key_sig, ad)):
+    if not hmac.compare_digest(coda, _coda_tag(coda_key, pickup, nonce, nmov, b"".join(cts), b"".join(cadences), clef, key_sig, ad)):
         raise AuthError("coda mismatch")
+    cad_key = _cadence_key(seed, nonce)
     theme = _theme_start(seed, nonce)
     cad_ok = True
     themes = []
