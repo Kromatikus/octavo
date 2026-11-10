@@ -6,19 +6,20 @@
 # OUTER seed (last 128) on the amber shell around the outer octahedron.
 import sys, math, os, re
 sys.dont_write_bytecode = True
-sys.path.insert(0,'/workspace/sneak_n2')
+HERE=os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0,HERE)
 from PIL import Image, ImageDraw, ImageFont
 import sneak_n2 as N
 KEY=N.load_seed()
-HW=open('/workspace/sneak_n2/hello-world.txt').read()
+HW=open(os.path.join(HERE,'hello-world.txt')).read()
 def _hx(label):
-    m=re.search(rf'{label}.*?: ([0-9a-f]+)', HW, re.I|re.S)
+    m=re.search(r'^' + label + r' \(.*?\): ([0-9a-f]+)', HW, re.I|re.M)
     if not m: raise SystemExit(f'missing {label} in hello-world.txt')
     return bytes.fromhex(m.group(1))
 pickup=_hx('pickup'); nonce=_hx('nonce'); ct=_hx('ciphertext'); tag=_hx('tag')
 assert len(pickup)==N.PICKUP_LEN and len(nonce)==N.NONCE_LEN and len(ct)==N.BLOCK_LEN and len(tag)==N.TAG_LEN
 assert nonce==N.siv_nonce(b'hello world', pickup, KEY)
-blob=N.VERSION+pickup+nonce+ct+tag
+blob=bytes([N.FMT_VERSION])+N.VERSION+pickup+nonce+ct+tag
 rec=N.decrypt(blob,KEY); assert rec==b'hello world'
 final=N.bytes_to_grid(ct); sch=N.Schedule(KEY,nonce)
 # round-0 shell bridges, aggregated to face pairs (inner f <-> outer 8+g), weight = number of bridged cells
@@ -329,4 +330,4 @@ parts=[('inner ',wine),(INNER_SEED.upper(),wine),(' | ',ink),(OUTER_SEED.upper()
 tw=sum(d.textlength(t_,font=seedcap) for t_,_ in parts); x_=(W-tw)/2; y_=H-340+4*48+4
 for t_,c_ in parts: d.text((x_,y_),t_,font=seedcap,fill=c_); x_+=d.textlength(t_,font=seedcap)
 print('seed shell extents:',[tuple(round(c) for c in P(tuple(RS*v for v in VX[k]))) for k in VX])
-img.convert('RGB').save('/workspace/sneak-staff-n2.png'); img.convert('RGB').save('/workspace/sneak_n2/sneak-staff-n2.png'); print('wrote',img.size)
+img.convert('RGB').save(os.path.join(HERE,'sneak-staff-n2.png')); print('wrote',img.size)
