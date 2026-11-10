@@ -237,7 +237,7 @@ pre-fix beat-6 witnesses, bow+rehair changed bytes per round table: [[4, 4, 4, 4
 PASS the 4 pre-fix beat-6 witnesses (3 all-table + REPORT mechanism example) now change >=2 bytes for all 16 rounds' tables
 PASS negative control: with pre-beat6 (4,5,6) strokes AND all-zero BOW_PRESSURE_ROT patched in, the 4 beat-6 witnesses are single-byte under all 16 tables
 PASS NumPy bow/rehair model equals live bow_pressure/odd_restack on 5,000 random staffs
-NumPy bow+rehair singleton scan (round-0 tables), cases per beat [4177920, 4177920, 4177920, 4177920, 4177920, 4177920, 16711680, 4177920], singletons [0, 0, 0, 0, 0, 0, 0, 0], 17.3s
+NumPy bow+rehair singleton scan (round-0 tables), cases per beat [4177920, 4177920, 4177920, 4177920, 4177920, 4177920, 16711680, 4177920], singletons [0, 0, 0, 0, 0, 0, 0, 0], 17.1s
 PASS beat-6 scan: 0 singletons in 16,711,680 beat-6 cases (65,536 random bases x 255 deltas; pre-fix layout gave ~19) and 0 on every other beat (4,177,920 each)
 PASS pre-beat6-fix 195-byte hello-world pickup ee95ddb2 fails as unsupported version, not DecodeError
 PASS pre-beat0rot 195-byte hello-world pickup d450337d fails as unsupported version, not DecodeError
@@ -294,12 +294,13 @@ bit avalanche  4 rounds: mean 511.3/1024, min 462, max 550
 bit avalanche 16 rounds: mean 511.9/1024, min 462, max 567
 PASS 4-round bit avalanche mean within 496..528 (of 1024)
 PASS 16-round bit avalanche mean within 500..524, min > 440
-ct byte chi2 over 2000 random messages (255 df, 99.9% crit 330.5): 253.7
+ct byte chi2 over 2000 random messages (255 df, 99.9% crit 330.5): 243.7
 PASS ct byte distribution uniform-ish (chi2 < 330.5)
+PASS sneak-staff-n2.json matches live sneak_n2.py SHA, key_sig, and hello-world pickup/nonce/tag
 baseline frozen-and-n1.sha256: 58 files
 PASS unchanged vs baseline frozen-and-n1.sha256
 baseline v2-v13-and-seed.sha256: 116 files
 PASS unchanged vs baseline v2-v13-and-seed.sha256
 PASS no files added/removed in test1/, test3/, test13/, testn1/, sneak_t1n/
 
-258/258 passed, 0 failed, 0 skipped
+259/259 passed, 0 failed, 0 skipped

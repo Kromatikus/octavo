@@ -1079,6 +1079,24 @@ for _ in range(2000):
 ex = sum(cnt) / 256; chi = sum((o - ex) ** 2 / ex for o in cnt); print(f"ct byte chi2 over 2000 random messages (255 df, 99.9% crit 330.5): {chi:.1f}")
 check("ct byte distribution uniform-ish (chi2 < 330.5)", chi < 330.5)
 
+# ---- picture header stays in sync with the live module and hello-world sample
+# render_n2.py writes sneak-staff-n2.json beside the PNG with the file SHA, key_sig,
+# and hello-world pickup/nonce/tag it was drawn from. This check fails if the
+# committed picture is stale relative to sneak_n2.py or hello-world.txt.
+_pic_json = os.path.join(HERE, "sneak-staff-n2.json")
+_pic_png = os.path.join(HERE, "sneak-staff-n2.png")
+if os.path.isfile(_pic_json) and os.path.isfile(_pic_png):
+    import json as _json
+    _meta = _json.load(open(_pic_json))
+    _live_sha = hashlib.sha256(open(os.path.join(HERE, "sneak_n2.py"), "rb").read()).hexdigest()
+    _live_sig = N.key_signature().hex()
+    check("sneak-staff-n2.json matches live sneak_n2.py SHA, key_sig, and hello-world pickup/nonce/tag",
+          _meta.get("file_sha256")==_live_sha and _meta.get("key_sig")==_live_sig
+          and _meta.get("pickup")==HW_PICKUP.hex() and _meta.get("nonce")==hw_field("nonce").hex()
+          and _meta.get("tag")==hw_field("tag").hex())
+else:
+    check("sneak-staff-n2.json and sneak-staff-n2.png are present beside the tests", False)
+
 # ---- frozen trees untouched (sha256 baselines taken before N2 was written)
 def sha_ok(listfile):
     r = subprocess.run(["sha256sum", "-c", "--quiet", listfile], cwd="/workspace", capture_output=True)

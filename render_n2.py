@@ -4,7 +4,7 @@
 # demo-nonce.txt, sneak_n2.py, tests, snapshots, or attacks_*.
 # Seed split: INNER seed (first 128 hex digits) on a wine shell hugging the inner octahedron;
 # OUTER seed (last 128) on the amber shell around the outer octahedron.
-import sys, math, os, re
+import sys, math, os, re, json, hashlib
 sys.dont_write_bytecode = True
 HERE=os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -311,13 +311,36 @@ bow_lines=[
 ]
 for j,bow_line in enumerate(bow_lines):
     d.text((tx0,gy1+68+4*34+8+j*32),bow_line,font=legf,fill=teal)
-# titles
-t='Octavo (sneak staff-core N2)  ·  8-bit cells  ·  pickup · clef & encore  ·  key signature'
-bb=d.textbbox((0,0),t,font=titf); d.text(((W-bb[2])/2,36),t,font=titf,fill=ink)
-t='keyed SM4-affine S-boxes · latin B0 + field bar pairs · six triplets · bow-pressure (beat-0 readers rotl 0/3/5) · latin odd restack · cross-staff mix · open 8-beat staffs · SIV nonce from clef‖pickup‖msg · HMAC tag over clef‖key_sig‖SN2‖pickup‖nonce‖ct · grid IS ciphertext'
-bb=d.textbbox((0,0),t,font=subf); d.text(((W-bb[2])/2,128),t,font=subf,fill=muted)
-warn='NOT for real secrets — use AES-GCM-SIV, age, or libsodium'
-bb=d.textbbox((0,0),warn,font=headf); d.text(((W-bb[2])/2,178),warn,font=headf,fill=red)
+# titles — built from live module metadata + FMT_VERSION, blob size, file SHA, key_sig, date
+_src_path=os.path.join(HERE,'sneak_n2.py')
+file_sha=hashlib.sha256(open(_src_path,'rb').read()).hexdigest()
+key_sig=N.key_signature().hex()
+def _centered(text, font, y, fill, label):
+    bb=d.textbbox((0,0),text,font=font)
+    if bb[2]-bb[0] > W-80:
+        raise SystemExit(f'{label} does not fit the header: width {bb[2]-bb[0]} > {W-80}')
+    d.text(((W-bb[2])/2,y),text,font=font,fill=fill)
+title=(f"Octavo (sneak staff-core N2)  ·  {N.REVISION}  ·  v{N.FMT_VERSION}  ·  "
+       f"{N.BLOB_LEN}-byte blob  ·  SHA {file_sha[:8]}…  ·  key_sig {key_sig[:8]}…  ·  {N.REVISION_DATE}")
+subtitle=" · ".join(N.FEATURES)
+warn=N.WARNING_LINE
+_centered(title,titf,36,ink,'title')
+_centered(subtitle,subf,128,muted,'feature subtitle')
+_centered(warn,headf,178,red,'warning')
+meta={
+    "file_sha256": file_sha,
+    "key_sig": key_sig,
+    "pickup": pickup.hex(),
+    "nonce": nonce.hex(),
+    "tag": tag.hex(),
+    "revision": N.REVISION,
+    "revision_date": N.REVISION_DATE,
+    "fmt_version": N.FMT_VERSION,
+    "blob_len": N.BLOB_LEN,
+    "title": title,
+    "subtitle": subtitle,
+    "warning": warn,
+}
 # footer
 footf=ImageFont.truetype(Fd+'DejaVuSans.ttf',30)
 lines=[
@@ -334,7 +357,12 @@ tw=sum(d.textlength(t_,font=seedcap) for t_,_ in parts); x_=(W-tw)/2; y_=H-340+4
 for t_,c_ in parts: d.text((x_,y_),t_,font=seedcap,fill=c_); x_+=d.textlength(t_,font=seedcap)
 print('seed shell extents:',[tuple(round(c) for c in P(tuple(RS*v for v in VX[k]))) for k in VX])
 png=os.path.join(HERE,'sneak-staff-n2.png')
+sidecar=os.path.join(HERE,'sneak-staff-n2.json')
 img.convert('RGB').save(png)
+open(sidecar,'w').write(json.dumps(meta, indent=2, sort_keys=True)+'\n')
 if os.path.isdir('/workspace'):
     img.convert('RGB').save('/workspace/sneak-staff-n2.png')
+    open('/workspace/sneak-staff-n2.json','w').write(json.dumps(meta, indent=2, sort_keys=True)+'\n')
 print('wrote', png, img.size)
+print('header:', title)
+print('wrote sidecar', sidecar)

@@ -1,0 +1,14 @@
+{
+  "blob_len": 196,
+  "file_sha256": "8f9b7aec51f9264a932c3db07e084cb97f1338e4a4a710646135a06628791bab",
+  "fmt_version": 2,
+  "key_sig": "f716aa939283e46ea7760717a22a7307",
+  "nonce": "6eff97c6129e9a14ba3d75dd4e119490",
+  "pickup": "25e3a20bca148ff3931e8c2eaef008b0",
+  "revision": "loose-ends",
+  "revision_date": "2026-11-10",
+  "subtitle": "keyed SM4-affine S-boxes \u00b7 latin B0 + field bar pairs \u00b7 six triplets \u00b7 bow-pressure (beat-0 readers rotl 0/3/5) \u00b7 latin odd restack \u00b7 cross-staff mix \u00b7 open 8-beat staffs \u00b7 SIV nonce from clef\u2016pickup\u2016msg \u00b7 HMAC tag over clef\u2016key_sig\u2016SN2\u2016pickup\u2016nonce\u2016ct \u00b7 grid IS ciphertext",
+  "tag": "863b731e5916fa692e54d65e342447c537733e6dfc989fe068c9185556bd8691",
+  "title": "Octavo (sneak staff-core N2)  \u00b7  loose-ends  \u00b7  v2  \u00b7  196-byte blob  \u00b7  SHA 8f9b7aec\u2026  \u00b7  key_sig f716aa93\u2026  \u00b7  2026-11-10",
+  "warning": "NOT for real secrets \u2014 use AES-GCM-SIV, age, or libsodium"
+}

@@ -29,6 +29,24 @@ SEED_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sneak1024-
 # Excluded from attestation so this constant is not part of what it names (chicken-and-egg).
 EXPECTED_MIX_SHA256 = "a368523b89b85d2e7bbfa2f0c0934086c1908b83fac55d68b79d356e1a00f1b1"
 
+# Picture / documentation metadata. Not part of the mix or tag; excluded from
+# attestation so a label or feature-list edit does not change key_sig or ciphertext.
+REVISION = "loose-ends"
+REVISION_DATE = "2026-11-10"
+FEATURES = (
+    "keyed SM4-affine S-boxes",
+    "latin B0 + field bar pairs",
+    "six triplets",
+    "bow-pressure (beat-0 readers rotl 0/3/5)",
+    "latin odd restack",
+    "cross-staff mix",
+    "open 8-beat staffs",
+    "SIV nonce from clef‖pickup‖msg",
+    "HMAC tag over clef‖key_sig‖SN2‖pickup‖nonce‖ct",
+    "grid IS ciphertext",
+)
+WARNING_LINE = "NOT for real secrets — use AES-GCM-SIV, age, or libsodium"
+
 # SM4 (SMS4) 8-bit S-box, GB/T 32907-2016 Fig./Table "S-box", as printed in draft-ribose-cfrg-sm4-10 sec. 6.2.3
 # (Tse, Wong, Saarinen, IRTF CFRG, 2018). Published DDT max 4/256 (2^-6), nonlinearity 112 (LAT max |bias| 16/256).
 # Note (honest): like every GF(2^8)-inversion-based S-box, SM4's is affine-equivalent to the inversion map.
@@ -489,10 +507,12 @@ def _referenced_globals(obj):
     return {n.id for n in ast.walk(tree) if isinstance(n, ast.Name)}
 
 # Runtime attestation helpers and path-dependent values. Not hashed: EXPECTED_MIX_SHA256
-# is the digest of the hash itself, and SEED_PATH is an absolute install location.
+# is the digest of the hash itself, SEED_PATH is an absolute install location, and
+# REVISION/REVISION_DATE/FEATURES/WARNING_LINE are picture-header metadata.
 _ATTEST_SKIP = frozenset({
     "EXPECTED_MIX_SHA256", "_MIX_SHA256", "_SOURCE_AVAILABLE", "_ATTEST_SKIP",
     "SEED_PATH",
+    "REVISION", "REVISION_DATE", "FEATURES", "WARNING_LINE",
 })
 
 def mix_code_closure(roots=None):
