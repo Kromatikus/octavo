@@ -1,4 +1,108 @@
-## Current live revision — tuning (2026-11-11)
+## Current live revision — tuning-fix (2026-11-11)
+
+Wrapper change only: the 16-round function, S-boxes, schedule, mixes, bow,
+rehair and cross-staff layers are unchanged from the tuning / etudes /
+movements-polish revisions. The same seed, nonce and input still produce
+the same ciphertext. Still homemade. **Not for real secrets.** Use
+AES-GCM-SIV, age or libsodium. The picture was redrawn from the new
+hello-world sample.
+
+### Tuning-fix (AD-bound key commitment, unified errors, legacy opt-in)
+
+A current blob can only ever open under one key, and confirming that key
+from a captured blob requires the associated data. The construction is:
+
+- `K_commit = StaffSponge(b"U", seed, 16 zero bytes).take(32)`
+  (seed-only, like the clef; domain letter `U` is unused elsewhere).
+- Single-block:
+  `commit = HMAC-SHA256(K_commit, b"U" || version || SN2 || pickup || nonce || encode_ad(ad))`
+- Movements:
+  `commit = HMAC-SHA256(K_commit, b"U" || version || SN2 || pickup || nonce || encode_ad(ad) || nmov32)`
+  The movement count is bound so a rewritten `nmov` fails the commitment
+  before the body is parsed. Ciphertext stays out, so a wrong key still
+  returns before a huge body is walked.
+- `decrypt` and `decrypt_movements` check the commitment with
+  `hmac.compare_digest` **first**, after the version and length checks and
+  before any tag, cadence, coda, MAC-key or `Schedule` work.
+- Commitment, tag, cadence and coda failures all raise
+  `AuthError("authentication failed")`. The exception type and message do
+  not distinguish a wrong key from wrong associated data. Structural
+  errors (bad length, bad version prefix, bad movement count) and
+  `UnsupportedVersion` keep their own messages.
+- The single-block tag is still
+  `HMAC-SHA256(mac_key, clef || key_sig || version || SN2 || pickup || nonce || commit || ct || encode_ad(ad))`.
+  Movements cadences and the coda likewise cover the commitment.
+
+### Formats
+
+- Single-block **version 6**, 228 bytes:
+  `version(1) || SN2(3) || pickup(16) || nonce(16) || commit(32) || ct(128) || tag(32)`.
+  Offsets: pickup `[4:20]`, nonce `[20:36]`, commit `[36:68]`,
+  ciphertext `[68:196]`, tag `[196:228]`.
+- Movements **version 7**:
+  `version(1) || SN2(3) || pickup(16) || nonce(16) || commit(32) || nmov(4) || (ct(128)||cadence(32))*nmov || coda(32)`.
+  `nmov` is at `[68:72]`; the header is 72 bytes.
+
+### Legacy and unpublished formats
+
+Default `decrypt()` / `decrypt_movements()` accept only versions 6 and 7.
+Everything else, including published version-2 / version-3 blobs and the
+unpublished tuning versions 4 and 5, raises `UnsupportedVersion`.
+
+`decrypt_legacy()` and `decrypt_movements_legacy()` are the transition
+helpers for published octavo009 v2/v3 samples. They have no commitment.
+Their tags bind the frozen octavo009 mix digest `LEGACY_MIX_SHA256 =
+4e9a7ded574924fe9635e2b7b908ba7c5fa5c489062137203d3ce03341a06ee6`
+(key_sig `d8a1358aae4116aaafcee90ec74a4d8e` on the demo seed). They are
+**not** key-committing and must not be used for new messages.
+
+Unpublished v4/v5 blobs are rejected by those helpers too. They were
+never frozen or pushed, and the new commitment input would not verify a
+v4/v5 commitment. Accepting them on the default path would leave a hole
+in the key-commitment story, which is why they are refused outright.
+
+### Études and the score
+
+Études also carry the AD-bound (and, for movements, nmov-bound)
+commitment and use new version bytes:
+
+- single-block: `0xA2` (2), `0xA4` (4), `0xA6` (6), `0xB0` (16)
+- movements: `0xA3` (2), `0xA5` (4), `0xA7` (6), `0xB1` (16)
+
+Pre-tuning étude bytes (`0xE2`/`0xE4`/`0xE6`/`0xF0` and
+`0xE3`/`0xE5`/`0xE7`/`0xF1`) open only through `Etude.decrypt_legacy()` /
+`decrypt_movements_legacy()`, with the frozen key_sig; they are not
+key-committing. Unpublished tuning étude bytes (`0xC2`/`0xC4`/`0xC6`/`0xD0`
+and `0xC3`/`0xC5`/`0xC7`/`0xD1`) are rejected. `decrypt` /
+`decrypt_movements` reject every étude version as `UnsupportedVersion`.
+The published score in `score/vectors.json` was regenerated (still 64
+vectors). A 16-round étude permutation, and the ciphertext of a 16-round
+étude with the same seed, pickup and message, remain byte-identical to
+the live full-round cipher. Commitments and tags differ because they
+bind the étude version byte (and now also AD / nmov).
+
+### FEATURES
+
+The picture-header strings now also say
+`tuning: HMAC-U commitment over version‖SN2‖pickup‖nonce‖AD (and nmov); checked first`.
+`REVISION` is `tuning-fix` (2026-11-11). Those labels remain in
+`_ATTEST_SKIP`. Because attested wrapper source, version numbers and the
+new public legacy helpers changed, `sha256(mix_description())`,
+`EXPECTED_MIX_SHA256` and `key_signature` moved. The round function
+did not.
+
+### Identifiers
+
+- Live `sneak_n2.py` SHA-256: `e845419417b9d9d157636d7863c26dcb605f99767d54a5e61f3c5df397b24221`
+- `EXPECTED_MIX_SHA256`: `947eb322addb5fd5177dd5fde4ca6e6593429088cbb009c26113154995f3d62b`
+- key_sig (demo seed): `37e14a077a546e12a40c8013e78e949b`
+- hello-world pickup `2b87dc4e184cd78e6c77b829273b17a3`, nonce `d4a86fc3847623035bbe3a19ceda33b1` (empty AD)
+- movements-demo (188-byte plaintext, 2 movements, 424-byte blob) pickup `ed535a481e4373d21f0b7d05272735ee`
+- Score: `score/vectors.json` (64 vectors, regenerated)
+
+---
+
+## Previous revision — tuning (2026-11-11)
 
 Wrapper change only: the 16-round function, S-boxes, schedule, mixes, bow,
 rehair and cross-staff layers are unchanged from the etudes / movements-polish

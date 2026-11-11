@@ -38,18 +38,21 @@ are in the JSON):
 
 These AEAD vectors are **étude blobs**. They use distinct format-version
 bytes so the normal `decrypt` / `decrypt_movements` APIs reject them,
-and they carry the same 32-byte tuning commitment as live v4/v5 blobs:
+and they carry the same 32-byte tuning commitment as live v6/v7 blobs
+(associated data, and nmov in movements, are bound in the commitment):
 
 | Rounds | Single-block | Movements |
 |--------|--------------|-----------|
-| 2      | `0xC2`       | `0xC3`    |
-| 4      | `0xC4`       | `0xC5`    |
-| 6      | `0xC6`       | `0xC7`    |
-| 16     | `0xD0`       | `0xD1`    |
+| 2      | `0xA2`       | `0xA3`    |
+| 4      | `0xA4`       | `0xA5`    |
+| 6      | `0xA6`       | `0xA7`    |
+| 16     | `0xB0`       | `0xB1`    |
 
 Pre-tuning étude bytes (`0xE2`/`0xE4`/`0xE6`/`0xF0` and
-`0xE3`/`0xE5`/`0xE7`/`0xF1`) still open through the lab API, with the
-frozen octavo009 key_sig; they are not key-committing.
+`0xE3`/`0xE5`/`0xE7`/`0xF1`) open only through `Etude.decrypt_legacy()` /
+`decrypt_movements_legacy()`, with the frozen octavo009 key_sig; they
+are not key-committing. Unpublished tuning étude bytes (`0xC2`…/`0xD1`)
+are rejected.
 
 2-, 4- and 6-round études are weakened on purpose, for cryptanalysis only.
 A 16-round étude is published so another implementation can check itself
@@ -63,5 +66,5 @@ fixed `pickup` so these vectors stay deterministic. Normal `encrypt` and
 `encrypt_movements` have no pickup argument and always run 16 rounds.
 
 Full-round live blobs (`hello-world.txt`, `movements-demo.txt`) are the
-samples for the ordinary version-4 and version-5 APIs, and also carry
-a tuning commitment.
+samples for the ordinary version-6 and version-7 APIs, and also carry
+an AD-bound (and, for movements, nmov-bound) tuning commitment.

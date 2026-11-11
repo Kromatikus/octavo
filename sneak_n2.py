@@ -18,15 +18,16 @@ are in score/vectors.json.
 import hashlib, hmac, os, json, inspect, ast, textwrap, types, time
 
 VERSION = b"SN2"                 # magic after the format-version byte; sponge domains stay b"SN2/"
-FMT_VERSION_V2 = 2              # legacy single-block (no tuning); still decryptable
-FMT_VERSION = 4                 # current single-block with tuning (key commitment)
+FMT_VERSION_V2 = 2              # legacy single-block (no tuning); decrypt_legacy() only
+FMT_VERSION_V4 = 4              # unpublished tuning revision (AD not in commitment); rejected
+FMT_VERSION = 6                 # current single-block: commitment binds associated data
 NF, NB, NR = 16, 8, 16            # faces, beats, rounds (16 rounds <-> 16 faces)
 CELL_BITS = 8                     # one byte per beat (was a 4-bit nibble)
 NONCE_LEN, BLOCK_LEN, TAG_LEN = 16, 128, 32
 PICKUP_LEN = 16                   # hardened anacrusis: sha256(SN2/P || urandom || time_ns || counter || pid)[:16]
 COMMIT_LEN = 32                 # HMAC-SHA256 tuning / key-commitment value
 COMMIT_DOMAIN = b"U"            # tUning; sponge domain and HMAC domain letter (not used elsewhere)
-# Current single-block layout (v4):
+# Current single-block layout (v6):
 #   version(1) || SN2(3) || pickup(16) || nonce(16) || commit(32) || ct(128) || tag(32)
 PK0, N0 = 1 + len(VERSION), 1 + len(VERSION) + PICKUP_LEN      # pickup = blob[4:20], nonce = blob[20:36]
 CM0, CM1 = N0 + NONCE_LEN, N0 + NONCE_LEN + COMMIT_LEN         # commit = blob[36:68]
@@ -37,29 +38,31 @@ V2_BLOB_LEN = 1 + len(VERSION) + PICKUP_LEN + NONCE_LEN + BLOCK_LEN + TAG_LEN   
 V2_CT0, V2_CT1 = N0 + NONCE_LEN, N0 + NONCE_LEN + BLOCK_LEN     # ct = blob[36:164], tag = blob[164:196]
 MAX_MSG = 127
 MAX_AD_LEN = 65536            # associated-data cap (bytes); encrypt and decrypt reject anything longer
-FMT_MOVEMENTS_V3 = 3          # legacy movements (no tuning); still decryptable
-FMT_MOVEMENTS = 5             # current movements with tuning; never confused with single-block version 4
+FMT_MOVEMENTS_V3 = 3          # legacy movements (no tuning); decrypt_movements_legacy() only
+FMT_MOVEMENTS_V5 = 5          # unpublished tuning revision (AD/nmov not in commitment); rejected
+FMT_MOVEMENTS = 7             # current movements: commitment binds AD and nmov; never confused with v6
 MAX_MOVEMENTS = 8192          # sane cap: 8192 x 127-byte payloads
 MAX_MOVEMENTS_MSG = MAX_MOVEMENTS * MAX_MSG   # 1_040_384 bytes
 MOVEMENT_STRIDE = BLOCK_LEN + TAG_LEN         # 160 = ct(128) || cadence(32)
-NMOV0 = CM1                     # v5 nmov starts after the commitment; blob[68:72]
+NMOV0 = CM1                     # v7 nmov starts after the commitment; blob[68:72]
 MOVEMENTS_HDR_LEN = NMOV0 + 4   # 72 = ver||SN2||pickup||nonce||commit||nmov
 V3_NMOV0 = N0 + NONCE_LEN       # 36
 V3_MOVEMENTS_HDR_LEN = 1 + len(VERSION) + PICKUP_LEN + NONCE_LEN + 4   # 40
-# Frozen octavo009 (etudes) mix digest. Used only to open legacy v2/v3 and
-# old-étude blobs, whose tags bind that revision's key_sig. The live mix
-# hash has since moved because the attested wrappers now include tuning.
+# Frozen octavo009 (etudes) mix digest. Used only by decrypt_legacy() /
+# decrypt_movements_legacy() and the matching étude helpers, whose tags bind
+# that revision's key_sig. The live mix hash has since moved because the
+# attested wrappers now bind AD (and nmov) in the commitment.
 LEGACY_MIX_SHA256 = "4e9a7ded574924fe9635e2b7b908ba7c5fa5c489062137203d3ce03341a06ee6"
 # Resolved next to this file so a clone works. The runtime absolute value is not attested
 # (see _ATTEST_SKIP); otherwise tags would depend on the install path.
 SEED_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sneak1024-seed.txt")
 # sha256(mix_description()) hex; used as the StaffSponge nonce for key_signature.
 # Excluded from attestation so this constant is not part of what it names (chicken-and-egg).
-EXPECTED_MIX_SHA256 = "edbf9b90d95640e1c2c0595a49a956f987356df5b0d1c2cf0750744e74b1e1b9"
+EXPECTED_MIX_SHA256 = "947eb322addb5fd5177dd5fde4ca6e6593429088cbb009c26113154995f3d62b"
 
 # Picture / documentation metadata. Not part of the mix or tag; excluded from
 # attestation so a label or feature-list edit does not change key_sig or ciphertext.
-REVISION = "tuning"
+REVISION = "tuning-fix"
 REVISION_DATE = "2026-11-11"
 FEATURES = (
     "keyed SM4 S-boxes",
@@ -72,7 +75,7 @@ FEATURES = (
     "SIV nonce from clef‖pickup‖msg‖AD",
     "HMAC tag over clef‖key_sig‖version‖SN2‖pickup‖nonce‖tuning‖ct‖AD",
     "movements: theme T; cadence HMAC-D over theme‖index‖ct; coda HMAC-O over header‖count‖ct‖cadences‖AD",
-    "tuning: HMAC-U commitment checked first",
+    "tuning: HMAC-U commitment over version‖SN2‖pickup‖nonce‖AD (and nmov); checked first",
     "grid IS ciphertext",
     "études 2/4/6 (lab only)",
 )
@@ -90,10 +93,18 @@ SM4_SBOX = bytes.fromhex(
     "79ee5f3ed7cb3948")
 assert len(SM4_SBOX) == 256 and len(set(SM4_SBOX)) == 256
 
-class AuthError(ValueError): """Tag mismatch / malformed blob. No payload is ever returned."""
+class AuthError(ValueError):
+    """Authentication or format failure. No payload is ever returned.
+
+    Commitment, tag, cadence and coda failures all raise AuthError with
+    the message "authentication failed", so the exception type and
+    message do not distinguish a wrong key from wrong associated data.
+    The commitment is still checked first. Structural errors (bad length,
+    bad version prefix, bad movement count) and UnsupportedVersion keep
+    their own messages.
+    """
 class DecodeError(ValueError): """Tag was valid but the decrypted block is not a well-formed encoding."""
 class UnsupportedVersion(AuthError): """Blob format version is not the one this revision speaks."""
-class CommitError(AuthError): """Key-commitment (tuning) mismatch. The blob was not sealed under this key."""
 
 # ---------------------------------------------------------------- seed
 def load_seed(path=None) -> bytes:
@@ -515,7 +526,7 @@ def unodd_restack(staff, SIa, SIb):
 # helpers defined in OTHER modules that a foreign replacement function calls, mutation of
 # objects inside a function's runtime state, code whose __code__ differs from the file
 # inspect reads, or an attacker who also patches inspect/mix_description consistently.
-MIX_CODE_ROOTS = ("encrypt", "decrypt", "siv_nonce", "key_signature", "split_blob", "mix_description", "encrypt_movements", "decrypt_movements", "siv_nonce_movements")
+MIX_CODE_ROOTS = ("encrypt", "decrypt", "siv_nonce", "key_signature", "split_blob", "mix_description", "encrypt_movements", "decrypt_movements", "siv_nonce_movements", "decrypt_legacy", "decrypt_movements_legacy")
 MIX_CODE_FUNCS = (
     "bar_mix", "bar_unmix", "triplet_mix", "triplet_unmix", "triplet_apply",
     "triplet_det", "triplet_inv", "bow_pressure", "unbow_pressure",
@@ -530,9 +541,10 @@ MIX_CODE_FUNCS = (
     "Schedule", "StaffSponge", "keyed_sbox", "mat_apply", "mat_invertible",
     "staff_clef", "siv_nonce", "_tag", "_encode_ad", "_as_bytes", "_normalize_ad", "_fresh_pickup", "encrypt", "decrypt", "split_blob",
     "key_signature", "mix_description", "mix_code_closure", "_referenced_globals", "_canon_data",
-    "_seed_bytes", "load_seed", "AuthError", "DecodeError", "UnsupportedVersion", "CommitError",
+    "_seed_bytes", "load_seed", "AuthError", "DecodeError", "UnsupportedVersion",
     "_commit_key", "_commitment", "_legacy_key_signature",
     "encrypt_movements", "decrypt_movements", "siv_nonce_movements",
+    "decrypt_legacy", "decrypt_movements_legacy",
     "_chunk_movements", "_xor_bytes", "_theme_start", "_theme_next", "_movement_tweak",
     "_cadence_key", "_coda_key", "_cadence_tag", "_coda_tag", "_final_flag",
     "_decrypt_legacy_v2", "_decrypt_legacy_v3",
@@ -772,11 +784,18 @@ def _commit_key(seed=None) -> bytes:
     before any nonce-derived MAC key or Schedule work."""
     return StaffSponge(COMMIT_DOMAIN, _seed_bytes(seed), bytes(NONCE_LEN)).take(32)
 
-def _commitment(commit_key, version, pickup, nonce) -> bytes:
-    """HMAC-SHA256(K_commit, b"U" || version || SN2 || pickup || nonce).
+def _commitment(commit_key, version, pickup, nonce, ad=b"", nmov=None) -> bytes:
+    """HMAC-SHA256(K_commit, b"U" || version || SN2 || pickup || nonce || encode_ad(ad) [|| nmov32]).
     The domain letter U is pinned in the HMAC input so this value cannot
-    be confused with the M/D/O tags. Binds the public header to the key."""
-    return hmac.new(commit_key, COMMIT_DOMAIN + bytes([version]) + VERSION + pickup + nonce, hashlib.sha256).digest()
+    be confused with the M/D/O tags. Associated data is bound so a captured
+    blob cannot confirm the key without AD. Movements also bind nmov
+    (4-byte big-endian count) so a rewritten movement count fails the
+    commitment before the body is parsed. Ciphertext is left to the tag
+    or coda, so a wrong key still returns before a huge body is walked."""
+    data = COMMIT_DOMAIN + bytes([version]) + VERSION + pickup + nonce + _encode_ad(ad)
+    if nmov is not None:
+        data += int(nmov).to_bytes(4, "big")
+    return hmac.new(commit_key, data, hashlib.sha256).digest()
 
 def _tag(mac_key, pickup, nonce, ct, clef, key_sig, ad: bytes = b"", version=None, commit: bytes = b""):
     if version is None:
@@ -784,8 +803,8 @@ def _tag(mac_key, pickup, nonce, ct, clef, key_sig, ad: bytes = b"", version=Non
     return hmac.new(mac_key, clef + key_sig + bytes([version]) + VERSION + pickup + nonce + commit + ct + _encode_ad(ad), hashlib.sha256).digest()
 
 def encrypt(msg: bytes, seed=None, nonce: bytes = None, ad: bytes = b"") -> bytes:
-    """blob = version(1)=4 || b"SN2" || pickup(16) || nonce(16) || commit(32) || ct(128) || HMAC-SHA256(mac_key, clef || key_sig || version || b"SN2" || pickup || nonce || commit || ct || encode_ad(ad)).
-    commit = HMAC-SHA256(K_commit, b"U" || version || b"SN2" || pickup || nonce), with K_commit = StaffSponge(b"U", seed, 16 zero bytes).take(32).
+    """blob = version(1)=6 || b"SN2" || pickup(16) || nonce(16) || commit(32) || ct(128) || HMAC-SHA256(mac_key, clef || key_sig || version || b"SN2" || pickup || nonce || commit || ct || encode_ad(ad)).
+    commit = HMAC-SHA256(K_commit, b"U" || version || b"SN2" || pickup || nonce || encode_ad(ad)), with K_commit = StaffSponge(b"U", seed, 16 zero bytes).take(32).
     pickup = _fresh_pickup() every call (no public pickup argument, by design);
     nonce = SHA-256(clef || pickup || encode_block(msg) || encode_ad(ad))[:16]; a caller nonce must equal it (ValueError otherwise).
     ad is authenticated and not stored in the blob; empty and omitted AD are the same.
@@ -799,37 +818,37 @@ def encrypt(msg: bytes, seed=None, nonce: bytes = None, ad: bytes = b"") -> byte
     nonce = syn
     sch = Schedule(seed, nonce)
     ct = grid_to_bytes(encrypt_grid(bytes_to_grid(block), sch))
-    commit = _commitment(_commit_key(seed), FMT_VERSION, pickup, nonce)
+    commit = _commitment(_commit_key(seed), FMT_VERSION, pickup, nonce, ad)
     tag = _tag(sch.mac_key, pickup, nonce, ct, clef, key_signature(seed), ad, version=FMT_VERSION, commit=commit)
     return bytes([FMT_VERSION]) + VERSION + pickup + nonce + commit + ct + tag
 
 def split_blob(blob: bytes):
-    """-> (version_prefix, pickup, nonce, commit, ct, tag) for a current (v4 / committed) single-block blob."""
+    """-> (version_prefix, pickup, nonce, commit, ct, tag) for a current (v6 / committed) single-block blob."""
     return blob[:PK0], blob[PK0:N0], blob[N0:CM0], blob[CM0:CM1], blob[CM1:CT1], blob[CT1:]
 
 def decrypt(blob: bytes, seed=None, ad: bytes = b"") -> bytes:
-    """Format version is checked first, then length. Current (v4) blobs check the
+    """Format version is checked first, then length. Current (v6) blobs check the
     tuning commitment in constant time next, before any tag or Schedule work.
-    Then the tag (constant-time compare). On any mismatch: AuthError (or
-    CommitError), no payload. Legacy v2 blobs are still accepted; they have
-    no commitment and are verified with the frozen octavo009 key_sig. They
-    are not key-committing.
+    Then the tag (constant-time compare). Commitment, tag, cadence and coda
+    failures all raise AuthError("authentication failed"); the type and
+    message do not distinguish a wrong key from wrong associated data.
+    Legacy v2 and unpublished v4 blobs are rejected as UnsupportedVersion.
+    Use decrypt_legacy() to open published octavo009 v2 blobs during the
+    transition; that path is not key-committing.
     The same associated data supplied to encrypt must be supplied here; it is not in the blob.
     blob and ad must be bytes-like; other types raise TypeError. AD longer than MAX_AD_LEN raises ValueError.
     The HMAC is verified from the MAC key alone; the full round Schedule is built only after the tag passes."""
     blob = _as_bytes("blob", blob); ad = _normalize_ad(ad)
     if len(blob) < 1: raise AuthError("bad blob length")
-    if blob[0] == FMT_VERSION_V2:
-        return _decrypt_legacy_v2(blob, seed, ad)
     if blob[0] != FMT_VERSION: raise UnsupportedVersion("unsupported version")
     if len(blob) != BLOB_LEN: raise AuthError("bad blob length")
     v, pickup, nonce, commit, ct, tag = split_blob(blob)
     if not hmac.compare_digest(v, bytes([FMT_VERSION]) + VERSION): raise AuthError("bad version prefix")
-    expected_commit = _commitment(_commit_key(seed), FMT_VERSION, pickup, nonce)
-    if not hmac.compare_digest(commit, expected_commit): raise CommitError("commitment mismatch")
+    expected_commit = _commitment(_commit_key(seed), FMT_VERSION, pickup, nonce, ad)
+    if not hmac.compare_digest(commit, expected_commit): raise AuthError("authentication failed")
     clef = staff_clef(seed)
     mac_key = StaffSponge(b"M", _seed_bytes(seed), nonce).take(32)
-    if not hmac.compare_digest(tag, _tag(mac_key, pickup, nonce, ct, clef, key_signature(seed), ad, version=FMT_VERSION, commit=commit)): raise AuthError("tag mismatch")
+    if not hmac.compare_digest(tag, _tag(mac_key, pickup, nonce, ct, clef, key_signature(seed), ad, version=FMT_VERSION, commit=commit)): raise AuthError("authentication failed")
     sch = Schedule(seed, nonce)
     b = grid_to_bytes(decrypt_grid(bytes_to_grid(ct), sch))
     L = b[0]                                   # secondary sanity check only; the MAC is the authenticity check
@@ -839,6 +858,20 @@ def decrypt(blob: bytes, seed=None, ad: bytes = b"") -> bytes:
         raise AuthError("SIV nonce mismatch")
     return msg
 
+def decrypt_legacy(blob: bytes, seed=None, ad: bytes = b"") -> bytes:
+    """Open a published format-version-2 single-block blob (octavo009 and earlier).
+
+    Transition helper only. Not key-committing: there is no tuning field,
+    and tags bind the frozen octavo009 key_sig. Default decrypt() rejects
+    these blobs with UnsupportedVersion. Do not use for new messages.
+    Unpublished v4 (tuning) blobs are also rejected.
+    """
+    blob = _as_bytes("blob", blob); ad = _normalize_ad(ad)
+    if len(blob) < 1: raise AuthError("bad blob length")
+    if blob[0] != FMT_VERSION_V2:
+        raise UnsupportedVersion("unsupported version")
+    return _decrypt_legacy_v2(blob, seed, ad)
+
 def _decrypt_legacy_v2(blob: bytes, seed, ad: bytes) -> bytes:
     """Open a format-version-2 single-block blob (no tuning). Tags bind the
     frozen octavo009 key_sig. Not key-committing. Same decode and SIV checks."""
@@ -847,7 +880,7 @@ def _decrypt_legacy_v2(blob: bytes, seed, ad: bytes) -> bytes:
     if not hmac.compare_digest(v, bytes([FMT_VERSION_V2]) + VERSION): raise AuthError("bad version prefix")
     clef = staff_clef(seed)
     mac_key = StaffSponge(b"M", _seed_bytes(seed), nonce).take(32)
-    if not hmac.compare_digest(tag, _tag(mac_key, pickup, nonce, ct, clef, _legacy_key_signature(seed), ad, version=FMT_VERSION_V2, commit=b"")): raise AuthError("tag mismatch")
+    if not hmac.compare_digest(tag, _tag(mac_key, pickup, nonce, ct, clef, _legacy_key_signature(seed), ad, version=FMT_VERSION_V2, commit=b"")): raise AuthError("authentication failed")
     sch = Schedule(seed, nonce)
     b = grid_to_bytes(decrypt_grid(bytes_to_grid(ct), sch))
     L = b[0]
@@ -858,7 +891,7 @@ def _decrypt_legacy_v2(blob: bytes, seed, ad: bytes) -> bytes:
     return msg
 
 
-# ---------------------------------------------------------------- movements mode (format version 5; legacy version 3 still decryptable)
+# ---------------------------------------------------------------- movements mode (format version 7; legacy v3 only via decrypt_movements_legacy)
 def _final_flag(final: bool) -> bytes:
     return b"\x01" if final else b"\x00"
 
@@ -919,9 +952,9 @@ def _coda_tag(coda_key, pickup, nonce, nmov, cts, cadences, clef, key_sig, ad: b
                     + nmov.to_bytes(4, "big") + cts + cadences + _encode_ad(ad), hashlib.sha256).digest()
 
 def encrypt_movements(msg: bytes, seed=None, ad: bytes = b"", nonce: bytes = None) -> bytes:
-    """blob = version(1)=5 || b"SN2" || pickup(16) || nonce(16) || commit(32) || nmov(4) || (ct(128)||cadence(32))*nmov || coda(32).
+    """blob = version(1)=7 || b"SN2" || pickup(16) || nonce(16) || commit(32) || nmov(4) || (ct(128)||cadence(32))*nmov || coda(32).
     pickup = _fresh_pickup(); nonce = siv_nonce_movements(msg, pickup, seed, ad).
-    commit = HMAC-SHA256(K_commit, b"U" || version || b"SN2" || pickup || nonce), same construction as single-block.
+    commit = HMAC-SHA256(K_commit, b"U" || version || b"SN2" || pickup || nonce || encode_ad(ad) || nmov32), binding AD and the movement count.
     Each movement encrypts encode_block(chunk) XOR theme XOR tweak under one Schedule(seed, nonce).
     The theme is chained through ciphertext; each cadence authenticates that movement; the coda
     authenticates the header, commitment, count, every ciphertext, every cadence and the associated data.
@@ -936,7 +969,7 @@ def encrypt_movements(msg: bytes, seed=None, ad: bytes = b"", nonce: bytes = Non
     if nonce is not None and not hmac.compare_digest(_as_bytes("nonce", nonce), syn):
         raise ValueError("nonce must be the synthetic (SIV) nonce for this message and pickup")
     nonce = syn
-    commit = _commitment(_commit_key(seed), FMT_MOVEMENTS, pickup, nonce)
+    commit = _commitment(_commit_key(seed), FMT_MOVEMENTS, pickup, nonce, ad, nmov=nmov)
     theme = _theme_start(seed, nonce)
     cad_key = _cadence_key(seed, nonce)
     coda_key = _coda_key(seed, nonce)
@@ -960,18 +993,19 @@ def encrypt_movements(msg: bytes, seed=None, ad: bytes = b"", nonce: bytes = Non
 
 def decrypt_movements(blob: bytes, seed=None, ad: bytes = b"") -> bytes:
     """Format version is checked first, then length and movement count. Current
-    (v5) blobs check the tuning commitment in constant time next, before any
+    (v7) blobs check the tuning commitment in constant time next, before any
     coda, cadence or Schedule work. Then the coda and every cadence
     (constant-time compares). The cadence key is derived only after the coda
-    check passes. On any mismatch: AuthError (or CommitError), no payload.
-    The full round Schedule is built only after every tag passes. Legacy v3
-    blobs are still accepted; they have no commitment and are verified with
-    the frozen octavo009 key_sig. They are not key-committing.
+    check passes. Commitment, tag, cadence and coda failures all raise
+    AuthError("authentication failed"); the type and message do not
+    distinguish a wrong key from wrong associated data. The full round
+    Schedule is built only after every tag passes. Legacy v3 and unpublished
+    v5 blobs are rejected as UnsupportedVersion. Use decrypt_movements_legacy()
+    to open published octavo009 v3 blobs during the transition; that path
+    is not key-committing.
     blob and ad must be bytes-like; AD longer than MAX_AD_LEN raises ValueError."""
     blob = _as_bytes("blob", blob); ad = _normalize_ad(ad)
     if len(blob) < 1: raise AuthError("bad blob length")
-    if blob[0] == FMT_MOVEMENTS_V3:
-        return _decrypt_legacy_v3(blob, seed, ad)
     if blob[0] != FMT_MOVEMENTS: raise UnsupportedVersion("unsupported version")
     if len(blob) < MOVEMENTS_HDR_LEN + MOVEMENT_STRIDE + TAG_LEN: raise AuthError("bad blob length")
     if blob[1:4] != VERSION: raise AuthError("bad version prefix")
@@ -982,8 +1016,8 @@ def decrypt_movements(blob: bytes, seed=None, ad: bytes = b"") -> bytes:
     if nmov < 1 or nmov > MAX_MOVEMENTS: raise AuthError("bad movement count")
     expected = MOVEMENTS_HDR_LEN + nmov * MOVEMENT_STRIDE + TAG_LEN
     if len(blob) != expected: raise AuthError("bad blob length")
-    if not hmac.compare_digest(commit, _commitment(_commit_key(seed), FMT_MOVEMENTS, pickup, nonce)):
-        raise CommitError("commitment mismatch")
+    if not hmac.compare_digest(commit, _commitment(_commit_key(seed), FMT_MOVEMENTS, pickup, nonce, ad, nmov=nmov)):
+        raise AuthError("authentication failed")
     body = blob[MOVEMENTS_HDR_LEN:-TAG_LEN]
     coda = blob[-TAG_LEN:]
     cts, cadences = [], []
@@ -994,7 +1028,7 @@ def decrypt_movements(blob: bytes, seed=None, ad: bytes = b"") -> bytes:
     clef = staff_clef(seed); key_sig = key_signature(seed)
     coda_key = _coda_key(seed, nonce)
     if not hmac.compare_digest(coda, _coda_tag(coda_key, pickup, nonce, nmov, b"".join(cts), b"".join(cadences), clef, key_sig, ad, version=FMT_MOVEMENTS, commit=commit)):
-        raise AuthError("coda mismatch")
+        raise AuthError("authentication failed")
     cad_key = _cadence_key(seed, nonce)
     theme = _theme_start(seed, nonce)
     cad_ok = True
@@ -1005,7 +1039,7 @@ def decrypt_movements(blob: bytes, seed=None, ad: bytes = b"") -> bytes:
         cad_ok = hmac.compare_digest(cadences[i], _cadence_tag(cad_key, pickup, nonce, i, final, theme, cts[i], clef, key_sig, ad, version=FMT_MOVEMENTS, commit=commit)) and cad_ok
         theme = _theme_next(seed, theme, cts[i], i, final)
     if not cad_ok:
-        raise AuthError("cadence mismatch")
+        raise AuthError("authentication failed")
     sch = Schedule(seed, nonce)
     pieces = []
     for i in range(nmov):
@@ -1020,6 +1054,20 @@ def decrypt_movements(blob: bytes, seed=None, ad: bytes = b"") -> bytes:
     if not hmac.compare_digest(nonce, hashlib.sha256(clef + pickup + len(msg).to_bytes(8, "big") + msg + _encode_ad(ad)).digest()[:NONCE_LEN]):
         raise AuthError("SIV nonce mismatch")
     return msg
+
+def decrypt_movements_legacy(blob: bytes, seed=None, ad: bytes = b"") -> bytes:
+    """Open a published format-version-3 movements blob (octavo009 and earlier).
+
+    Transition helper only. Not key-committing: there is no tuning field,
+    and tags bind the frozen octavo009 key_sig. Default decrypt_movements()
+    rejects these blobs with UnsupportedVersion. Do not use for new messages.
+    Unpublished v5 (tuning) blobs are also rejected.
+    """
+    blob = _as_bytes("blob", blob); ad = _normalize_ad(ad)
+    if len(blob) < 1: raise AuthError("bad blob length")
+    if blob[0] != FMT_MOVEMENTS_V3:
+        raise UnsupportedVersion("unsupported version")
+    return _decrypt_legacy_v3(blob, seed, ad)
 
 def _decrypt_legacy_v3(blob: bytes, seed, ad: bytes) -> bytes:
     """Open a format-version-3 movements blob (no tuning). Tags bind the
@@ -1042,7 +1090,7 @@ def _decrypt_legacy_v3(blob: bytes, seed, ad: bytes) -> bytes:
     clef = staff_clef(seed); key_sig = _legacy_key_signature(seed)
     coda_key = _coda_key(seed, nonce)
     if not hmac.compare_digest(coda, _coda_tag(coda_key, pickup, nonce, nmov, b"".join(cts), b"".join(cadences), clef, key_sig, ad, version=FMT_MOVEMENTS_V3, commit=b"")):
-        raise AuthError("coda mismatch")
+        raise AuthError("authentication failed")
     cad_key = _cadence_key(seed, nonce)
     theme = _theme_start(seed, nonce)
     cad_ok = True
@@ -1053,7 +1101,7 @@ def _decrypt_legacy_v3(blob: bytes, seed, ad: bytes) -> bytes:
         cad_ok = hmac.compare_digest(cadences[i], _cadence_tag(cad_key, pickup, nonce, i, final, theme, cts[i], clef, key_sig, ad, version=FMT_MOVEMENTS_V3, commit=b"")) and cad_ok
         theme = _theme_next(seed, theme, cts[i], i, final)
     if not cad_ok:
-        raise AuthError("cadence mismatch")
+        raise AuthError("authentication failed")
     sch = Schedule(seed, nonce)
     pieces = []
     for i in range(nmov):

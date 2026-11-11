@@ -165,7 +165,8 @@ def build_vectors() -> dict:
         "note": (
             "Étude blobs use distinct version bytes and cannot be opened by "
             "encrypt/decrypt or encrypt_movements/decrypt_movements. "
-            "Current étude blobs carry a tuning commitment (like live v4/v5). "
+            "Current étude blobs carry a tuning commitment (like live v6/v7), "
+            "binding encode_ad(ad) and, in movements, nmov. "
             "16-round permute and 16-round étude ciphertext match the live "
             "full-round cipher on the same seed, nonce and input; commitments and tags differ."
         ),

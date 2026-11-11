@@ -39,7 +39,7 @@ PRE_PICKUP_179 = optional_blob("/tmp/sneak_n2_pre_pickup/hello-world.txt")
 # ---- seed / format
 check("seed is the 1024-bit file (128 bytes), same parse as N1", len(SEED) == 128 and SEED.hex().startswith("62ba585f"))
 check("blob length 228 = 1 + 3 + 16 + 16 + 32 + 128 + 32", len(N.encrypt(b"hello world", SEED)) == 228 == N.BLOB_LEN == 1 + 3 + 16 + 16 + 32 + 128 + 32)
-check("blob starts with version byte 4 then b'SN2'", N.encrypt(b"x", SEED)[:4] == bytes([N.FMT_VERSION]) + b"SN2" == b"\x04SN2")
+check("blob starts with version byte 6 then b'SN2'", N.encrypt(b"x", SEED)[:4] == bytes([N.FMT_VERSION]) + b"SN2" == b"\x06SN2")
 # ---- packaging (relative seed, cached attestation, version byte, weak seeds)
 check("SEED_PATH is sneak1024-seed.txt next to the module",
       os.path.basename(N.SEED_PATH)=="sneak1024-seed.txt" and os.path.dirname(os.path.abspath(N.SEED_PATH))==os.path.abspath(HERE))
@@ -55,7 +55,7 @@ with tempfile.TemporaryDirectory(prefix="n2_noseed_") as _td:
           isinstance(_e, FileNotFoundError) and _alt.SEED_PATH==os.path.join(_td, "sneak1024-seed.txt"))
 check("embedded mix digest matches a fresh sha256(mix_description())",
       N.EXPECTED_MIX_SHA256==N._MIX_SHA256==hashlib.sha256(N.mix_description()).hexdigest() and N._SOURCE_AVAILABLE is True)
-check("FMT_VERSION is 4 and is authenticated in the tag; legacy v2 is 2", N.FMT_VERSION==4 and N.FMT_VERSION_V2==2)
+check("FMT_VERSION is 6 and is authenticated in the tag; legacy v2 is 2; unpublished v4 is 4", N.FMT_VERSION==6 and N.FMT_VERSION_V2==2 and N.FMT_VERSION_V4==4)
 old_style = b"SN2" + bytes(192)
 e_old = catch(lambda: N.decrypt(old_style, SEED))
 check("old 195-byte SN2 blob raises UnsupportedVersion before a tag check",
@@ -156,9 +156,9 @@ ad_msg, ad_ok, ad_bad = b"hello associated", b"from:alice", b"from:bob"
 ad_blob = N.encrypt(ad_msg, SEED, ad=ad_ok)
 check("AD round-trip: encrypt(..., ad=x) decrypts with the same ad", N.decrypt(ad_blob, SEED, ad=ad_ok) == ad_msg)
 e_wrong = catch(lambda: N.decrypt(ad_blob, SEED, ad=ad_bad))
-check("wrong AD fails the tag (AuthError tag mismatch)", isinstance(e_wrong, N.AuthError) and str(e_wrong)=="tag mismatch")
+check("wrong AD fails authentication with the unified AuthError message", isinstance(e_wrong, N.AuthError) and type(e_wrong) is N.AuthError and str(e_wrong)=="authentication failed")
 e_missing = catch(lambda: N.decrypt(ad_blob, SEED))
-check("missing AD fails the tag when the blob was sealed with nonempty AD", isinstance(e_missing, N.AuthError) and str(e_missing)=="tag mismatch")
+check("missing AD fails authentication when the blob was sealed with nonempty AD", isinstance(e_missing, N.AuthError) and type(e_missing) is N.AuthError and str(e_missing)=="authentication failed")
 empty_abs = N.encrypt(b"empty-vs-absent", SEED)
 empty_exp = N.encrypt(b"empty-vs-absent", SEED, ad=b"")
 check("empty versus absent AD behave the same (both decrypt with omitted or b'')",
@@ -174,7 +174,7 @@ check("length-prefix AD encoding is unambiguous: (ad='foo',msg='bar') != (ad='fo
       and N._encode_ad(b"ab") + N._encode_ad(b"c") != N._encode_ad(b"a") + N._encode_ad(b"bc")
       and N._encode_ad(b"") == (0).to_bytes(8, "big") and N._encode_ad(b"hi") == (2).to_bytes(8, "big") + b"hi"
       and N.decrypt(amb1, SEED, ad=b"foo") == b"bar" and N.decrypt(amb2, SEED, ad=b"foob") == b"ar"
-      and isinstance(e_amb, N.AuthError) and str(e_amb)=="tag mismatch")
+      and isinstance(e_amb, N.AuthError) and type(e_amb) is N.AuthError and str(e_amb)=="authentication failed")
 PRE_INFO = optional_blob("/tmp/sneak_n2_pre_infofix/hello-world.txt")
 if PRE_INFO is None:
     skip("octavo003 version-1 196-byte hello-world blob fails as unsupported version")
@@ -978,19 +978,19 @@ live_sig=N.key_signature(SEED); results={}
 def loosen_attest(src_text):
     return src_text.replace('EXPECTED_MIX_SHA256 = "'+N.EXPECTED_MIX_SHA256+'"', 'EXPECTED_MIX_SHA256 = "TO_BE_FILLED"', 1)
 with tempfile.TemporaryDirectory(prefix="n2_sig_gap_") as td:
-    for name in [n for n in N.MIX_CODE_FUNCS if n not in ("AuthError","DecodeError","UnsupportedVersion","CommitError")]:
+    for name in [n for n in N.MIX_CODE_FUNCS if n not in ("AuthError","DecodeError","UnsupportedVersion")]:
         path=os.path.join(td,"mod_"+name+".py"); open(path,"w").write(loosen_attest(modified_source(src,name)))
         alt=load("sig_gap_"+name,path)
         assert inspect.getsource(getattr(alt,name))!=inspect.getsource(getattr(N,name)), name
         ab=alt.encrypt(b"hello world", SEED)
         er=catch(lambda:N.decrypt(ab,SEED))
-        results[name]=(alt.key_signature(SEED)!=live_sig, isinstance(er,N.AuthError) and str(er)=="tag mismatch")
+        results[name]=(alt.key_signature(SEED)!=live_sig, isinstance(er,N.AuthError) and str(er)=="authentication failed")
     bad=[n for n,(a,b) in results.items() if not (a and b)]
-    print(f"modified-file revisions: {len(results)} functions/classes; key_sig changed AND live decrypt of alt blob -> tag mismatch for {len(results)-len(bad)}; failures {bad}")
+    print(f"modified-file revisions: {len(results)} functions/classes; key_sig changed AND live decrypt of alt blob -> authentication failed for {len(results)-len(bad)}; failures {bad}")
     for name in ("staff_mix","staff_unmix","shell_mix","shell_unmix","weave","unweave"):
-        check("modified file of "+name+": key_sig changes and its blob fails live with AuthError tag mismatch", results[name]==(True,True))
+        check("modified file of "+name+": key_sig changes and its blob fails live with AuthError authentication failed", results[name]==(True,True))
     check("modified file of EVERY covered function/class (all but the exception classes) changes key_sig and fails live on tag",
-          not bad and len(results)==len(N.MIX_CODE_FUNCS)-4)
+          not bad and len(results)==len(N.MIX_CODE_FUNCS)-3)
     # Identity staff_mix as its own revision (file copy), not an in-process patch.
     idsrc=loosen_attest(src).replace("def staff_mix(g, sigma):", "def staff_mix(g, sigma):\n    return [row[:] for row in g]\n    # ", 1)
     idpath=os.path.join(td,"identity_staff_mix_rev.py"); open(idpath,"w").write(idsrc)
@@ -999,7 +999,7 @@ with tempfile.TemporaryDirectory(prefix="n2_sig_gap_") as td:
     er3=catch(lambda:N.decrypt(blob3,SEED))
     print("identity staff_mix revision: key_sig same as live:",ident.key_signature(SEED)==live_sig,"; tampered blob on live:",repr(er3))
     check("identity staff_mix file revision: key_sig differs and its blob fails live on TAG",
-          ident.key_signature(SEED)!=live_sig and isinstance(er3,N.AuthError) and str(er3)=="tag mismatch")
+          ident.key_signature(SEED)!=live_sig and isinstance(er3,N.AuthError) and str(er3)=="authentication failed")
     # A replacement that calls a NEW module-level helper: the helper is followed by the live closure walk.
     hp=os.path.join(td,"helper_a.py"); open(hp,"w").write("def staff_mix(g,sigma):return _extra(g)\ndef _extra(g):return [row[:] for row in g]\n")
     hq=os.path.join(td,"helper_b.py"); open(hq,"w").write("def _extra(g):return [row[::-1] for row in g]\n")
@@ -1034,10 +1034,10 @@ with tempfile.TemporaryDirectory(prefix="n2_code_patch_") as td:
     open(patchpath,"w").write(patched_src)
     alt=load("skip_b0_code",patchpath)
     ab=alt.encrypt(b"hello world",SEED); er=catch(lambda:N.decrypt(ab,SEED))
-    check("copied bar_mix skips B0, BARS identical: key_sig changes; alternate roundtrip; live tag mismatch",
+    check("copied bar_mix skips B0, BARS identical: key_sig changes; alternate roundtrip; live authentication failed",
           alt.BARS==N.BARS and inspect.getsource(alt.bar_mix)!=inspect.getsource(N.bar_mix)
           and alt.mix_description()!=N.mix_description() and alt.key_signature(SEED)!=N.key_signature(SEED)
-          and alt.decrypt(ab,SEED)==b"hello world" and isinstance(er,N.AuthError) and str(er)=="tag mismatch")
+          and alt.decrypt(ab,SEED)==b"hello world" and isinstance(er,N.AuthError) and str(er)=="authentication failed")
     desc0=N.mix_description()
     with patch.object(N,"bar_mix",alt.bar_mix):
         check("runtime replacing bar_mix object changes mix_description without editing BARS (key_sig stays cached)",
@@ -1272,7 +1272,7 @@ try:
 finally:
     N.Schedule.__init__ = _orig_sch
 check("bad tag is rejected without building Schedule; a valid blob still builds Schedule then decrypts",
-      isinstance(_e_bad, N.AuthError) and str(_e_bad) == "tag mismatch"
+      isinstance(_e_bad, N.AuthError) and type(_e_bad) is N.AuthError and str(_e_bad) == "authentication failed"
       and _n_bad == [] and _n_good == ["Schedule"] and _ok == b"hello world")
 
 check("FEATURES mention the version byte and AD in the HMAC description, and AD in the SIV nonce",
@@ -1282,12 +1282,13 @@ check("FEATURES mention the version byte and AD in the HMAC description, and AD 
       and any("études" in f and "lab only" in f for f in N.FEATURES)
       and any("tuning" in f and "HMAC-U" in f and "commitment" in f for f in N.FEATURES)
       and any("tuning" in f and "HMAC" in f for f in N.FEATURES)
-      and N.REVISION == "tuning" and N.REVISION_DATE == "2026-11-11")
+      and N.REVISION == "tuning-fix" and N.REVISION_DATE == "2026-11-11")
 
-# ---- movements mode (format version 5; legacy version 3 still decryptable)
-check("FMT_MOVEMENTS is 5, distinct from single-block version 4, and the header/stride sizes match the layout",
-      N.FMT_MOVEMENTS == 5 and N.FMT_VERSION == 4
+# ---- movements mode (format version 7; legacy version 3 only via decrypt_movements_legacy)
+check("FMT_MOVEMENTS is 7, distinct from single-block version 6, and the header/stride sizes match the layout",
+      N.FMT_MOVEMENTS == 7 and N.FMT_VERSION == 6
       and N.FMT_MOVEMENTS_V3 == 3 and N.FMT_VERSION_V2 == 2
+      and N.FMT_MOVEMENTS_V5 == 5 and N.FMT_VERSION_V4 == 4
       and N.MAX_MOVEMENTS == 8192 and N.MAX_MOVEMENTS_MSG == 8192 * 127
       and N.MOVEMENT_STRIDE == 160 and N.MOVEMENTS_HDR_LEN == 72 and N.NMOV0 == 68
       and N.COMMIT_LEN == 32 and N.COMMIT_DOMAIN == b"U")
@@ -1301,7 +1302,7 @@ for _L in _mv_lens:
     _mv_n[_L] = _n
     _exp_n = 1 if _L == 0 else (_L + 126) // 127
     _exp_len = N.MOVEMENTS_HDR_LEN + _exp_n * N.MOVEMENT_STRIDE + N.TAG_LEN
-    if not (_b[:4] == b"\x05SN2" and _n == _exp_n and len(_b) == _exp_len and N.decrypt_movements(_b, SEED) == _m):
+    if not (_b[:4] == bytes([N.FMT_MOVEMENTS]) + b"SN2" and _n == _exp_n and len(_b) == _exp_len and N.decrypt_movements(_b, SEED) == _m):
         _mv_ok = False
 check("movements round-trip lengths 0,1,126,127,128,129,253,254,255,256,381,400 with expected movement counts",
       _mv_ok and _mv_n[0] == _mv_n[1] == _mv_n[127] == 1 and _mv_n[128] == _mv_n[254] == 2 and _mv_n[255] == 3)
@@ -1329,7 +1330,7 @@ check("movements wrong seed, wrong AD, and empty-vs-absent AD mismatch fail clos
       and isinstance(catch(lambda: N.decrypt_movements(_mv_ad_blob, SEED, ad=b"from:balcony")), N.AuthError)
       and isinstance(catch(lambda: N.decrypt_movements(_mv_ad_blob, SEED)), N.AuthError)
       and isinstance(catch(lambda: N.decrypt_movements(_mv_ad_blob, SEED, ad=b"")), N.AuthError))
-check("version confusion: decrypt rejects a movements blob; decrypt_movements rejects a version-4 blob",
+check("version confusion: decrypt rejects a movements blob; decrypt_movements rejects a version-6 blob",
       isinstance(catch(lambda: N.decrypt(_mv_ad_blob, SEED, ad=_mv_ad)), N.UnsupportedVersion)
       and isinstance(catch(lambda: N.decrypt_movements(HW_BLOB, SEED)), N.UnsupportedVersion)
       and str(catch(lambda: N.decrypt(_mv_ad_blob, SEED, ad=_mv_ad))) == "unsupported version"
@@ -1419,12 +1420,12 @@ finally:
     N.Schedule.__init__ = _orig_mv_sch
     N._cadence_key = _orig_cadkey
 check("movements: bad coda or cadence is rejected without building Schedule; a valid blob still builds Schedule then decrypts",
-      isinstance(_e_coda, N.AuthError) and str(_e_coda) == "coda mismatch"
-      and isinstance(_e_cad, N.AuthError) and str(_e_cad) == "coda mismatch"
+      isinstance(_e_coda, N.AuthError) and type(_e_coda) is N.AuthError and str(_e_coda) == "authentication failed"
+      and isinstance(_e_cad, N.AuthError) and type(_e_cad) is N.AuthError and str(_e_cad) == "authentication failed"
       and _n_coda == [] and _n_cad == [] and _n_ok == ["Schedule"]
       and _ok_mv == b"cadence check " * 12)
 check("movements: cadence-only edit is caught by the coda, and the cadence key is derived only after the coda passes",
-      str(_e_cad) == "coda mismatch" and _k_coda == [] and _k_cad == [] and _k_ok == ["cadence_key"])
+      str(_e_cad) == "authentication failed" and _k_coda == [] and _k_cad == [] and _k_ok == ["cadence_key"])
 
 # ---- movements tag domains and authenticated inputs (independent of attestation hashing)
 def _sponge_take(domain, seed, nonce, n):
@@ -1539,12 +1540,12 @@ if os.path.isfile(_mv_demo):
             _mv_demo_plain = bytes.fromhex(_line.split()[-1])
     check("movements-demo.txt decrypts to its recorded plaintext",
           _mv_demo_blob is not None and _mv_demo_plain is not None
-          and _mv_demo_blob[:4] == b"\x05SN2"
+          and _mv_demo_blob[:4] == bytes([N.FMT_MOVEMENTS]) + b"SN2"
           and N.decrypt_movements(_mv_demo_blob, SEED) == _mv_demo_plain)
 else:
     check("movements-demo.txt is present beside the tests", False)
 
-# ---- tuning (key commitment)
+# ---- tuning-fix (key commitment binds AD and nmov; unified auth error; legacy rejected)
 _SEED_B = bytes(range(16, 144))  # 128 distinct bytes, 127 nonzero; a second valid key
 assert len(set(b for b in _SEED_B if b)) >= 32
 _blob_a = N.encrypt(b"tuning probe", SEED)
@@ -1552,14 +1553,16 @@ _blob_b = N.encrypt(b"tuning probe", _SEED_B)
 _va, _pka, _nna, _cma, _cta, _tga = N.split_blob(_blob_a)
 _vb, _pkb, _nnb, _cmb, _ctb, _tgb = N.split_blob(_blob_b)
 _e_wrong_key = catch(lambda: N.decrypt(_blob_a, _SEED_B))
-check("a blob made under key A fails under key B with CommitError, not tag mismatch",
-      isinstance(_e_wrong_key, N.CommitError) and str(_e_wrong_key) == "commitment mismatch"
-      and issubclass(N.CommitError, N.AuthError))
+check("a blob made under key A fails under key B with the unified AuthError",
+      isinstance(_e_wrong_key, N.AuthError) and type(_e_wrong_key) is N.AuthError
+      and str(_e_wrong_key) == "authentication failed"
+      and not hasattr(N, "CommitError"))
 check("commitments and tags differ across keys for the same message (no two-key blob by construction)",
       _cma != _cmb and _tga != _tgb
       and N._commitment(N._commit_key(SEED), N.FMT_VERSION, _pka, _nna) == _cma
       and N._commitment(N._commit_key(_SEED_B), N.FMT_VERSION, _pka, _nna) != _cma
-      and isinstance(catch(lambda: N.decrypt(_blob_b, SEED)), N.CommitError))
+      and isinstance(catch(lambda: N.decrypt(_blob_b, SEED)), N.AuthError)
+      and str(catch(lambda: N.decrypt(_blob_b, SEED))) == "authentication failed")
 # commitment checked first: flip a commit bit, and also try a wrong key, without building Schedule
 _seen_tune, _seen_mac = [], []
 _orig_sch_t = N.Schedule.__init__
@@ -1586,21 +1589,73 @@ try:
 finally:
     N.Schedule.__init__ = _orig_sch_t
     N.StaffSponge.__init__ = _orig_sponge
-check("commitment bit flips raise CommitError before any tag check or Schedule work",
-      isinstance(_e_cm, N.CommitError) and str(_e_cm) == "commitment mismatch"
+check("commitment bit flips raise AuthError before any tag check or Schedule work",
+      isinstance(_e_cm, N.AuthError) and type(_e_cm) is N.AuthError and str(_e_cm) == "authentication failed"
       and _n_cm == [] and "M" not in _m_cm
-      and isinstance(_e_kb, N.CommitError) and _n_kb == [] and "M" not in _m_kb
+      and isinstance(_e_kb, N.AuthError) and str(_e_kb) == "authentication failed" and _n_kb == [] and "M" not in _m_kb
       and _ok_t == b"tuning probe" and _n_okt == ["Schedule"] and "M" in _m_okt)
 _ind_ck = hashlib.sha256(b"SN2/" + b"U" + (0).to_bytes(4, "big") + SEED + bytes(16)).digest()[:32]
 # StaffSponge may squeeze more than 32 if take asks 32 of first block (32 from one sha256) — first block is exactly 32
-_ind_cm = __import__("hmac").new(_ind_ck, b"U" + bytes([N.FMT_VERSION]) + b"SN2" + _pka + _nna, hashlib.sha256).digest()
-_wrong_dom = __import__("hmac").new(_ind_ck, b"C" + bytes([N.FMT_VERSION]) + b"SN2" + _pka + _nna, hashlib.sha256).digest()
-check("tuning domain letter U is pinned: independent SHA-256/HMAC match; a different domain letter does not",
+_ind_cm = __import__("hmac").new(_ind_ck, b"U" + bytes([N.FMT_VERSION]) + b"SN2" + _pka + _nna + N._encode_ad(b""), hashlib.sha256).digest()
+_wrong_dom = __import__("hmac").new(_ind_ck, b"C" + bytes([N.FMT_VERSION]) + b"SN2" + _pka + _nna + N._encode_ad(b""), hashlib.sha256).digest()
+_no_ad = __import__("hmac").new(_ind_ck, b"U" + bytes([N.FMT_VERSION]) + b"SN2" + _pka + _nna, hashlib.sha256).digest()
+check("tuning domain letter U is pinned and encode_ad is in the commitment HMAC",
       N.COMMIT_DOMAIN == b"U" and N._commit_key(SEED) == _ind_ck and _cma == _ind_cm != _wrong_dom
+      and _ind_cm != _no_ad
       and "StaffSponge(COMMIT_DOMAIN" in inspect.getsource(N._commit_key)
-      and "COMMIT_DOMAIN +" in inspect.getsource(N._commitment))
-# legacy v2/v3 from the pre-tuning backup still open
-_pre_tune = "/tmp/sneak_n2_pre_tuning"
+      and "COMMIT_DOMAIN +" in inspect.getsource(N._commitment)
+      and "_encode_ad(ad)" in inspect.getsource(N._commitment))
+
+# AD is bound in the commitment: same pickup/nonce, different AD => different commitment
+_cm_alice = N._commitment(N._commit_key(SEED), N.FMT_VERSION, _pka, _nna, b"from:alice")
+_cm_bob = N._commitment(N._commit_key(SEED), N.FMT_VERSION, _pka, _nna, b"from:bob")
+_ad_cm = N.encrypt(b"tuning ad", SEED, ad=b"from:alice")
+_ad_pk, _ad_nn, _ad_c = _ad_cm[4:20], _ad_cm[20:36], _ad_cm[36:68]
+_e_ad_cm = catch(lambda: N.decrypt(_ad_cm, SEED, ad=b"from:bob"))
+_e_ad_key = catch(lambda: N.decrypt(_ad_cm, _SEED_B, ad=b"from:alice"))
+check("associated data is bound in the commitment, so a different AD changes it",
+      _cm_alice != _cm_bob
+      and N._commitment(N._commit_key(SEED), N.FMT_VERSION, _ad_pk, _ad_nn, b"from:alice") == _ad_c
+      and N._commitment(N._commit_key(SEED), N.FMT_VERSION, _ad_pk, _ad_nn, b"from:bob") != _ad_c
+      and N.decrypt(_ad_cm, SEED, ad=b"from:alice") == b"tuning ad")
+check("wrong key and wrong AD raise the identical AuthError type and message",
+      type(_e_wrong_key) is type(_e_ad_cm) is type(_e_ad_key) is N.AuthError
+      and str(_e_wrong_key) == str(_e_ad_cm) == str(_e_ad_key) == "authentication failed")
+# wrong AD also fails at the commitment, before Schedule / MAC-key work
+_seen_tune, _seen_mac = [], []
+N.Schedule.__init__ = _sch_probe_t
+N.StaffSponge.__init__ = _sponge_probe
+try:
+    _seen_tune.clear(); _seen_mac.clear()
+    _e_ad_early = catch(lambda: N.decrypt(_ad_cm, SEED, ad=b"from:bob"))
+    _n_ad, _m_ad = list(_seen_tune), list(_seen_mac)
+finally:
+    N.Schedule.__init__ = _orig_sch_t
+    N.StaffSponge.__init__ = _orig_sponge
+check("wrong AD fails the commitment first (no Schedule, no MAC-key domain M)",
+      isinstance(_e_ad_early, N.AuthError) and str(_e_ad_early) == "authentication failed"
+      and _n_ad == [] and "M" not in _m_ad)
+
+# movements commitment binds nmov as well as AD
+_mv_cm_blob = N.encrypt_movements(b"tuning movements " * 8, SEED)
+_e_mv_key = catch(lambda: N.decrypt_movements(_mv_cm_blob, _SEED_B))
+_mv_flip = bytearray(_mv_cm_blob); _mv_flip[N.CM0] ^= 1
+_e_mv_flip = catch(lambda: N.decrypt_movements(bytes(_mv_flip), SEED))
+_mv_n = int.from_bytes(_mv_cm_blob[N.NMOV0:N.MOVEMENTS_HDR_LEN], "big")
+_mv_pk, _mv_nn, _mv_c = _mv_cm_blob[4:20], _mv_cm_blob[20:36], _mv_cm_blob[36:68]
+check("movements: wrong key and commitment bit flips raise unified AuthError before coda/cadence work",
+      isinstance(_e_mv_key, N.AuthError) and type(_e_mv_key) is N.AuthError and str(_e_mv_key) == "authentication failed"
+      and isinstance(_e_mv_flip, N.AuthError) and str(_e_mv_flip) == "authentication failed"
+      and N.decrypt_movements(_mv_cm_blob, SEED) == b"tuning movements " * 8)
+check("movements commitment binds nmov: the recorded count matches, a different count does not",
+      N._commitment(N._commit_key(SEED), N.FMT_MOVEMENTS, _mv_pk, _mv_nn, b"", nmov=_mv_n) == _mv_c
+      and N._commitment(N._commit_key(SEED), N.FMT_MOVEMENTS, _mv_pk, _mv_nn, b"", nmov=_mv_n - 1) != _mv_c
+      and N._commitment(N._commit_key(SEED), N.FMT_MOVEMENTS, _mv_pk, _mv_nn, b"") != _mv_c)
+
+# default decrypt rejects published v2/v3; named legacy helpers still open them
+_pre_tune = "/workspace/octavo009"
+if not os.path.isdir(_pre_tune):
+    _pre_tune = "/tmp/sneak_n2_pre_tuning"
 _pre_hw = optional_blob(os.path.join(_pre_tune, "hello-world.txt"))
 _pre_mv = optional_blob(os.path.join(_pre_tune, "movements-demo.txt"))
 _pre_mv_plain = None
@@ -1611,32 +1666,43 @@ try:
 except FileNotFoundError:
     pass
 if _pre_hw is None:
-    skip("legacy octavo009 version-2 hello-world blob still decrypts")
+    skip("legacy octavo009 version-2 hello-world blob is rejected by default and opens via decrypt_legacy")
 else:
-    check("legacy octavo009 version-2 hello-world blob still decrypts (no commitment; frozen key_sig)",
+    _e_v2_def = catch(lambda: N.decrypt(_pre_hw, SEED))
+    check("legacy octavo009 version-2 hello-world is rejected by decrypt() and opens via decrypt_legacy()",
           len(_pre_hw) == 196 and _pre_hw[0] == 2
-          and N.decrypt(_pre_hw, SEED) == b"hello world"
+          and isinstance(_e_v2_def, N.UnsupportedVersion) and str(_e_v2_def) == "unsupported version"
+          and N.decrypt_legacy(_pre_hw, SEED) == b"hello world"
           and N._legacy_key_signature(SEED).hex() == "d8a1358aae4116aaafcee90ec74a4d8e")
 if _pre_mv is None or _pre_mv_plain is None:
-    skip("legacy octavo009 version-3 movements-demo blob still decrypts")
+    skip("legacy octavo009 version-3 movements-demo is rejected by default and opens via decrypt_movements_legacy")
 else:
-    check("legacy octavo009 version-3 movements-demo blob still decrypts (no commitment; frozen key_sig)",
-          _pre_mv[0] == 3 and N.decrypt_movements(_pre_mv, SEED) == _pre_mv_plain)
-# movements commitment
-_mv_cm_blob = N.encrypt_movements(b"tuning movements " * 8, SEED)
-_e_mv_key = catch(lambda: N.decrypt_movements(_mv_cm_blob, _SEED_B))
-_mv_flip = bytearray(_mv_cm_blob); _mv_flip[N.CM0] ^= 1
-_e_mv_flip = catch(lambda: N.decrypt_movements(bytes(_mv_flip), SEED))
-check("movements: wrong key and commitment bit flips raise CommitError before coda/cadence work",
-      isinstance(_e_mv_key, N.CommitError) and str(_e_mv_key) == "commitment mismatch"
-      and isinstance(_e_mv_flip, N.CommitError) and str(_e_mv_flip) == "commitment mismatch"
-      and N.decrypt_movements(_mv_cm_blob, SEED) == b"tuning movements " * 8)
-# wrong AD still fails the tag, not the commitment
-_ad_cm = N.encrypt(b"tuning ad", SEED, ad=b"from:alice")
-_e_ad_cm = catch(lambda: N.decrypt(_ad_cm, SEED, ad=b"from:bob"))
-check("wrong AD still fails the tag after a passing commitment check",
-      isinstance(_e_ad_cm, N.AuthError) and not isinstance(_e_ad_cm, N.CommitError)
-      and str(_e_ad_cm) == "tag mismatch")
+    _e_v3_def = catch(lambda: N.decrypt_movements(_pre_mv, SEED))
+    check("legacy octavo009 version-3 movements-demo is rejected by decrypt_movements() and opens via decrypt_movements_legacy()",
+          _pre_mv[0] == 3
+          and isinstance(_e_v3_def, N.UnsupportedVersion) and str(_e_v3_def) == "unsupported version"
+          and N.decrypt_movements_legacy(_pre_mv, SEED) == _pre_mv_plain)
+
+# unpublished tuning v4/v5 blobs (never pushed) are rejected outright, including by the legacy helpers
+_pre_fix = "/tmp/sneak_n2_pre_tuningfix"
+_v4_hw = optional_blob(os.path.join(_pre_fix, "hello-world.txt"))
+_v5_mv = optional_blob(os.path.join(_pre_fix, "movements-demo.txt"))
+if _v4_hw is None:
+    skip("unpublished tuning v4 hello-world blob is rejected by decrypt and decrypt_legacy")
+else:
+    check("unpublished tuning v4 blobs are rejected by decrypt() and decrypt_legacy()",
+          _v4_hw[0] == 4 and len(_v4_hw) == 228
+          and isinstance(catch(lambda: N.decrypt(_v4_hw, SEED)), N.UnsupportedVersion)
+          and isinstance(catch(lambda: N.decrypt_legacy(_v4_hw, SEED)), N.UnsupportedVersion)
+          and str(catch(lambda: N.decrypt(_v4_hw, SEED))) == "unsupported version")
+if _v5_mv is None:
+    skip("unpublished tuning v5 movements blob is rejected by decrypt_movements and decrypt_movements_legacy")
+else:
+    check("unpublished tuning v5 blobs are rejected by decrypt_movements() and decrypt_movements_legacy()",
+          _v5_mv[0] == 5
+          and isinstance(catch(lambda: N.decrypt_movements(_v5_mv, SEED)), N.UnsupportedVersion)
+          and isinstance(catch(lambda: N.decrypt_movements_legacy(_v5_mv, SEED)), N.UnsupportedVersion)
+          and str(catch(lambda: N.decrypt_movements(_v5_mv, SEED))) == "unsupported version")
 
 # ---- études (reduced-round lab API) and the published score
 import etudes as E
@@ -1644,14 +1710,18 @@ from etudes import etude
 check("etude() only accepts the published round counts 2, 4, 6, 16",
       all(etude(r).rounds == r for r in (2, 4, 6, 16))
       and all(isinstance(catch(lambda r=r: etude(r)), ValueError) for r in (0, 1, 3, 5, 8, 15, 17, 32)))
-check("etude blobs use distinct committed version bytes, not 2/3/4/5",
-      E.ETUDE_FMT_BLOCK == {2: 0xC2, 4: 0xC4, 6: 0xC6, 16: 0xD0}
-      and E.ETUDE_FMT_MOVEMENTS == {2: 0xC3, 4: 0xC5, 6: 0xC7, 16: 0xD1}
+_live_vers = {N.FMT_VERSION, N.FMT_MOVEMENTS, N.FMT_VERSION_V2, N.FMT_MOVEMENTS_V3, N.FMT_VERSION_V4, N.FMT_MOVEMENTS_V5, 1}
+check("etude blobs use distinct committed version bytes, not 2/3/4/5/6/7",
+      E.ETUDE_FMT_BLOCK == {2: 0xA2, 4: 0xA4, 6: 0xA6, 16: 0xB0}
+      and E.ETUDE_FMT_MOVEMENTS == {2: 0xA3, 4: 0xA5, 6: 0xA7, 16: 0xB1}
       and E.ETUDE_FMT_BLOCK_LEGACY == {2: 0xE2, 4: 0xE4, 6: 0xE6, 16: 0xF0}
       and E.ETUDE_FMT_MOVEMENTS_LEGACY == {2: 0xE3, 4: 0xE5, 6: 0xE7, 16: 0xF1}
-      and set(E.ETUDE_FMT_BLOCK.values()) & {N.FMT_VERSION, N.FMT_MOVEMENTS, N.FMT_VERSION_V2, N.FMT_MOVEMENTS_V3, 1} == set()
-      and set(E.ETUDE_FMT_MOVEMENTS.values()) & {N.FMT_VERSION, N.FMT_MOVEMENTS, N.FMT_VERSION_V2, N.FMT_MOVEMENTS_V3, 1} == set()
-      and set(E.ETUDE_FMT_BLOCK.values()).isdisjoint(E.ETUDE_FMT_BLOCK_LEGACY.values()))
+      and E.ETUDE_FMT_BLOCK_TUNING == {2: 0xC2, 4: 0xC4, 6: 0xC6, 16: 0xD0}
+      and E.ETUDE_FMT_MOVEMENTS_TUNING == {2: 0xC3, 4: 0xC5, 6: 0xC7, 16: 0xD1}
+      and set(E.ETUDE_FMT_BLOCK.values()) & _live_vers == set()
+      and set(E.ETUDE_FMT_MOVEMENTS.values()) & _live_vers == set()
+      and set(E.ETUDE_FMT_BLOCK.values()).isdisjoint(E.ETUDE_FMT_BLOCK_LEGACY.values())
+      and set(E.ETUDE_FMT_BLOCK.values()).isdisjoint(E.ETUDE_FMT_BLOCK_TUNING.values()))
 _e16 = etude(16)
 _pt = bytes(range(128)); _nn = bytes(range(16))
 _sch = N.Schedule(SEED, _nn)
@@ -1662,7 +1732,7 @@ check("etude(2/4/6) permute differs from full-round and still inverts",
       all((lambda r: (lambda E_, ct: ct != _full and E_.unpermute(ct, SEED, _nn) == _pt)(etude(r), etude(r).permute(_pt, SEED, _nn)))(r) for r in (2, 4, 6)))
 _eblob = _e16.encrypt(b"hello world", SEED, pickup=HW_PICKUP)
 check("etude(16) hello-world ciphertext matches the live sample; version, commit and tag differ",
-      _eblob[0] == 0xD0 and _eblob[4:36] == HW_BLOB[4:36]
+      _eblob[0] == 0xB0 and _eblob[4:36] == HW_BLOB[4:36]
       and _eblob[N.CT0:N.CT1] == HW_BLOB[N.CT0:N.CT1]
       and _eblob[N.CM0:N.CM1] != HW_BLOB[N.CM0:N.CM1] and _eblob[N.CT1:] != HW_BLOB[N.CT1:]
       and _e16.decrypt(_eblob, SEED) == b"hello world")
@@ -1670,7 +1740,7 @@ check("normal decrypt rejects every étude single-block version as UnsupportedVe
       all(isinstance(catch(lambda r=r: N.decrypt(etude(r).encrypt(b"x", SEED, pickup=HW_PICKUP), SEED)), N.UnsupportedVersion) for r in (2, 4, 6, 16)))
 check("normal decrypt_movements rejects every étude movements version as UnsupportedVersion",
       all(isinstance(catch(lambda r=r: N.decrypt_movements(etude(r).encrypt_movements(b"xy", SEED, pickup=HW_PICKUP), SEED)), N.UnsupportedVersion) for r in (2, 4, 6, 16)))
-check("étude decrypt rejects ordinary version-4 and version-5 blobs",
+check("étude decrypt rejects ordinary version-6 and version-7 blobs",
       isinstance(catch(lambda: _e16.decrypt(HW_BLOB, SEED)), N.UnsupportedVersion)
       and isinstance(catch(lambda: _e16.decrypt_movements(_mv_demo_blob, SEED)), N.UnsupportedVersion))
 _ead = b"from:alice"
@@ -1684,7 +1754,7 @@ check("étude single-block and movements round-trip at 2, 4, 6, 16, with and wit
 check("encrypt still has no public pickup argument; études are not in the attested sneak_n2 module",
       list(inspect.signature(N.encrypt).parameters) == ["msg", "seed", "nonce", "ad"]
       and not hasattr(N, "etude") and "etude" not in N.MIX_CODE_FUNCS and "etude" not in N.MIX_CODE_ROOTS)
-# Legacy (pre-tuning) étude blobs from the octavo009 score still open.
+# Legacy (pre-tuning) étude blobs from the octavo009 score open only via decrypt_legacy
 _pre_score = os.path.join(_pre_tune, "score", "vectors.json")
 if os.path.isfile(_pre_score):
     import json as _json_legacy
@@ -1694,11 +1764,30 @@ if os.path.isfile(_pre_score):
     _leg_msg = bytes.fromhex(_leg_aead["msg"])
     _leg_mv = next(v for v in _ps["movements"] if v["id"] == "movements-r16-128")
     _leg_mv_blob = bytes.fromhex(_leg_mv["blob"])
-    check("legacy pre-tuning étude blobs (0xF0 / 0xF1) still decrypt; they are not key-committing",
-          _leg_blob[0] == 0xF0 and _e16.decrypt(_leg_blob, SEED) == _leg_msg
-          and _leg_mv_blob[0] == 0xF1 and _e16.decrypt_movements(_leg_mv_blob, SEED) == bytes(range(128)))
+    check("legacy pre-tuning étude blobs (0xF0 / 0xF1) are rejected by default and open via decrypt_legacy",
+          _leg_blob[0] == 0xF0 and isinstance(catch(lambda: _e16.decrypt(_leg_blob, SEED)), N.UnsupportedVersion)
+          and _e16.decrypt_legacy(_leg_blob, SEED) == _leg_msg
+          and _leg_mv_blob[0] == 0xF1 and isinstance(catch(lambda: _e16.decrypt_movements(_leg_mv_blob, SEED)), N.UnsupportedVersion)
+          and _e16.decrypt_movements_legacy(_leg_mv_blob, SEED) == bytes(range(128)))
 else:
-    skip("legacy pre-tuning étude blobs (0xF0 / 0xF1) still decrypt; they are not key-committing")
+    skip("legacy pre-tuning étude blobs (0xF0 / 0xF1) are rejected by default and open via decrypt_legacy")
+
+# unpublished tuning étude bytes (0xC*/0xD*) are rejected by default and by the legacy helpers
+_tune_score = os.path.join(_pre_fix, "score", "vectors.json")
+if os.path.isfile(_tune_score):
+    import json as _json_tune
+    _ts = _json_tune.load(open(_tune_score))
+    _t_aead = next(v for v in _ts["aead"] if v["id"] == "aead-r16-1")
+    _t_blob = bytes.fromhex(_t_aead["blob"])
+    _t_mv = next(v for v in _ts["movements"] if v["id"] == "movements-r16-128")
+    _t_mv_blob = bytes.fromhex(_t_mv["blob"])
+    check("unpublished tuning étude blobs (0xD0 / 0xD1) are rejected by decrypt and decrypt_legacy",
+          _t_blob[0] == 0xD0 and isinstance(catch(lambda: _e16.decrypt(_t_blob, SEED)), N.UnsupportedVersion)
+          and isinstance(catch(lambda: _e16.decrypt_legacy(_t_blob, SEED)), N.UnsupportedVersion)
+          and _t_mv_blob[0] == 0xD1 and isinstance(catch(lambda: _e16.decrypt_movements(_t_mv_blob, SEED)), N.UnsupportedVersion)
+          and isinstance(catch(lambda: _e16.decrypt_movements_legacy(_t_mv_blob, SEED)), N.UnsupportedVersion))
+else:
+    skip("unpublished tuning étude blobs (0xD0 / 0xD1) are rejected by decrypt and decrypt_legacy")
 
 # published score: regenerate in memory and compare to score/vectors.json
 import json as _json_score
@@ -1708,7 +1797,7 @@ _committed = _json_score.load(open(_score_path))
 _fresh = _gen_score.build_vectors()
 check("published score regenerates identically (64 vectors: 16 permute, 24 aead, 24 movements)",
       _fresh == _committed and _committed["counts"] == {"block_cipher": 16, "aead": 24, "movements": 24, "total": 64}
-      and _committed["revision"] == "tuning"
+      and _committed["revision"] == "tuning-fix"
       and _committed["EXPECTED_MIX_SHA256"] == N.EXPECTED_MIX_SHA256
       and _committed["key_sig"] == N.key_signature(SEED).hex()
       and _committed["sneak_n2_sha256"] == hashlib.sha256(open(os.path.join(HERE, "sneak_n2.py"), "rb").read()).hexdigest())

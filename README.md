@@ -1,4 +1,58 @@
-## Current live revision — tuning (2026-11-11)
+## Current live revision — tuning-fix (2026-11-11)
+
+This section supersedes the tuning section below. The round function is
+unchanged: the same seed, nonce and input still produce the same 16-round
+ciphertext. Still N2 / SN2 (project name: Octavo), still homemade,
+**not for real secrets** (use AES-GCM-SIV, age or libsodium). The picture
+was redrawn from the new hello-world sample.
+
+This revision tightens **tuning** (key commitment) so the default decrypt
+API is actually key-committing, and so a captured blob cannot confirm the
+key without the associated data.
+
+- The commitment is now
+  `HMAC-SHA256(K_commit, U || version || SN2 || pickup || nonce || encode_ad(ad) [|| nmov32])`.
+  Movements also bind the movement count. Ciphertext stays out of the
+  commitment, so a wrong key still returns before a huge body is walked.
+  `K_commit` is still `StaffSponge(b"U", seed, 16 zero bytes).take(32)`.
+- `decrypt` / `decrypt_movements` still check the commitment first, before
+  any tag, cadence, coda or `Schedule` work.
+- Commitment, tag, cadence and coda failures all raise the same
+  `AuthError("authentication failed")`. The exception type and message no
+  longer distinguish a wrong key from wrong associated data.
+- This is a format change. New single-block blobs are **version 6**,
+  **228 bytes**: `version || SN2 || pickup || nonce || commit(32) || ct || tag`.
+  New movements blobs are **version 7**:
+  `version || SN2 || pickup || nonce || commit(32) || nmov || (ct||cadence)*nmov || coda`.
+- **Legacy is opt-in.** Default `decrypt()` / `decrypt_movements()` reject
+  published version-2 and version-3 blobs as `UnsupportedVersion`. The
+  transition helpers `decrypt_legacy()` and `decrypt_movements_legacy()`
+  still open those octavo009 samples; they are clearly documented as
+  **not key-committing** and are not for new messages.
+- **Unpublished v4/v5 (tuning) blobs are rejected outright**, including by
+  the legacy helpers. They were never frozen or pushed, and the new
+  commitment input would not have verified them anyway. Keeping a second
+  acceptance path would weaken the "default decrypt is key-committing"
+  promise.
+- Études match the new layout and commitment. New étude version bytes are
+  `0xA2`/`0xA4`/`0xA6`/`0xB0` (single-block) and `0xA3`/`0xA5`/`0xA7`/`0xB1`
+  (movements). Pre-tuning étude bytes (`0xE2`…/`0xF1`) open only through
+  `Etude.decrypt_legacy()` / `decrypt_movements_legacy()`. Unpublished
+  tuning étude bytes (`0xC2`…/`0xD1`) are rejected. The published score
+  was regenerated.
+
+Because the attested wrappers changed, `EXPECTED_MIX_SHA256` and
+`key_signature` moved. The 16-round permutation itself did not.
+
+- Live `sneak_n2.py` SHA-256: `e845419417b9d9d157636d7863c26dcb605f99767d54a5e61f3c5df397b24221`.
+- `EXPECTED_MIX_SHA256`: `947eb322addb5fd5177dd5fde4ca6e6593429088cbb009c26113154995f3d62b`.
+- key_sig (demo seed): `37e14a077a546e12a40c8013e78e949b`.
+- hello-world pickup `2b87dc4e184cd78e6c77b829273b17a3`, nonce `d4a86fc3847623035bbe3a19ceda33b1` (empty AD; see `hello-world.txt`).
+- See `movements-demo.txt` for a two-movement sample (188-byte plaintext, 424-byte blob, pickup `ed535a481e4373d21f0b7d05272735ee`).
+- Blob size (single-block): 228 bytes, version byte 6. Picture redrawn (`sneak-staff-n2.png`).
+- Score: `score/vectors.json` (64 vectors, regenerated). Lab API: `etudes.etude(rounds)`.
+
+## Previous revision — tuning (2026-11-11)
 
 This section supersedes the etudes section below. The round function is
 unchanged: the same seed, nonce and input still produce the same 16-round
