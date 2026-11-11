@@ -1,3 +1,5 @@
+<p align="center"><img src="logo.png" alt="Octavo logo" width="160"></p>
+
 ## Current live revision — conductor (2026-11-11)
 
 This section supersedes the tuning-fix section below. It applies the fixes
