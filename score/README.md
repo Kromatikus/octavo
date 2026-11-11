@@ -36,32 +36,46 @@ are in the JSON):
 
 ## Études, not the normal APIs
 
-These AEAD vectors are **étude blobs**. They use distinct format-version
-bytes so the normal `decrypt` / `decrypt_movements` APIs reject them,
-and they carry the same 32-byte tuning commitment as live v6/v7 blobs
-(associated data, and nmov in movements, are bound in the commitment):
+These AEAD vectors are **étude blobs** (score version 3, conductor
+revision). They use distinct format-version bytes so the normal
+`decrypt` / `decrypt_movements` APIs reject them, and they carry the same
+32-byte tuning commitment as live v6/v7 blobs (associated data, and nmov
+in movements, are bound in the commitment):
 
 | Rounds | Single-block | Movements |
 |--------|--------------|-----------|
-| 2      | `0xA2`       | `0xA3`    |
-| 4      | `0xA4`       | `0xA5`    |
-| 6      | `0xA6`       | `0xA7`    |
-| 16     | `0xB0`       | `0xB1`    |
+| 2      | `0x82`       | `0x83`    |
+| 4      | `0x84`       | `0x85`    |
+| 6      | `0x86`       | `0x87`    |
+| 16     | `0x90`       | `0x91`    |
 
-Pre-tuning étude bytes (`0xE2`/`0xE4`/`0xE6`/`0xF0` and
-`0xE3`/`0xE5`/`0xE7`/`0xF1`) open only through `Etude.decrypt_legacy()` /
-`decrypt_movements_legacy()`, with the frozen octavo009 key_sig; they
-are not key-committing. Unpublished tuning étude bytes (`0xC2`…/`0xD1`)
-are rejected.
+**Key separation.** Every étude runs under its own derived key
+`K_e = StaffSponge(b"E", seed, bytes([rounds]) + 15 zero bytes).take(128)`
+(SHA-256 of each `K_e` is in the JSON), used for clef, commitment, MAC,
+Schedule, theme, tweak, cadence and coda. The étude version byte is also
+hashed into the SIV nonce. So no étude vector shares round material with
+a live blob, and an étude handle cannot open a live ciphertext.
+
+**What changed from the tuning-fix score** (never published): the bytes
+were `0xA2`/`0xA4`/`0xA6`/`0xB0` and `0xA3`/`0xA5`/`0xA7`/`0xB1`, études
+used the live seed directly, and the 16-round étude ciphertext equalled the
+live ciphertext. All 64 vectors changed. Those bytes are now rejected.
+Pre-tuning étude bytes from the published octavo009 score
+(`0xE2`/`0xE4`/`0xE6`/`0xF0` and `0xE3`/`0xE5`/`0xE7`/`0xF1`, frozen in
+`/workspace/octavo009/score`) open only through `Etude.decrypt_legacy()` /
+`decrypt_movements_legacy()` with `allow_noncommitting=True`; they are not
+key-committing. Unpublished tuning étude bytes (`0xC2`…/`0xD1`) are rejected.
+
+The demo seed is a **public demo seed**; `etude(r)` refuses it (and
+`seed=None`) unless made with `lab_seed=True`, which the generator uses.
 
 2-, 4- and 6-round études are weakened on purpose, for cryptanalysis only.
 A 16-round étude is published so another implementation can check itself
-against the full cipher: the raw permutation and the ciphertext (not the
-commitment or tag) are byte-identical to live `encrypt_grid` / `encrypt`
-on the same input. Commitments and tags differ because they bind the
-étude version byte.
+against the full cipher core: the 16-round raw permutation equals live
+`encrypt_grid` under `Schedule(K_e, nonce)`. It is no longer equal to the
+live cipher under the raw seed, by design.
 
-The lab API is `etudes.etude(rounds)` in the parent directory. It accepts a
+The lab API is `etudes.etude(rounds, lab_seed=False)` in the parent directory. It accepts a
 fixed `pickup` so these vectors stay deterministic. Normal `encrypt` and
 `encrypt_movements` have no pickup argument and always run 16 rounds.
 

@@ -1,15 +1,15 @@
 {
   "blob_len": 228,
   "commit": "58f669593230e1bde8ac0507e63c63c213b08d8199ab6cc897b149e84ddc3f6f",
-  "file_sha256": "e845419417b9d9d157636d7863c26dcb605f99767d54a5e61f3c5df397b24221",
+  "file_sha256": "469c7b0b3bc755966a8274703e64e187fd79b805c0807cbe6bc391d4a43ae062",
   "fmt_version": 6,
-  "key_sig": "37e14a077a546e12a40c8013e78e949b",
+  "key_sig": "46d1acfb174975057fb7b63cf2002d74",
   "nonce": "d4a86fc3847623035bbe3a19ceda33b1",
   "pickup": "2b87dc4e184cd78e6c77b829273b17a3",
-  "revision": "tuning-fix",
+  "revision": "conductor",
   "revision_date": "2026-11-11",
-  "subtitle": "keyed SM4 S-boxes \u00b7 latin B0 + field bar pairs \u00b7 six triplets \u00b7 bow-pressure \u00b7 latin odd restack \u00b7 cross-staff mix \u00b7 open 8-beat staffs \u00b7 SIV nonce from clef\u2016pickup\u2016msg\u2016AD \u00b7 HMAC tag over clef\u2016key_sig\u2016version\u2016SN2\u2016pickup\u2016nonce\u2016tuning\u2016ct\u2016AD \u00b7 movements: theme T; cadence HMAC-D over theme\u2016index\u2016ct; coda HMAC-O over header\u2016count\u2016ct\u2016cadences\u2016AD \u00b7 tuning: HMAC-U commitment over version\u2016SN2\u2016pickup\u2016nonce\u2016AD (and nmov); checked first \u00b7 grid IS ciphertext \u00b7 \u00e9tudes 2/4/6 (lab only)",
-  "tag": "a574b1754c46eeb0299ca60d7a55c5eb9322a6a3a18a96b961056beab76d92dd",
-  "title": "Octavo (sneak staff-core N2)  \u00b7  tuning-fix  \u00b7  v6  \u00b7  228-byte blob  \u00b7  SHA e8454194\u2026  \u00b7  key_sig 37e14a07\u2026  \u00b7  2026-11-11",
+  "subtitle": "keyed SM4 S-boxes \u00b7 latin B0 + field bar pairs \u00b7 six triplets \u00b7 bow-pressure \u00b7 latin odd restack \u00b7 cross-staff mix \u00b7 open 8-beat staffs \u00b7 SIV nonce from clef\u2016pickup\u2016msg\u2016AD \u00b7 HMAC tag over clef\u2016key_sig\u2016version\u2016SN2\u2016pickup\u2016nonce\u2016tuning\u2016ct\u2016AD \u00b7 movements: theme T; cadence HMAC-D over theme\u2016index\u2016ct; coda HMAC-O over header\u2016count\u2016ct\u2016cadences\u2016AD \u00b7 tuning: HMAC-U commitment over version\u2016SN2\u2016pickup\u2016nonce\u2016AD (and nmov) \u00b7 conductor: equal-time single-block rejects \u00b7 grid IS ciphertext \u00b7 \u00e9tudes 2/4/6 (lab only, own key E)",
+  "tag": "92e3a322d97f5d0c1408f837e7e965f6eecf6f3fc4decd4498cb64031a1cc6d5",
+  "title": "Octavo (sneak staff-core N2)  \u00b7  conductor  \u00b7  v6  \u00b7  228-byte blob  \u00b7  SHA 469c7b0b\u2026  \u00b7  key_sig 46d1acfb\u2026  \u00b7  2026-11-11",
   "warning": "NOT for real secrets \u2014 use AES-GCM-SIV, age, or libsodium"
 }

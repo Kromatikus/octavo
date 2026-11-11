@@ -1,5 +1,21 @@
 # Live tree note (not a freeze)
 
+Live `/workspace/sneak_n2` is the conductor revision (2026-11-11)
+on top of the tuning-fix tree. The round function is unchanged and the
+live formats are still v6 (single-block, 228 bytes) and v7 (movements).
+Single-block rejects always run both the commitment and the tag check.
+Études are key-separated (domain E) with new bytes 0x82/0x84/0x86/0x90
+and 0x83/0x85/0x87/0x91. Legacy helpers need allow_noncommitting=True.
+This is not a frozen snapshot. Not pushed, not frozen.
+
+- sneak_n2.py SHA-256: 469c7b0b3bc755966a8274703e64e187fd79b805c0807cbe6bc391d4a43ae062
+- EXPECTED_MIX_SHA256: 53df74e18aa01bc0de218680fe88af6f4d166f7ad5cac70d81f43c5575fae797
+- key_sig (demo seed): 46d1acfb174975057fb7b63cf2002d74
+- hello-world pickup 2b87dc4e184cd78e6c77b829273b17a3, nonce d4a86fc3847623035bbe3a19ceda33b1 (empty AD; same ciphertext as tuning-fix)
+- Changes: equal-time single-block rejects (M1); étude key separation + version byte in étude SIV nonce + demo-seed gate (lab_seed=True); Etude(r) pins round count; UnsupportedVersion no longer an AuthError; legacy helpers need allow_noncommitting=True and warn (LegacyFormatWarning); constant-structure _unpad_block (L4); cached seed load/check (I3); docs (public demo seed, stage timing for movements, Rust-port requirements); score regenerated (score version 3); picture re-rendered.
+
+# Previous live tree note — tuning-fix (superseded by conductor above)
+
 Live `/workspace/sneak_n2` is the tuning-fix revision (2026-11-11)
 on top of the tuning tree. The round function is unchanged. New blobs
 are format v6 (single-block, 228 bytes, commitment binds AD) and v7

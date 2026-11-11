@@ -1,4 +1,76 @@
-## Current live revision — tuning-fix (2026-11-11)
+## Current live revision — conductor (2026-11-11)
+
+This section supersedes the tuning-fix section below. It applies the fixes
+from the tuning-fix attack (`/workspace/attacks_octavo_tuningfix`) and the
+conductor's mark constant-time review (`/workspace/review_octavo_conductor`).
+**The round function is unchanged**: the same seed, nonce and input still
+produce the same 16-round ciphertext, and the hello-world and
+movements-demo samples keep their pickup, nonce, commitment and ciphertext
+byte for byte (only the key_sig-bound tag, cadences and coda moved). Live
+wire formats are unchanged: single-block **v6, 228 bytes**; movements
+**v7, 72-byte header**. Still N2 / SN2 (project name: Octavo), still
+homemade, **not for real secrets** (use AES-GCM-SIV, age or libsodium).
+The picture was re-rendered.
+
+- **Equal-time single-block rejects (review M1).** `decrypt()` always
+  computes and compares both the commitment and the tag, combines the two
+  results without short-circuit, and raises one
+  `AuthError("authentication failed")`. Commitment-fail and tag-fail now
+  cost the same; before, they took about 8 µs and 24 µs. No `Schedule` is
+  built until both pass. Movements keep commitment-first (so a wrong key
+  never walks a large body); timing there still reveals which stage failed,
+  as documented in SECURITY.md.
+- **Études are key-separated (attack Low 1).** Every étude derives its own
+  key `K_e = StaffSponge(b"E", seed, rounds‖15 zero bytes).take(128)` and
+  uses it for clef, commitment key, MAC key, `Schedule`, theme, tweak,
+  cadence and coda. The étude version byte is hashed into the SIV nonce.
+  An étude can no longer decrypt or unpermute a live ciphertext, and a
+  reduced-round étude given a live pickup no longer reproduces that blob's
+  nonce or round keys. Études refuse `seed=None` and the public demo seed
+  unless the handle is made with `etude(r, lab_seed=True)`. New étude
+  bytes: `0x82`/`0x84`/`0x86`/`0x90` (single-block) and
+  `0x83`/`0x85`/`0x87`/`0x91` (movements). The never-published tuning-fix
+  étude bytes `0xA*`/`0xB*` are rejected. The 16-round étude permutation
+  is still the live 16-round core, keyed by `K_e`.
+- **`Etude(r)` pins its round count (attack Info 5).** `decrypt`,
+  `decrypt_movements` and the legacy étude helpers reject another round
+  count's blob with `UnsupportedVersion("étude round count mismatch")`.
+- **Legacy hygiene (attack Info 3).** `UnsupportedVersion` is a
+  `ValueError` but no longer an `AuthError`, so an `except AuthError:`
+  handler cannot fall into a legacy path by accident. `decrypt_legacy`,
+  `decrypt_movements_legacy` and the `Etude` equivalents require
+  `allow_noncommitting=True` (otherwise `ValueError`) and emit
+  `LegacyFormatWarning` (a `DeprecationWarning`). The published octavo009
+  v2/v3 and `0xE*`/`0xF*` samples still open that way.
+- **Constant-structure unpad (review L4).** `_unpad_block` checks the
+  length byte and padding with masks over all 127 bytes; movements decode
+  every block before one combined `DecodeError` decision.
+- **Seed caching (review I3).** The default seed file is parsed once
+  (cached by path, mtime and size), and validated seeds are remembered in a
+  bounded set.
+- **Not applied, documented as port requirements:** secret-indexed S-boxes
+  (M2), the GF(2^8) table (L1: a masked-doubling multiply is bit-identical
+  and tested, but about 3× slower in CPython), rotations (L2), schedule
+  rejection sampling (L3) and permutation addressing (L5). See SECURITY.md,
+  "Rust port requirements".
+- **The default seed is a public demo seed.** `sneak1024-seed.txt` is
+  published in full in `score/vectors.json`. Anything encrypted with
+  `seed=None` is readable by anyone.
+
+Because attested wrapper source changed (decrypt, legacy gates, unpad,
+seed cache), `EXPECTED_MIX_SHA256` and `key_signature` moved. The
+16-round permutation did not.
+
+- Live `sneak_n2.py` SHA-256: `469c7b0b3bc755966a8274703e64e187fd79b805c0807cbe6bc391d4a43ae062`.
+- `EXPECTED_MIX_SHA256`: `53df74e18aa01bc0de218680fe88af6f4d166f7ad5cac70d81f43c5575fae797`.
+- key_sig (demo seed): `46d1acfb174975057fb7b63cf2002d74`.
+- hello-world pickup `2b87dc4e184cd78e6c77b829273b17a3`, nonce `d4a86fc3847623035bbe3a19ceda33b1` (empty AD; same ciphertext as tuning-fix, new tag).
+- movements-demo pickup `ed535a481e4373d21f0b7d05272735ee` (same ciphertext, new cadences and coda).
+- Score: `score/vectors.json` (64 vectors, score version 3, regenerated under étude keys). Lab API: `etudes.etude(rounds, lab_seed=...)`.
+
+---
+
+## Previous revision — tuning-fix (2026-11-11)
 
 Wrapper change only: the 16-round function, S-boxes, schedule, mixes, bow,
 rehair and cross-staff layers are unchanged from the tuning / etudes /

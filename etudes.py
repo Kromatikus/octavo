@@ -3,24 +3,45 @@
 WARNING: These are intentionally weakened. NOT for any secret, even a toy one.
 Do not use this module to protect data. The published études are 2, 4 and 6
 rounds; 16-round études exist only so a lab can compare against the full
-cipher. They still use distinct blob version bytes.
+cipher core. They use distinct blob version bytes.
 
-Normal encrypt / decrypt and encrypt_movements / decrypt_movements cannot
-produce or consume étude blobs. Current étude blobs start with a version
-byte in 0xA2/0xA4/0xA6/0xB0 (single-block) or 0xA3/0xA5/0xA7/0xB1
-(movements), and they carry a tuning commitment like live v6/v7 blobs
-(associated data, and nmov in movements, are bound in the commitment).
-The normal APIs reject those as UnsupportedVersion. Étude decrypt likewise
-rejects ordinary version-6 and version-7 blobs, unpublished tuning étude
-bytes (0xC2/0xC4/0xC6/0xD0 and 0xC3/0xC5/0xC7/0xD1), and legacy pre-tuning
-étude bytes. Use decrypt_legacy() / decrypt_movements_legacy() to open
-published octavo009 étude blobs (0xE2/0xE4/0xE6/0xF0 and
-0xE3/0xE5/0xE7/0xF1, no commitment, frozen octavo009 key_sig) during the
-transition; those paths are not key-committing.
+Key separation (conductor revision). An étude never runs under the live
+round material. Every étude derives its own 128-byte étude key
 
-The 16-round block permutation (and the ciphertext of a 16-round étude with
-the same seed, nonce and input) is byte-identical to the live full-round
-cipher. Tags and commitments differ because they bind the étude version byte.
+    K_e = StaffSponge(b"E", seed, bytes([rounds]) || 15 zero bytes).take(128)
+
+(squeezing further only in the astronomically unlikely case that the
+first 128 bytes fail the weak-seed rule) and then uses K_e everywhere the
+live code uses the seed: clef, commitment key, MAC key, Schedule (round
+keys, S-boxes, whitening), theme, tweak, cadence and coda keys. Domain
+letter E is unused by the live cipher, and the round count is in the
+tweak, so études at different round counts do not share material either.
+The étude version byte is also hashed into the SIV nonce:
+
+    nonce = SHA-256(clef_e || version || pickup || encode_block(msg) || encode_ad(ad))[:16]
+    (movements: ... || version || pickup || uint64be(len) || msg || encode_ad(ad))
+
+So an étude handle cannot decrypt (or unpermute) a live ciphertext, and a
+reduced-round étude given a live pickup no longer reproduces that blob's
+nonce or Schedule. The 16-round étude permutation is still the live
+16-round staff-core, just keyed by K_e: permute(block, seed, nonce) equals
+encrypt_grid(block, Schedule(etude_key(seed, 16), nonce)).
+
+Seeds. Études refuse seed=None and the public demo seed
+(sneak1024-seed.txt, published in score/vectors.json) unless the handle
+was made with etude(r, lab_seed=True). The published score uses that flag.
+
+Version bytes. Current étude blobs start with 0x82/0x84/0x86/0x90
+(single-block) or 0x83/0x85/0x87/0x91 (movements) and carry an AD-bound
+(and nmov-bound) commitment like live v6/v7. Etude(r) opens only its own
+round count; another étude's byte raises UnsupportedVersion("étude round
+count mismatch"). Rejected outright: live v6/v7, the never-published
+tuning-fix étude bytes 0xA2/0xA4/0xA6/0xB0 and 0xA3/0xA5/0xA7/0xB1, and the
+unpublished tuning bytes 0xC*/0xD*. Published octavo009 étude blobs
+(0xE2/0xE4/0xE6/0xF0 and 0xE3/0xE5/0xE7/0xF1) open only through
+decrypt_legacy() / decrypt_movements_legacy() with
+allow_noncommitting=True (LegacyFormatWarning); they were made with the
+raw seed, before key separation, and are not key-committing.
 
 Lab hook: encrypt and encrypt_movements accept an optional fixed `pickup` so
 published score vectors are deterministic. The normal APIs have no such
@@ -28,8 +49,8 @@ argument, by design.
 
 Use:
     from etudes import etude
-    E = etude(4)                          # a 4-round étude
-    ct = E.permute(block, seed, nonce)    # raw 128-byte keyed permutation
+    E = etude(4, lab_seed=True)           # a 4-round étude on the demo seed
+    ct = E.permute(block, seed, nonce)    # raw 128-byte keyed permutation (étude key)
     blob = E.encrypt(msg, seed, pickup=fixed_pickup)
     E.decrypt(blob, seed)
 """
@@ -41,14 +62,19 @@ ETUDE_WARNING = (
     "NOT for secrets."
 )
 ETUDE_ROUNDS = (2, 4, 6, 16)
+ETUDE_KEY_DOMAIN = b"E"      # unused by the live cipher (live: C G K M U T W D O)
+# SHA-256 of the public demo seed (sneak1024-seed.txt). Refused unless lab_seed=True.
+DEMO_SEED_SHA256 = "8d1f7c16876c149c2d445c2817a230ffaaec9d8a2fc9769e2f3aae155e3b8e24"
 
-# Distinct from live FMT_VERSION=6 and FMT_MOVEMENTS=7, from legacy v2/v3,
-# from unpublished tuning v4/v5, and from historical v1. High nibble 0xA
-# marks a committed reduced étude; 0xB marks a committed full-round étude.
+# Current (conductor) étude bytes: key-separated, version byte in the SIV nonce.
+# High nibble 0x8 marks a committed reduced étude; 0x9 a committed full-round étude.
 # Even values are single-block; odd values are movements.
-ETUDE_FMT_BLOCK = {2: 0xA2, 4: 0xA4, 6: 0xA6, 16: 0xB0}
-ETUDE_FMT_MOVEMENTS = {2: 0xA3, 4: 0xA5, 6: 0xA7, 16: 0xB1}
-# Pre-tuning étude version bytes (no commitment). decrypt_legacy() only.
+ETUDE_FMT_BLOCK = {2: 0x82, 4: 0x84, 6: 0x86, 16: 0x90}
+ETUDE_FMT_MOVEMENTS = {2: 0x83, 4: 0x85, 6: 0x87, 16: 0x91}
+# Never-published tuning-fix étude bytes (shared live key material). Rejected.
+ETUDE_FMT_BLOCK_TUNINGFIX = {2: 0xA2, 4: 0xA4, 6: 0xA6, 16: 0xB0}
+ETUDE_FMT_MOVEMENTS_TUNINGFIX = {2: 0xA3, 4: 0xA5, 6: 0xA7, 16: 0xB1}
+# Pre-tuning étude version bytes (no commitment, raw seed). decrypt_legacy() only.
 ETUDE_FMT_BLOCK_LEGACY = {2: 0xE2, 4: 0xE4, 6: 0xE6, 16: 0xF0}
 ETUDE_FMT_MOVEMENTS_LEGACY = {2: 0xE3, 4: 0xE5, 6: 0xE7, 16: 0xF1}
 # Unpublished tuning-revision étude bytes (commitment without AD/nmov). Rejected.
@@ -75,23 +101,62 @@ def _pickup(pickup):
     return pickup
 
 
+def etude_key(seed, rounds) -> bytes:
+    """K_e = StaffSponge(b"E", seed, bytes([rounds]) || 15 zero bytes).take(128).
+
+    Squeezes the next 128 bytes if a candidate fails the weak-seed rule
+    (probability far below 2^-100). Low-level: no demo-seed gate here."""
+    seed = N._seed_bytes(seed)
+    sp = N.StaffSponge(ETUDE_KEY_DOMAIN, seed, bytes([_check_rounds(rounds)]) + bytes(N.NONCE_LEN - 1))
+    while True:
+        k = sp.take(N.BLOCK_LEN)
+        try:
+            return N._seed_bytes(k)
+        except ValueError:
+            continue
+
+
 class Etude:
     """One published étude (2, 4, 6 or 16 rounds). Cryptanalysis only."""
 
-    def __init__(self, rounds):
+    def __init__(self, rounds, lab_seed=False):
         self.rounds = _check_rounds(rounds)
+        self.lab_seed = lab_seed is True
         self.fmt_block = ETUDE_FMT_BLOCK[self.rounds]
         self.fmt_movements = ETUDE_FMT_MOVEMENTS[self.rounds]
         self.fmt_block_legacy = ETUDE_FMT_BLOCK_LEGACY[self.rounds]
         self.fmt_movements_legacy = ETUDE_FMT_MOVEMENTS_LEGACY[self.rounds]
         self.warning = ETUDE_WARNING
 
+    # ---------------------------------------------------------------- keys
+    def _seed(self, seed) -> bytes:
+        """Refuse seed=None and the public demo seed unless lab_seed=True."""
+        if seed is None and not self.lab_seed:
+            raise ValueError("études need an explicit seed; seed=None (the public demo seed) requires etude(r, lab_seed=True)")
+        s = N._seed_bytes(seed)
+        if not self.lab_seed and hashlib.sha256(s).hexdigest() == DEMO_SEED_SHA256:
+            raise ValueError("the public demo seed requires etude(r, lab_seed=True)")
+        return s
+
+    def key(self, seed) -> bytes:
+        """This étude's derived key K_e (after the seed gate)."""
+        return etude_key(self._seed(seed), self.rounds)
+
+    def _check_version(self, v, own, others):
+        if v == own:
+            return
+        if v in others:
+            raise N.UnsupportedVersion("étude round count mismatch")
+        raise N.UnsupportedVersion("unsupported version")
+
+    # ---------------------------------------------------------------- raw permutation
     def permute(self, block, seed=None, nonce=None) -> bytes:
         """Raw 128-byte keyed permutation at this étude's round count, plus whitening.
 
-        Uses the first `rounds` keys of a full 16-round Schedule(seed, nonce),
-        then the same whitening the full cipher uses (squeezed after all 16
-        rounds of schedule material). 16-round output matches encrypt_grid.
+        Uses the first `rounds` keys of a full 16-round Schedule(K_e, nonce),
+        then that Schedule's whitening. 16-round output equals the live
+        encrypt_grid under Schedule(etude_key(seed, 16), nonce), NOT under
+        Schedule(seed, nonce): an étude cannot touch live round material.
         """
         block = N._as_bytes("block", block)
         nonce = N._as_bytes("nonce", nonce)
@@ -99,101 +164,117 @@ class Etude:
             raise ValueError("block must be 128 bytes")
         if len(nonce) != N.NONCE_LEN:
             raise ValueError("nonce must be 16 bytes")
-        sch = N.Schedule(seed, nonce)
+        sch = N.Schedule(self.key(seed), nonce)
         return N.grid_to_bytes(N.encrypt_grid(N.bytes_to_grid(block), sch, rounds=self.rounds))
 
     def unpermute(self, block, seed=None, nonce=None) -> bytes:
-        """Inverse of permute for the same seed, nonce and round count."""
+        """Inverse of permute for the same seed, nonce and round count (étude key, unauthenticated)."""
         block = N._as_bytes("block", block)
         nonce = N._as_bytes("nonce", nonce)
         if len(block) != N.BLOCK_LEN:
             raise ValueError("block must be 128 bytes")
         if len(nonce) != N.NONCE_LEN:
             raise ValueError("nonce must be 16 bytes")
-        sch = N.Schedule(seed, nonce)
+        sch = N.Schedule(self.key(seed), nonce)
         return N.grid_to_bytes(N.decrypt_grid(N.bytes_to_grid(block), sch, rounds=self.rounds))
 
+    # ---------------------------------------------------------------- single-block
+    def siv_nonce(self, msg, pickup, seed=None, ad=b"") -> bytes:
+        """SHA-256(clef_e || version || pickup || encode_block(msg) || encode_ad(ad))[:16]."""
+        msg = N._as_bytes("msg", msg)
+        pickup = N._as_bytes("pickup", pickup)
+        if len(pickup) != N.PICKUP_LEN:
+            raise ValueError("pickup must be 16 bytes")
+        k = self.key(seed)
+        return hashlib.sha256(N.staff_clef(k) + bytes([self.fmt_block]) + pickup + N.encode_block(msg)
+                              + N._encode_ad(ad)).digest()[:N.NONCE_LEN]
+
     def encrypt(self, msg, seed=None, ad=b"", pickup=None, nonce=None) -> bytes:
-        """Single-block AEAD étude. Optional `pickup` makes the blob deterministic.
+        """Single-block AEAD étude under K_e. Optional `pickup` makes the blob deterministic.
 
         Layout matches version-6 blobs except the leading version byte is the
-        étude flag (0xA2/0xA4/0xA6/0xB0). A caller nonce must equal the SIV
+        étude flag (0x82/0x84/0x86/0x90). A caller nonce must equal the SIV
         nonce. Normal decrypt rejects the result as UnsupportedVersion.
         """
         msg = N._as_bytes("msg", msg)
         ad = N._normalize_ad(ad)
+        k = self.key(seed)
+        fmt = self.fmt_block
         block = N.encode_block(msg)
         adb = N._encode_ad(ad)
-        clef = N.staff_clef(seed)
+        clef = N.staff_clef(k)
         pickup = _pickup(pickup)
-        syn = hashlib.sha256(clef + pickup + block + adb).digest()[:N.NONCE_LEN]
+        syn = hashlib.sha256(clef + bytes([fmt]) + pickup + block + adb).digest()[:N.NONCE_LEN]
         if nonce is not None and not hmac.compare_digest(N._as_bytes("nonce", nonce), syn):
             raise ValueError("nonce must be the synthetic (SIV) nonce for this message and pickup")
         nonce = syn
-        sch = N.Schedule(seed, nonce)
+        sch = N.Schedule(k, nonce)
         ct = N.grid_to_bytes(N.encrypt_grid(N.bytes_to_grid(block), sch, rounds=self.rounds))
-        commit = N._commitment(N._commit_key(seed), self.fmt_block, pickup, nonce, ad)
-        tag = N._tag(sch.mac_key, pickup, nonce, ct, clef, N.key_signature(seed), ad,
-                     version=self.fmt_block, commit=commit)
-        return bytes([self.fmt_block]) + N.VERSION + pickup + nonce + commit + ct + tag
+        commit = N._commitment(N._commit_key(k), fmt, pickup, nonce, ad)
+        tag = N._tag(sch.mac_key, pickup, nonce, ct, clef, N.key_signature(k), ad,
+                     version=fmt, commit=commit)
+        return bytes([fmt]) + N.VERSION + pickup + nonce + commit + ct + tag
 
     def decrypt(self, blob, seed=None, ad=b"") -> bytes:
-        """Open a single-block étude blob. Round count is read from the version byte.
+        """Open a single-block étude blob made at THIS round count.
 
-        Current (committed) étude blobs check the tuning commitment before
-        the tag, and the tag is checked before the Schedule is built.
-        Ordinary version-6 blobs, unpublished tuning étude bytes, and
-        legacy pre-tuning étude bytes raise UnsupportedVersion. Use
-        decrypt_legacy() to open published octavo009 étude blobs during
-        the transition; that path is not key-committing.
+        The version byte must be this handle's own (another étude round
+        count raises UnsupportedVersion("étude round count mismatch")).
+        Like live decrypt, the commitment and the tag are both computed
+        and compared before one combined AuthError is raised (equal-time
+        reject); the Schedule is built only after both pass. Live v6
+        blobs, never-published tuning-fix (0xA*/0xB*) and unpublished
+        tuning (0xC*/0xD*) étude bytes, and legacy 0xE*/0xF* bytes raise
+        UnsupportedVersion. Use decrypt_legacy(..., allow_noncommitting=True)
+        for published octavo009 étude blobs.
         """
         blob = N._as_bytes("blob", blob)
         ad = N._normalize_ad(ad)
         if len(blob) < 1:
             raise N.AuthError("bad blob length")
-        if blob[0] not in _BLOCK_ROUNDS:
-            raise N.UnsupportedVersion("unsupported version")
-        rounds = _BLOCK_ROUNDS[blob[0]]
+        self._check_version(blob[0], self.fmt_block, _BLOCK_ROUNDS)
+        k = self.key(seed)
+        fmt = self.fmt_block
         if len(blob) != N.BLOB_LEN:
             raise N.AuthError("bad blob length")
         v, pickup, nonce, commit, ct, tag = N.split_blob(blob)
-        if not hmac.compare_digest(v, bytes([blob[0]]) + N.VERSION):
+        if not hmac.compare_digest(v, bytes([fmt]) + N.VERSION):
             raise N.AuthError("bad version prefix")
-        if not hmac.compare_digest(commit, N._commitment(N._commit_key(seed), blob[0], pickup, nonce, ad)):
+        commit_ok = hmac.compare_digest(commit, N._commitment(N._commit_key(k), fmt, pickup, nonce, ad))
+        clef = N.staff_clef(k)
+        mac_key = N.StaffSponge(b"M", k, nonce).take(32)
+        tag_ok = hmac.compare_digest(tag, N._tag(mac_key, pickup, nonce, ct, clef, N.key_signature(k), ad,
+                                                 version=fmt, commit=commit))
+        if not (commit_ok & tag_ok):
             raise N.AuthError("authentication failed")
-        clef = N.staff_clef(seed)
-        mac_key = N.StaffSponge(b"M", N._seed_bytes(seed), nonce).take(32)
-        if not hmac.compare_digest(tag, N._tag(mac_key, pickup, nonce, ct, clef, N.key_signature(seed), ad,
-                                               version=blob[0], commit=commit)):
-            raise N.AuthError("authentication failed")
-        sch = N.Schedule(seed, nonce)
-        b = N.grid_to_bytes(N.decrypt_grid(N.bytes_to_grid(ct), sch, rounds=rounds))
-        L = b[0]
-        if L > N.MAX_MSG or any(b[1 + L:]):
+        sch = N.Schedule(k, nonce)
+        b = N.grid_to_bytes(N.decrypt_grid(N.bytes_to_grid(ct), sch, rounds=self.rounds))
+        ok, msg = N._unpad_block(b)
+        if not ok:
             raise N.DecodeError("tag valid but block malformed")
-        msg = b[1:1 + L]
-        if not hmac.compare_digest(nonce, hashlib.sha256(clef + pickup + N.encode_block(msg) + N._encode_ad(ad)).digest()[:N.NONCE_LEN]):
+        if not hmac.compare_digest(nonce, hashlib.sha256(clef + bytes([fmt]) + pickup + N.encode_block(msg) + N._encode_ad(ad)).digest()[:N.NONCE_LEN]):
             raise N.AuthError("SIV nonce mismatch")
         return msg
 
-    def decrypt_legacy(self, blob, seed=None, ad=b"") -> bytes:
-        """Open a published pre-tuning étude blob (0xE2/0xE4/0xE6/0xF0).
+    def decrypt_legacy(self, blob, seed=None, ad=b"", *, allow_noncommitting=False) -> bytes:
+        """Open a published pre-tuning étude blob (0xE2/0xE4/0xE6/0xF0) at this round count.
 
         Transition helper only. Not key-committing: there is no tuning
-        field, and tags bind the frozen octavo009 key_sig. Default
-        decrypt() rejects these blobs with UnsupportedVersion. Unpublished
-        tuning étude bytes (0xC2/0xC4/0xC6/0xD0) are also rejected.
+        field, the blob was made with the raw seed (before key
+        separation), and tags bind the frozen octavo009 key_sig. Requires
+        allow_noncommitting=True and emits LegacyFormatWarning. Default
+        decrypt() rejects these blobs with UnsupportedVersion.
         """
+        N._require_noncommitting(allow_noncommitting, "Etude.decrypt_legacy")
         blob = N._as_bytes("blob", blob)
         ad = N._normalize_ad(ad)
         if len(blob) < 1:
             raise N.AuthError("bad blob length")
-        if blob[0] not in _BLOCK_ROUNDS_LEGACY:
-            raise N.UnsupportedVersion("unsupported version")
-        return self._decrypt_legacy_block(blob, seed, ad)
+        self._check_version(blob[0], self.fmt_block_legacy, _BLOCK_ROUNDS_LEGACY)
+        return self._decrypt_legacy_block(blob, self._seed(seed), ad)
 
     def _decrypt_legacy_block(self, blob, seed, ad):
-        rounds = _BLOCK_ROUNDS_LEGACY[blob[0]]
+        rounds = self.rounds
         if len(blob) != N.V2_BLOB_LEN:
             raise N.AuthError("bad blob length")
         v, pickup, nonce, ct, tag = blob[:N.PK0], blob[N.PK0:N.N0], blob[N.N0:N.V2_CT0], blob[N.V2_CT0:N.V2_CT1], blob[N.V2_CT1:]
@@ -206,43 +287,44 @@ class Etude:
             raise N.AuthError("authentication failed")
         sch = N.Schedule(seed, nonce)
         b = N.grid_to_bytes(N.decrypt_grid(N.bytes_to_grid(ct), sch, rounds=rounds))
-        L = b[0]
-        if L > N.MAX_MSG or any(b[1 + L:]):
+        ok, msg = N._unpad_block(b)
+        if not ok:
             raise N.DecodeError("tag valid but block malformed")
-        msg = b[1:1 + L]
         if not hmac.compare_digest(nonce, hashlib.sha256(clef + pickup + N.encode_block(msg) + N._encode_ad(ad)).digest()[:N.NONCE_LEN]):
             raise N.AuthError("SIV nonce mismatch")
         return msg
 
+    # ---------------------------------------------------------------- movements
     def encrypt_movements(self, msg, seed=None, ad=b"", pickup=None, nonce=None) -> bytes:
-        """Movements-mode AEAD étude. Optional `pickup` makes the blob deterministic.
+        """Movements-mode AEAD étude under K_e. Optional `pickup` makes the blob deterministic.
 
         Layout matches format version 7 except the leading version byte is the
-        étude flag (0xA3/0xA5/0xA7/0xB1). Normal decrypt_movements rejects
+        étude flag (0x83/0x85/0x87/0x91). Normal decrypt_movements rejects
         the result as UnsupportedVersion.
         """
         msg = N._as_bytes("msg", msg)
         ad = N._normalize_ad(ad)
+        k = self.key(seed)
+        fmt = self.fmt_movements
         chunks = N._chunk_movements(msg)
         nmov = len(chunks)
         adb = N._encode_ad(ad)
-        clef = N.staff_clef(seed)
-        key_sig = N.key_signature(seed)
+        clef = N.staff_clef(k)
+        key_sig = N.key_signature(k)
         pickup = _pickup(pickup)
-        syn = hashlib.sha256(clef + pickup + len(msg).to_bytes(8, "big") + msg + adb).digest()[:N.NONCE_LEN]
+        syn = hashlib.sha256(clef + bytes([fmt]) + pickup + len(msg).to_bytes(8, "big") + msg + adb).digest()[:N.NONCE_LEN]
         if nonce is not None and not hmac.compare_digest(N._as_bytes("nonce", nonce), syn):
             raise ValueError("nonce must be the synthetic (SIV) nonce for this message and pickup")
         nonce = syn
-        commit = N._commitment(N._commit_key(seed), self.fmt_movements, pickup, nonce, ad, nmov=nmov)
-        theme = N._theme_start(seed, nonce)
-        cad_key = N._cadence_key(seed, nonce)
-        coda_key = N._coda_key(seed, nonce)
-        sch = N.Schedule(seed, nonce)
+        commit = N._commitment(N._commit_key(k), fmt, pickup, nonce, ad, nmov=nmov)
+        theme = N._theme_start(k, nonce)
+        cad_key = N._cadence_key(k, nonce)
+        coda_key = N._coda_key(k, nonce)
+        sch = N.Schedule(k, nonce)
         parts, cts, cadences = [], [], []
-        fmt = self.fmt_movements
         for i, chunk in enumerate(chunks):
             final = (i == nmov - 1)
-            tweak = N._movement_tweak(seed, nonce, i, final)
+            tweak = N._movement_tweak(k, nonce, i, final)
             block = N.encode_block(chunk)
             xored = N._xor_bytes(N._xor_bytes(block, theme), tweak)
             ct = N.grid_to_bytes(N.encrypt_grid(N.bytes_to_grid(xored), sch, rounds=self.rounds))
@@ -251,29 +333,27 @@ class Etude:
             parts.append(ct + cadence)
             cts.append(ct)
             cadences.append(cadence)
-            theme = N._theme_next(seed, theme, ct, i, final)
+            theme = N._theme_next(k, theme, ct, i, final)
         coda = N._coda_tag(coda_key, pickup, nonce, nmov, b"".join(cts), b"".join(cadences), clef, key_sig, ad,
                            version=fmt, commit=commit)
         return bytes([fmt]) + N.VERSION + pickup + nonce + commit + nmov.to_bytes(4, "big") + b"".join(parts) + coda
 
     def decrypt_movements(self, blob, seed=None, ad=b"") -> bytes:
-        """Open a movements étude blob. Round count is read from the version byte.
+        """Open a movements étude blob made at THIS round count.
 
-        Current (committed) étude blobs check the tuning commitment first,
-        then the coda (then every cadence) before the Schedule is built.
-        Ordinary version-7 blobs, unpublished tuning étude bytes, and
-        legacy pre-tuning étude bytes raise UnsupportedVersion. Use
-        decrypt_movements_legacy() to open published octavo009 étude
-        blobs during the transition; that path is not key-committing.
+        Another étude round count raises UnsupportedVersion("étude round
+        count mismatch"). Commitment first (like live v7; timing reveals
+        the failing stage), then the coda and every cadence, before the
+        Schedule is built. Live v7 blobs and the tuning-fix / tuning /
+        legacy étude bytes raise UnsupportedVersion.
         """
         blob = N._as_bytes("blob", blob)
         ad = N._normalize_ad(ad)
         if len(blob) < 1:
             raise N.AuthError("bad blob length")
-        if blob[0] not in _MOVEMENTS_ROUNDS:
-            raise N.UnsupportedVersion("unsupported version")
-        rounds = _MOVEMENTS_ROUNDS[blob[0]]
-        fmt = blob[0]
+        self._check_version(blob[0], self.fmt_movements, _MOVEMENTS_ROUNDS)
+        k = self.key(seed)
+        fmt = self.fmt_movements
         if len(blob) < N.MOVEMENTS_HDR_LEN + N.MOVEMENT_STRIDE + N.TAG_LEN:
             raise N.AuthError("bad blob length")
         if blob[1:4] != N.VERSION:
@@ -287,7 +367,7 @@ class Etude:
         expected = N.MOVEMENTS_HDR_LEN + nmov * N.MOVEMENT_STRIDE + N.TAG_LEN
         if len(blob) != expected:
             raise N.AuthError("bad blob length")
-        if not hmac.compare_digest(commit, N._commitment(N._commit_key(seed), fmt, pickup, nonce, ad, nmov=nmov)):
+        if not hmac.compare_digest(commit, N._commitment(N._commit_key(k), fmt, pickup, nonce, ad, nmov=nmov)):
             raise N.AuthError("authentication failed")
         body = blob[N.MOVEMENTS_HDR_LEN:-N.TAG_LEN]
         coda = blob[-N.TAG_LEN:]
@@ -296,17 +376,17 @@ class Etude:
             off = i * N.MOVEMENT_STRIDE
             cts.append(body[off:off + N.BLOCK_LEN])
             cadences.append(body[off + N.BLOCK_LEN:off + N.MOVEMENT_STRIDE])
-        clef = N.staff_clef(seed)
-        key_sig = N.key_signature(seed)
-        coda_key = N._coda_key(seed, nonce)
+        clef = N.staff_clef(k)
+        key_sig = N.key_signature(k)
+        coda_key = N._coda_key(k, nonce)
         if not hmac.compare_digest(
             coda,
             N._coda_tag(coda_key, pickup, nonce, nmov, b"".join(cts), b"".join(cadences), clef, key_sig, ad,
                         version=fmt, commit=commit),
         ):
             raise N.AuthError("authentication failed")
-        cad_key = N._cadence_key(seed, nonce)
-        theme = N._theme_start(seed, nonce)
+        cad_key = N._cadence_key(k, nonce)
+        theme = N._theme_start(k, nonce)
         cad_ok = True
         themes = []
         for i in range(nmov):
@@ -317,46 +397,47 @@ class Etude:
                 N._cadence_tag(cad_key, pickup, nonce, i, final, theme, cts[i], clef, key_sig, ad,
                                version=fmt, commit=commit),
             ) and cad_ok
-            theme = N._theme_next(seed, theme, cts[i], i, final)
+            theme = N._theme_next(k, theme, cts[i], i, final)
         if not cad_ok:
             raise N.AuthError("authentication failed")
-        sch = N.Schedule(seed, nonce)
+        sch = N.Schedule(k, nonce)
         pieces = []
+        dec_ok = True
         for i in range(nmov):
             final = (i == nmov - 1)
-            tweak = N._movement_tweak(seed, nonce, i, final)
-            xored = N.grid_to_bytes(N.decrypt_grid(N.bytes_to_grid(cts[i]), sch, rounds=rounds))
+            tweak = N._movement_tweak(k, nonce, i, final)
+            xored = N.grid_to_bytes(N.decrypt_grid(N.bytes_to_grid(cts[i]), sch, rounds=self.rounds))
             block = N._xor_bytes(N._xor_bytes(xored, themes[i]), tweak)
-            L = block[0]
-            if L > N.MAX_MSG or any(block[1 + L:]):
-                raise N.DecodeError("tag valid but block malformed")
-            pieces.append(block[1:1 + L])
+            ok, piece = N._unpad_block(block)
+            dec_ok &= ok
+            pieces.append(piece)
+        if not dec_ok:
+            raise N.DecodeError("tag valid but block malformed")
         msg = b"".join(pieces)
         if not hmac.compare_digest(
             nonce,
-            hashlib.sha256(clef + pickup + len(msg).to_bytes(8, "big") + msg + N._encode_ad(ad)).digest()[:N.NONCE_LEN],
+            hashlib.sha256(clef + bytes([fmt]) + pickup + len(msg).to_bytes(8, "big") + msg + N._encode_ad(ad)).digest()[:N.NONCE_LEN],
         ):
             raise N.AuthError("SIV nonce mismatch")
         return msg
 
-    def decrypt_movements_legacy(self, blob, seed=None, ad=b"") -> bytes:
-        """Open a published pre-tuning movements étude blob (0xE3/0xE5/0xE7/0xF1).
+    def decrypt_movements_legacy(self, blob, seed=None, ad=b"", *, allow_noncommitting=False) -> bytes:
+        """Open a published pre-tuning movements étude blob (0xE3/0xE5/0xE7/0xF1) at this round count.
 
-        Transition helper only. Not key-committing: there is no tuning
-        field, and tags bind the frozen octavo009 key_sig. Default
-        decrypt_movements() rejects these blobs with UnsupportedVersion.
-        Unpublished tuning étude bytes (0xC3/0xC5/0xC7/0xD1) are also rejected.
+        Transition helper only. Not key-committing (raw seed, no tuning
+        field, frozen octavo009 key_sig). Requires allow_noncommitting=True
+        and emits LegacyFormatWarning.
         """
+        N._require_noncommitting(allow_noncommitting, "Etude.decrypt_movements_legacy")
         blob = N._as_bytes("blob", blob)
         ad = N._normalize_ad(ad)
         if len(blob) < 1:
             raise N.AuthError("bad blob length")
-        if blob[0] not in _MOVEMENTS_ROUNDS_LEGACY:
-            raise N.UnsupportedVersion("unsupported version")
-        return self._decrypt_legacy_movements(blob, seed, ad)
+        self._check_version(blob[0], self.fmt_movements_legacy, _MOVEMENTS_ROUNDS_LEGACY)
+        return self._decrypt_legacy_movements(blob, self._seed(seed), ad)
 
     def _decrypt_legacy_movements(self, blob, seed, ad):
-        rounds = _MOVEMENTS_ROUNDS_LEGACY[blob[0]]
+        rounds = self.rounds
         fmt = blob[0]
         if len(blob) < N.V3_MOVEMENTS_HDR_LEN + N.MOVEMENT_STRIDE + N.TAG_LEN:
             raise N.AuthError("bad blob length")
@@ -403,15 +484,17 @@ class Etude:
             raise N.AuthError("authentication failed")
         sch = N.Schedule(seed, nonce)
         pieces = []
+        dec_ok = True
         for i in range(nmov):
             final = (i == nmov - 1)
             tweak = N._movement_tweak(seed, nonce, i, final)
             xored = N.grid_to_bytes(N.decrypt_grid(N.bytes_to_grid(cts[i]), sch, rounds=rounds))
             block = N._xor_bytes(N._xor_bytes(xored, themes[i]), tweak)
-            L = block[0]
-            if L > N.MAX_MSG or any(block[1 + L:]):
-                raise N.DecodeError("tag valid but block malformed")
-            pieces.append(block[1:1 + L])
+            ok, piece = N._unpad_block(block)
+            dec_ok &= ok
+            pieces.append(piece)
+        if not dec_ok:
+            raise N.DecodeError("tag valid but block malformed")
         msg = b"".join(pieces)
         if not hmac.compare_digest(
             nonce,
@@ -421,24 +504,31 @@ class Etude:
         return msg
 
 
-def etude(rounds) -> Etude:
+def etude(rounds, lab_seed=False) -> Etude:
     """Return a lab handle for the published étude at `rounds` (2, 4, 6 or 16).
 
     The handle is the only supported way to run reduced-round Octavo. It is
-    clearly weakened, and its blobs cannot be opened by the normal APIs.
+    clearly weakened, runs under its own derived key, and its blobs cannot
+    be opened by the normal APIs. lab_seed=True is required to use
+    seed=None or the public demo seed.
     """
-    return Etude(rounds)
+    return Etude(rounds, lab_seed=lab_seed)
 
 
 __all__ = (
     "ETUDE_WARNING",
     "ETUDE_ROUNDS",
+    "ETUDE_KEY_DOMAIN",
+    "DEMO_SEED_SHA256",
     "ETUDE_FMT_BLOCK",
     "ETUDE_FMT_MOVEMENTS",
+    "ETUDE_FMT_BLOCK_TUNINGFIX",
+    "ETUDE_FMT_MOVEMENTS_TUNINGFIX",
     "ETUDE_FMT_BLOCK_LEGACY",
     "ETUDE_FMT_MOVEMENTS_LEGACY",
     "ETUDE_FMT_BLOCK_TUNING",
     "ETUDE_FMT_MOVEMENTS_TUNING",
     "Etude",
     "etude",
+    "etude_key",
 )

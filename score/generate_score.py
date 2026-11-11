@@ -3,9 +3,14 @@
 
 The score is a set of fixed, deterministic test vectors for the raw keyed
 permutation and for both AEAD modes, at the published étude round counts
-(2, 4, 6) and at the full 16 rounds. 16-round AEAD blobs use étude version
-bytes, so they are not interchangeable with live encrypt / encrypt_movements
-blobs, but their ciphertext matches the full-round cipher on the same input.
+(2, 4, 6) and at the full 16 rounds. Since the conductor revision every
+étude runs under its own derived key K_e = StaffSponge(b"E", seed,
+rounds || 15 zero bytes).take(128) and hashes its version byte into the SIV
+nonce, so no étude vector shares round material with a live blob. The
+16-round permutation is still the live staff-core, keyed by K_e.
+Score version 3 (conductor): étude bytes 0x82/0x84/0x86/0x90 and
+0x83/0x85/0x87/0x91. The tuning-fix score (0xA*/0xB*, shared live keys) was
+never published; the octavo009 score (0xE*/0xF*) is frozen in octavo009.
 
 Run from anywhere:
     python3 /workspace/sneak_n2/score/generate_score.py
@@ -22,7 +27,7 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 import sneak_n2 as N
-from etudes import etude, ETUDE_WARNING, ETUDE_FMT_BLOCK, ETUDE_FMT_MOVEMENTS, ETUDE_ROUNDS
+from etudes import etude, etude_key, ETUDE_WARNING, ETUDE_FMT_BLOCK, ETUDE_FMT_MOVEMENTS, ETUDE_ROUNDS, ETUDE_KEY_DOMAIN
 
 # ---------------------------------------------------------------------------
 # Fixed inputs. These are part of the published score; do not change them
@@ -87,7 +92,7 @@ def build_vectors() -> dict:
 
     block_cipher = []
     for rounds in ROUNDS:
-        E = etude(rounds)
+        E = etude(rounds, lab_seed=True)   # the score is published on the public demo seed
         for name, pt in (("zero", PT_ZERO), ("ff", PT_FF), ("seq", PT_SEQ),
                          ("hello-block", N.encode_block(b"hello world"))):
             ct = E.permute(pt, seed, PERMUTE_NONCE)
@@ -104,7 +109,7 @@ def build_vectors() -> dict:
 
     aead = []
     for rounds in ROUNDS:
-        E = etude(rounds)
+        E = etude(rounds, lab_seed=True)   # the score is published on the public demo seed
         cases = (
             ("empty", MSG_0, b"", PICKUP_A),
             ("empty-ad", MSG_0, AD, PICKUP_B),
@@ -139,7 +144,7 @@ def build_vectors() -> dict:
         ("1000-ad", MV_1000, AD, PICKUP_B),
     )
     for rounds in ROUNDS:
-        E = etude(rounds)
+        E = etude(rounds, lab_seed=True)   # the score is published on the public demo seed
         for name, msg, ad, pickup in mv_cases:
             blob = E.encrypt_movements(msg, seed, ad=ad, pickup=pickup)
             if E.decrypt_movements(blob, seed, ad=ad) != msg:
@@ -167,9 +172,12 @@ def build_vectors() -> dict:
             "encrypt/decrypt or encrypt_movements/decrypt_movements. "
             "Current étude blobs carry a tuning commitment (like live v6/v7), "
             "binding encode_ad(ad) and, in movements, nmov. "
-            "16-round permute and 16-round étude ciphertext match the live "
-            "full-round cipher on the same seed, nonce and input; commitments and tags differ."
+            "Every étude runs under its own derived key K_e (sponge domain E, "
+            "round count in the tweak) and binds its version byte in the SIV "
+            "nonce, so étude vectors never share round material with live blobs. "
+            "16-round permute equals the live full-round staff-core keyed by K_e."
         ),
+        "score_version": 3,
         "revision": N.REVISION,
         "revision_date": N.REVISION_DATE,
         "sneak_n2_sha256": file_sha,
@@ -184,6 +192,9 @@ def build_vectors() -> dict:
             "etude_rounds": list(ETUDE_ROUNDS),
             "etude_fmt_block": {str(r): v for r, v in ETUDE_FMT_BLOCK.items()},
             "etude_fmt_movements": {str(r): v for r, v in ETUDE_FMT_MOVEMENTS.items()},
+            "etude_key": "K_e = StaffSponge(b'E', seed, bytes([rounds]) + 15 zero bytes).take(128)",
+            "etude_key_sha256": {str(r): hashlib.sha256(etude_key(seed, r)).hexdigest() for r in ROUNDS},
+            "etude_siv_nonce": "SHA-256(clef(K_e) || version || pickup || encode_block(msg) || encode_ad(ad))[:16]; movements: SHA-256(clef(K_e) || version || pickup || u64be(len) || msg || encode_ad(ad))[:16]",
             "pickup_a": _hx(PICKUP_A),
             "pickup_b": _hx(PICKUP_B),
             "permute_nonce": _hx(PERMUTE_NONCE),

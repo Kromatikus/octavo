@@ -1,6 +1,9 @@
-tuning-fix revision test results (2026-11-11)
-live /workspace/sneak_n2: 323/323 passed, 0 failed, 0 skipped
-fresh copy /tmp/sneak_n2_tuningfix_fresh: 323/323 passed, 0 failed, 0 skipped
-sneak_n2.py SHA-256: e845419417b9d9d157636d7863c26dcb605f99767d54a5e61f3c5df397b24221
-EXPECTED_MIX_SHA256: 947eb322addb5fd5177dd5fde4ca6e6593429088cbb009c26113154995f3d62b
-key_sig: 37e14a077a546e12a40c8013e78e949b
+conductor revision test results (2026-11-11)
+live /workspace/sneak_n2: 346/346 passed, 0 failed, 0 skipped
+fresh copy /tmp/sneak_n2_conductor_fresh: 346/346 passed, 0 failed, 0 skipped
+sneak_n2.py SHA-256: 469c7b0b3bc755966a8274703e64e187fd79b805c0807cbe6bc391d4a43ae062
+EXPECTED_MIX_SHA256: 53df74e18aa01bc0de218680fe88af6f4d166f7ad5cac70d81f43c5575fae797
+key_sig: 46d1acfb174975057fb7b63cf2002d74
+single-block reject timing (random seed, oracle model, 20k interleaved per class; conductor_verification/timing_results.json):
+  tuning-fix: commit-fail 7.85 us vs tag-fail 23.23 us (ratio 2.96, Welch t -1451)
+  conductor:  commit-fail 10.38 us vs tag-fail 10.37 us (ratio 1.00, Welch t 1.7)
