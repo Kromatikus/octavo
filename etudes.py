@@ -43,6 +43,19 @@ decrypt_legacy() / decrypt_movements_legacy() with
 allow_noncommitting=True (LegacyFormatWarning); they were made with the
 raw seed, before key separation, and are not key-committing.
 
+Legacy end date (conductor-polish I1). The legacy étude helpers
+(Etude.decrypt_legacy / decrypt_movements_legacy, bytes 0xE*/0xF*) are a
+transition aid only. They are deprecated now and will be REMOVED in the
+first revision after the conductor-polish freeze (octavo010) that touches
+etudes.py, and in any case no later than 2027-03-01. After that the
+octavo009 étude score opens only from the frozen octavo009 tree.
+
+Seed gate. lab_seed is fixed when the handle is made and is read-only
+afterwards (conductor-polish I6). etude_key(seed, r) is the deliberate,
+documented ungated low-level path (no demo-seed check). Étude keys K_e are
+_DerivedKey values: checked by the weak-seed rule on every use and never
+put in the live seed memo (conductor-polish I5).
+
 Lab hook: encrypt and encrypt_movements accept an optional fixed `pickup` so
 published score vectors are deterministic. The normal APIs have no such
 argument, by design.
@@ -105,15 +118,18 @@ def etude_key(seed, rounds) -> bytes:
     """K_e = StaffSponge(b"E", seed, bytes([rounds]) || 15 zero bytes).take(128).
 
     Squeezes the next 128 bytes if a candidate fails the weak-seed rule
-    (probability far below 2^-100). Low-level: no demo-seed gate here."""
+    (probability far below 2^-100). Low-level and deliberately UNGATED: no
+    demo-seed check here (the Etude handles add it). Returns a _DerivedKey,
+    which the live seed memo never stores (conductor-polish I5)."""
     seed = N._seed_bytes(seed)
     sp = N.StaffSponge(ETUDE_KEY_DOMAIN, seed, bytes([_check_rounds(rounds)]) + bytes(N.NONCE_LEN - 1))
     while True:
-        k = sp.take(N.BLOCK_LEN)
+        k = N._DerivedKey(sp.take(N.BLOCK_LEN))
         try:
-            return N._seed_bytes(k)
+            N._seed_bytes(k)
         except ValueError:
             continue
+        return k
 
 
 class Etude:
@@ -121,12 +137,17 @@ class Etude:
 
     def __init__(self, rounds, lab_seed=False):
         self.rounds = _check_rounds(rounds)
-        self.lab_seed = lab_seed is True
+        self._lab_seed = lab_seed is True
         self.fmt_block = ETUDE_FMT_BLOCK[self.rounds]
         self.fmt_movements = ETUDE_FMT_MOVEMENTS[self.rounds]
         self.fmt_block_legacy = ETUDE_FMT_BLOCK_LEGACY[self.rounds]
         self.fmt_movements_legacy = ETUDE_FMT_MOVEMENTS_LEGACY[self.rounds]
         self.warning = ETUDE_WARNING
+
+    @property
+    def lab_seed(self) -> bool:
+        """Read-only (conductor-polish I6): set once by etude(r, lab_seed=True)."""
+        return self._lab_seed
 
     # ---------------------------------------------------------------- keys
     def _seed(self, seed) -> bytes:
@@ -265,25 +286,36 @@ class Etude:
         allow_noncommitting=True and emits LegacyFormatWarning. Default
         decrypt() rejects these blobs with UnsupportedVersion.
         """
+        N._require_noncommitting(allow_noncommitting, "Etude.decrypt_legacy", warn=False)
+        blob = N._as_bytes("blob", blob)
+        ad = N._normalize_ad(ad)
+        if len(blob) < 1:
+            raise N.AuthError("bad blob length")
+        self._check_version(blob[0], self.fmt_block_legacy, _BLOCK_ROUNDS_LEGACY)
+        return self._decrypt_legacy_block(blob, seed, ad, allow_noncommitting=allow_noncommitting)
+
+    def _decrypt_legacy_block(self, blob, seed, ad, *, allow_noncommitting=False):
+        """Private body, gated and pinned on its own (conductor-polish I2): needs
+        allow_noncommitting=True (LegacyFormatWarning), applies the demo-seed gate,
+        and opens only this handle's own legacy byte (blob[0] == fmt_block_legacy)."""
         N._require_noncommitting(allow_noncommitting, "Etude.decrypt_legacy")
         blob = N._as_bytes("blob", blob)
         ad = N._normalize_ad(ad)
         if len(blob) < 1:
             raise N.AuthError("bad blob length")
         self._check_version(blob[0], self.fmt_block_legacy, _BLOCK_ROUNDS_LEGACY)
-        return self._decrypt_legacy_block(blob, self._seed(seed), ad)
-
-    def _decrypt_legacy_block(self, blob, seed, ad):
+        fmt = self.fmt_block_legacy
+        seed = self._seed(seed)
         rounds = self.rounds
         if len(blob) != N.V2_BLOB_LEN:
             raise N.AuthError("bad blob length")
         v, pickup, nonce, ct, tag = blob[:N.PK0], blob[N.PK0:N.N0], blob[N.N0:N.V2_CT0], blob[N.V2_CT0:N.V2_CT1], blob[N.V2_CT1:]
-        if not hmac.compare_digest(v, bytes([blob[0]]) + N.VERSION):
+        if not hmac.compare_digest(v, bytes([fmt]) + N.VERSION):
             raise N.AuthError("bad version prefix")
         clef = N.staff_clef(seed)
         mac_key = N.StaffSponge(b"M", N._seed_bytes(seed), nonce).take(32)
         if not hmac.compare_digest(tag, N._tag(mac_key, pickup, nonce, ct, clef, N._legacy_key_signature(seed), ad,
-                                               version=blob[0], commit=b"")):
+                                               version=fmt, commit=b"")):
             raise N.AuthError("authentication failed")
         sch = N.Schedule(seed, nonce)
         b = N.grid_to_bytes(N.decrypt_grid(N.bytes_to_grid(ct), sch, rounds=rounds))
@@ -342,9 +374,9 @@ class Etude:
         """Open a movements étude blob made at THIS round count.
 
         Another étude round count raises UnsupportedVersion("étude round
-        count mismatch"). Commitment first (like live v7; timing reveals
-        the failing stage), then the coda and every cadence, before the
-        Schedule is built. Live v7 blobs and the tuning-fix / tuning /
+        count mismatch"). Like live v7 (conductor-polish), the commitment AND
+        the coda are both computed and combined before one AuthError; then
+        every cadence; the Schedule is built only after all pass. Live v7 blobs and the tuning-fix / tuning /
         legacy étude bytes raise UnsupportedVersion.
         """
         blob = N._as_bytes("blob", blob)
@@ -367,8 +399,8 @@ class Etude:
         expected = N.MOVEMENTS_HDR_LEN + nmov * N.MOVEMENT_STRIDE + N.TAG_LEN
         if len(blob) != expected:
             raise N.AuthError("bad blob length")
-        if not hmac.compare_digest(commit, N._commitment(N._commit_key(k), fmt, pickup, nonce, ad, nmov=nmov)):
-            raise N.AuthError("authentication failed")
+        # Equal-time reject (conductor-polish L1): commitment AND coda, combined, one raise.
+        commit_ok = hmac.compare_digest(commit, N._commitment(N._commit_key(k), fmt, pickup, nonce, ad, nmov=nmov))
         body = blob[N.MOVEMENTS_HDR_LEN:-N.TAG_LEN]
         coda = blob[-N.TAG_LEN:]
         cts, cadences = [], []
@@ -379,11 +411,12 @@ class Etude:
         clef = N.staff_clef(k)
         key_sig = N.key_signature(k)
         coda_key = N._coda_key(k, nonce)
-        if not hmac.compare_digest(
+        coda_ok = hmac.compare_digest(
             coda,
             N._coda_tag(coda_key, pickup, nonce, nmov, b"".join(cts), b"".join(cadences), clef, key_sig, ad,
                         version=fmt, commit=commit),
-        ):
+        )
+        if not (commit_ok & coda_ok):
             raise N.AuthError("authentication failed")
         cad_key = N._cadence_key(k, nonce)
         theme = N._theme_start(k, nonce)
@@ -428,17 +461,27 @@ class Etude:
         field, frozen octavo009 key_sig). Requires allow_noncommitting=True
         and emits LegacyFormatWarning.
         """
+        N._require_noncommitting(allow_noncommitting, "Etude.decrypt_movements_legacy", warn=False)
+        blob = N._as_bytes("blob", blob)
+        ad = N._normalize_ad(ad)
+        if len(blob) < 1:
+            raise N.AuthError("bad blob length")
+        self._check_version(blob[0], self.fmt_movements_legacy, _MOVEMENTS_ROUNDS_LEGACY)
+        return self._decrypt_legacy_movements(blob, seed, ad, allow_noncommitting=allow_noncommitting)
+
+    def _decrypt_legacy_movements(self, blob, seed, ad, *, allow_noncommitting=False):
+        """Private body, gated and pinned on its own (conductor-polish I2): needs
+        allow_noncommitting=True (LegacyFormatWarning), applies the demo-seed gate,
+        and opens only this handle's own legacy byte (blob[0] == fmt_movements_legacy)."""
         N._require_noncommitting(allow_noncommitting, "Etude.decrypt_movements_legacy")
         blob = N._as_bytes("blob", blob)
         ad = N._normalize_ad(ad)
         if len(blob) < 1:
             raise N.AuthError("bad blob length")
         self._check_version(blob[0], self.fmt_movements_legacy, _MOVEMENTS_ROUNDS_LEGACY)
-        return self._decrypt_legacy_movements(blob, self._seed(seed), ad)
-
-    def _decrypt_legacy_movements(self, blob, seed, ad):
+        seed = self._seed(seed)
         rounds = self.rounds
-        fmt = blob[0]
+        fmt = self.fmt_movements_legacy
         if len(blob) < N.V3_MOVEMENTS_HDR_LEN + N.MOVEMENT_STRIDE + N.TAG_LEN:
             raise N.AuthError("bad blob length")
         if blob[1:4] != N.VERSION:

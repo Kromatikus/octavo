@@ -1,6 +1,58 @@
 <p align="center"><img src="logo.png" alt="Octavo logo" width="160"></p>
 
-## Current live revision — conductor (2026-11-11)
+## Current live revision — conductor-polish (2026-11-11)
+
+This section supersedes the conductor section below. It applies the
+suggested fixes from the conductor attack
+(`/workspace/attacks_octavo_conductor`, 0 High / 0 Medium / 3 Low / 7 Info).
+**The round function and the v6/v7 wire formats are unchanged**: the same
+seed, pickup and input give the same nonce, commitment and 16-round
+ciphertext byte for byte; only the key_sig-bound tags, cadences and coda
+moved. Still N2 / SN2 (project name: Octavo), still homemade, **not for
+real secrets** (use AES-GCM-SIV, age or libsodium). The picture was
+re-rendered.
+
+- **Equal-time movements rejects (L1).** `decrypt_movements()` and
+  `Etude.decrypt_movements()` always compute the commitment and the coda,
+  combine them without short-circuit and raise one
+  `AuthError("authentication failed")`. Nothing is decrypted before both
+  pass. Commitment-fail vs coda-fail medians: 4.8 µs vs 11.9 µs before,
+  12.3 µs vs 12.3 µs after (3 movements); 5.2 vs 14.8 µs before, 14.3 vs
+  14.3 µs after (10 movements).
+- **`LegacyFormatWarning` is a `UserWarning` (L2)**, so it is shown by
+  default, including when a library module calls a legacy helper.
+- **Fixed-width mask unpad (L3).** Same results as the old rule on every
+  length, about 12× faster, and the L=0 vs L=127 gap fell from about
+  780 ns to under 100 ns.
+- **Private legacy bodies are gated and version-pinned (I2).**
+  `_decrypt_legacy_v2/_v3` and `Etude._decrypt_legacy_block/_movements`
+  need `allow_noncommitting=True`, warn, and open only their own version
+  byte (the étude ones also apply the demo-seed gate).
+- **`Rejected` (I3).** `AuthError`, `DecodeError` and `UnsupportedVersion`
+  share the parent `Rejected(ValueError)`. SECURITY.md recommends an
+  allowlist or cutoff for any legacy fallback, never
+  `except UnsupportedVersion`.
+- **Legacy étude end date (I1).** The legacy étude helpers are removed in
+  the first post-octavo010 revision that touches `etudes.py`, and no
+  later than 2027-03-01.
+- **Seed cache keyed on inode and ctime (I4)**, **16-entry LRU memo with
+  étude keys never memoized (I5)**, and **read-only `Etude.lab_seed`
+  (I6)**.
+
+Because attested source changed (movements decrypt, legacy gates, unpad,
+seed cache, the new `Rejected` and `_DerivedKey` classes),
+`EXPECTED_MIX_SHA256` and `key_signature` moved.
+
+- Live `sneak_n2.py` SHA-256: `c07707bfde75ed4b77a4ad4f09797526f9fabe1509914fb3a49fa5288bd39d50`.
+- `EXPECTED_MIX_SHA256`: `fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6`.
+- key_sig (demo seed): `340dc1e062502bb13462a94ba490c3dc`.
+- hello-world pickup `2b87dc4e184cd78e6c77b829273b17a3`, nonce `d4a86fc3847623035bbe3a19ceda33b1` (empty AD; same commitment and ciphertext as conductor, new tag).
+- movements-demo pickup `ed535a481e4373d21f0b7d05272735ee` (same ciphertext, new cadences and coda).
+- Score: `score/vectors.json` (64 vectors, score version 3, regenerated; étude bytes unchanged).
+
+---
+
+## Previous revision — conductor (2026-11-11)
 
 This section supersedes the tuning-fix section below. It applies the fixes
 from the tuning-fix attack (`/workspace/attacks_octavo_tuningfix`) and the

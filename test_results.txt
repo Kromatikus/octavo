@@ -1,9 +1,13 @@
-conductor revision test results (2026-11-11)
-live /workspace/sneak_n2: 346/346 passed, 0 failed, 0 skipped
-fresh copy /tmp/sneak_n2_conductor_fresh: 346/346 passed, 0 failed, 0 skipped
-sneak_n2.py SHA-256: 469c7b0b3bc755966a8274703e64e187fd79b805c0807cbe6bc391d4a43ae062
-EXPECTED_MIX_SHA256: 53df74e18aa01bc0de218680fe88af6f4d166f7ad5cac70d81f43c5575fae797
-key_sig: 46d1acfb174975057fb7b63cf2002d74
-single-block reject timing (random seed, oracle model, 20k interleaved per class; conductor_verification/timing_results.json):
-  tuning-fix: commit-fail 7.85 us vs tag-fail 23.23 us (ratio 2.96, Welch t -1451)
-  conductor:  commit-fail 10.38 us vs tag-fail 10.37 us (ratio 1.00, Welch t 1.7)
+conductor-polish revision test results (2026-11-11)
+live /workspace/sneak_n2: 366/366 passed, 0 failed, 0 skipped
+fresh copy /tmp/sneak_n2_conductorpolish_fresh: 366/366 passed, 0 failed, 0 skipped
+sneak_n2.py SHA-256: c07707bfde75ed4b77a4ad4f09797526f9fabe1509914fb3a49fa5288bd39d50
+EXPECTED_MIX_SHA256: fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6
+key_sig: 340dc1e062502bb13462a94ba490c3dc
+movements reject timing (random seed, 4000 interleaved per class; conductorpolish_verification/timing_*.json):
+  conductor (3 movements):        commit-fail 4.84 us vs coda-fail 11.87 us (ratio 2.45, Welch t -628)
+  conductor-polish (3 movements): commit-fail 12.45 us vs coda-fail 12.42 us (ratio 1.00, Welch t 1.7)
+  conductor (10 movements):        commit-fail 5.22 us vs coda-fail 14.75 us (ratio 2.83, Welch t -370)
+  conductor-polish (10 movements): commit-fail 14.70 us vs coda-fail 14.68 us (ratio 1.00, Welch t 0.7)
+unpad: 313,408 blocks, 0 mismatches vs the old rule; L=0 vs L=127 gap ~780 ns (loop) -> <100 ns (mask), ~12x faster
+full-round ciphertexts, headers and commitments unchanged for 14 fixed-pickup blobs (conductorpolish_verification/ct_compare_result.txt); only key_sig-bound tags moved

@@ -1,14 +1,14 @@
-Sneak staff-core N2 (Octavo) — conductor: equal-time single-block rejects; key-separated études; legacy helpers need allow_noncommitting=True.
+Sneak staff-core N2 (Octavo) — conductor-polish: equal-time single-block and movements rejects; fixed-width unpad; Rejected base class; legacy helpers gated end to end.
 Homemade; NOT for real secrets. Use AES-GCM-SIV, age, or libsodium. Picture redrawn from this sample.
 seed: sneak1024-seed.txt next to sneak_n2.py (same bytes as /workspace/sneak1024-seed.txt)
-live sneak_n2.py SHA-256: 469c7b0b3bc755966a8274703e64e187fd79b805c0807cbe6bc391d4a43ae062
-key_sig (16 bytes): 46d1acfb174975057fb7b63cf2002d74
+live sneak_n2.py SHA-256: c07707bfde75ed4b77a4ad4f09797526f9fabe1509914fb3a49fa5288bd39d50
+key_sig (16 bytes): 340dc1e062502bb13462a94ba490c3dc
 pickup (16 bytes; sha256(SN2/P || urandom || time_ns || counter || pid)[:16]): 2b87dc4e184cd78e6c77b829273b17a3
 nonce (16 bytes; SHA-256(clef || pickup || encode_block(msg) || encode_ad(ad))[:16], empty AD): d4a86fc3847623035bbe3a19ceda33b1
 commit (32 bytes; HMAC-SHA256(K_commit, U || version || SN2 || pickup || nonce || encode_ad(ad)), domain U): 58f669593230e1bde8ac0507e63c63c213b08d8199ab6cc897b149e84ddc3f6f
 ciphertext (128 bytes): 2ad8399760f919aa82cc0c6495432431052eab2504a0bba34465217206b6f07f859824fc6d94f72c54579e263cf1f2fc23dfebaa3ce34b5f7a5a36d1088011bebfd8535513ac8aa9af141bb8f62475b07f73990de6f440833bf50b1c0c9db050133a6ac1b9c83b87839969b0474439efa98e9f092c046ddb18f3e60d5826a918
-tag (32 bytes; HMAC-SHA256 over clef || key_sig || version || SN2 || pickup || nonce || commit || ct || encode_ad(ad)): 92e3a322d97f5d0c1408f837e7e965f6eecf6f3fc4decd4498cb64031a1cc6d5
-blob (228 bytes = version || SN2 || pickup || nonce || commit || ct || tag): 06534e322b87dc4e184cd78e6c77b829273b17a3d4a86fc3847623035bbe3a19ceda33b158f669593230e1bde8ac0507e63c63c213b08d8199ab6cc897b149e84ddc3f6f2ad8399760f919aa82cc0c6495432431052eab2504a0bba34465217206b6f07f859824fc6d94f72c54579e263cf1f2fc23dfebaa3ce34b5f7a5a36d1088011bebfd8535513ac8aa9af141bb8f62475b07f73990de6f440833bf50b1c0c9db050133a6ac1b9c83b87839969b0474439efa98e9f092c046ddb18f3e60d5826a91892e3a322d97f5d0c1408f837e7e965f6eecf6f3fc4decd4498cb64031a1cc6d5
+tag (32 bytes; HMAC-SHA256 over clef || key_sig || version || SN2 || pickup || nonce || commit || ct || encode_ad(ad)): 070be290b9cc65401ef796d1ab93ced2e979aafc586cf3cee0c062787f8cbc2f
+blob (228 bytes = version || SN2 || pickup || nonce || commit || ct || tag): 06534e322b87dc4e184cd78e6c77b829273b17a3d4a86fc3847623035bbe3a19ceda33b158f669593230e1bde8ac0507e63c63c213b08d8199ab6cc897b149e84ddc3f6f2ad8399760f919aa82cc0c6495432431052eab2504a0bba34465217206b6f07f859824fc6d94f72c54579e263cf1f2fc23dfebaa3ce34b5f7a5a36d1088011bebfd8535513ac8aa9af141bb8f62475b07f73990de6f440833bf50b1c0c9db050133a6ac1b9c83b87839969b0474439efa98e9f092c046ddb18f3e60d5826a918070be290b9cc65401ef796d1ab93ced2e979aafc586cf3cee0c062787f8cbc2f
 
 hex grid: 16 faces x 8 byte-beats, open staffs, four measures of 2/4:
   inner 1   | 2A D8 | 39 97 | 60 F9 | 19 AA |
@@ -30,7 +30,7 @@ hex grid: 16 faces x 8 byte-beats, open staffs, four measures of 2/4:
 
 recovered plaintext: b'hello world'
 1-bit flip (blob byte 100, bit 0) rejected: AuthError: authentication failed
-Re-encrypting differs (fresh pickup and blob); this is one recorded sample with empty AD. The pickup, nonce, commit and ciphertext are the same as the tuning-fix sample; only the key_sig-bound tag moved.
+Re-encrypting differs (fresh pickup and blob); this is one recorded sample with empty AD. The pickup, nonce, commit and ciphertext are the same as the tuning-fix and conductor samples; only the key_sig-bound tag moved.
 Previous published sample (pickup c9a332594dfc60c3f16795a3cba3b16b, etudes / v2) opens only through decrypt_legacy(..., allow_noncommitting=True) (LegacyFormatWarning); default decrypt() rejects it. Unpublished tuning v4 blobs are rejected.
 The picture (sneak-staff-n2.png) was regenerated from this sample.
 demo-nonce.txt is unchanged: an older fixed schedule-test nonce, not this sample's nonce.

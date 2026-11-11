@@ -954,7 +954,7 @@ check("module data hashed includes BARS, BARS_INV, TRIPLETS(_INV), CROSS_*, BOW_
       {"BARS","BARS_INV","TRIPLETS","TRIPLETS_INV","CROSS_OPPOSITE","CROSS_RADIAL","CROSS_ADJACENT","CROSS_BRIDGE","CROSS_LAYERS",
        "BOW_STROKES","BOW_PRESSURE_ROT","BOW_ROT_BASE","BOW_ROT_MOD","BOW_R2_SHIFT","LAYERS","SM4_SBOX","_GF_MUL","MIX2_MATRIX","MIX2_INV","FIELD_POLY",
        "NF","NB","NR","BLOCK_LEN","VERSION","MAX_AD_LEN"} <= reach_data and json.loads(N.mix_description())["mix_data"]["names"]==sorted(reach_data)
-      and len(reach_data)==54)
+      and len(reach_data)==56)   # conductor-polish: + _UNPAD_TOP, _UNPAD_MASKS
 def frame(h,parts):
     for part in parts: b=part.encode(); h.update(len(b).to_bytes(8,"big")); h.update(b)
 desc5=json.loads(N.mix_description())
@@ -1285,7 +1285,8 @@ check("FEATURES mention the version byte and AD in the HMAC description, and AD 
       and any("tuning" in f and "HMAC-U" in f and "commitment" in f for f in N.FEATURES)
       and any("tuning" in f and "HMAC" in f for f in N.FEATURES)
       and any("conductor" in f and "equal-time" in f for f in N.FEATURES)
-      and N.REVISION == "conductor" and N.REVISION_DATE == "2026-11-11")
+      and any("conductor-polish" in f and "equal-time" in f for f in N.FEATURES)
+      and N.REVISION == "conductor-polish" and N.REVISION_DATE == "2026-11-11")
 
 # ---- movements mode (format version 7; legacy version 3 only via decrypt_movements_legacy)
 check("FMT_MOVEMENTS is 7, distinct from single-block version 6, and the header/stride sizes match the layout",
@@ -1862,9 +1863,12 @@ try:
 finally:
     N._coda_key = _cd_ock
 _sec = open(os.path.join(HERE, "SECURITY.md")).read()
-check("conductor: movements stay commitment-first (no coda key on a commit failure) and SECURITY.md documents the stage timing",
-      str(_e_mvc) == str(_e_mvt) == "authentication failed" and _cd_mv_commit == [] and _cd_mv_coda == ["O"]
-      and "timing reveals which stage failed" in _sec and "Timing" in N.decrypt_movements.__doc__)
+check("conductor-polish L1: movements compute the coda on a commitment failure too (same work), one AuthError, and the docs say so",
+      str(_e_mvc) == str(_e_mvt) == "authentication failed" and type(_e_mvc) is type(_e_mvt) is N.AuthError
+      and _cd_mv_commit == ["O"] and _cd_mv_coda == ["O"]
+      and "commit_ok & coda_ok" in inspect.getsource(N.decrypt_movements)
+      and "equal-time" in N.decrypt_movements.__doc__ and "Timing" in N.decrypt_movements.__doc__
+      and "conductor-polish" in _sec and "movements" in _sec)
 
 # ---- étude key separation
 _cd_live_ct = HW_BLOB[N.CT0:N.CT1]; _cd_live_nn = HW_BLOB[20:36]
@@ -1956,8 +1960,8 @@ for _nm, _f in _cd_leg_calls:
         _w.simplefilter("always")
         catch(lambda: _f(allow_noncommitting=True))
     _cd_warned.append(any(issubclass(r.category, N.LegacyFormatWarning) and "not key-committing" in str(r.message) for r in _rec))
-check("conductor: every legacy helper emits LegacyFormatWarning (a DeprecationWarning) when allowed",
-      all(_cd_warned) and issubclass(N.LegacyFormatWarning, DeprecationWarning))
+check("conductor-polish L2: every legacy helper emits LegacyFormatWarning (a UserWarning, not a DeprecationWarning) when allowed",
+      all(_cd_warned) and issubclass(N.LegacyFormatWarning, UserWarning) and not issubclass(N.LegacyFormatWarning, DeprecationWarning))
 if _pre_hw is not None:
     with _w.catch_warnings(record=True) as _rec:
         _w.simplefilter("always")
@@ -1996,7 +2000,7 @@ check("conductor L4: movements decode every block before raising (one combined D
 # ---- I3 seed cache
 _cd_l1 = N.load_seed(); _cd_l2 = N.load_seed()
 for _ in range(40): N._seed_bytes(os.urandom(64) + bytes(range(64)))
-check("conductor I3: the default seed file is parsed once (cached by path/mtime/size) and validated seeds are remembered (bounded set)",
+check("conductor I3: the default seed file is parsed once (cached by stat key) and validated seeds are remembered (bounded LRU)",
       _cd_l1 is _cd_l2 and _cd_l1 == SEED and N.load_seed.cache[1] is _cd_l1 and len(N._seed_bytes.ok) <= 16
       and N._seed_bytes(SEED) == SEED and SEED in N._seed_bytes.ok
       and all(isinstance(catch(lambda s=s: N._seed_bytes(s)), ValueError) for s in (bytes(128), bytes(128), b"\x01" * 128))
@@ -2019,6 +2023,208 @@ check("conductor docs: README and SECURITY say the default seed is a public demo
       "public demo seed" in _readme and "public demo seed" in _sec and "Rust port requirements" in _sec
       and "allow_noncommitting=True" in _sec and "public demo seed" in N.__doc__.lower().replace("\n", " "))
 
+# ---- conductor-polish (L1 movements equal-time, L2 warning class, L3 mask unpad, I1-I6)
+import collections as _cp_coll, subprocess as _cp_sp, shutil as _cp_sh, tempfile as _cp_tmp
+_cp_seed = bytes(range(16, 144))
+_cp_mv = N.encrypt_movements(b"p" * 400, _cp_seed, ad=b"from:alice")
+_cp_cases = {
+    "bad commit": (_cd_mut(_cp_mv, N.CM0 + 2), _cp_seed, b"from:alice"),
+    "bad coda": (_cd_mut(_cp_mv, len(_cp_mv) - 1), _cp_seed, b"from:alice"),
+    "bad ct": (_cd_mut(_cp_mv, N.MOVEMENTS_HDR_LEN + 3), _cp_seed, b"from:alice"),
+    "bad cadence": (_cd_mut(_cp_mv, N.MOVEMENTS_HDR_LEN + N.BLOCK_LEN + 1), _cp_seed, b"from:alice"),
+    "wrong AD": (_cp_mv, _cp_seed, b"from:bob"),
+    "wrong key": (_cp_mv, SEED, b"from:alice"),
+}
+_cp_calls = []
+_cp_orig = (N._commitment, N._coda_tag, N._cadence_key, N.Schedule.__init__)
+def _cp_c(*a, **k): _cp_calls.append("commit"); return _cp_orig[0](*a, **k)
+def _cp_o(*a, **k): _cp_calls.append("coda"); return _cp_orig[1](*a, **k)
+def _cp_d(*a, **k): _cp_calls.append("cadkey"); return _cp_orig[2](*a, **k)
+def _cp_s(self, *a, **k): _cp_calls.append("Schedule"); return _cp_orig[3](self, *a, **k)
+N._commitment, N._coda_tag, N._cadence_key, N.Schedule.__init__ = _cp_c, _cp_o, _cp_d, _cp_s
+_cp_trace = {}
+try:
+    for _nm, (_b, _s, _a) in _cp_cases.items():
+        _cp_calls.clear()
+        _e = catch(lambda: N.decrypt_movements(_b, _s, ad=_a))
+        _cp_trace[_nm] = (type(_e), str(_e), list(_cp_calls))
+finally:
+    N._commitment, N._coda_tag, N._cadence_key, N.Schedule.__init__ = _cp_orig
+check("conductor-polish L1: every outsider movements reject (bad commit/coda/ct/cadence, wrong AD/key) runs commitment AND coda, no cadence key, no Schedule, one AuthError",
+      all(t == (N.AuthError, "authentication failed", ["commit", "coda"]) for t in _cp_trace.values()))
+check("conductor-polish L1: decrypt_movements raises authentication failed exactly twice (combined commit/coda, then combined cadences) and decrypts nothing before both",
+      inspect.getsource(N.decrypt_movements).split('"""')[2].count('raise AuthError("authentication failed")') == 2
+      and inspect.getsource(N.decrypt_movements).index("commit_ok & coda_ok") < inspect.getsource(N.decrypt_movements).index("decrypt_grid"))
+def _cp_time(b, s, a, n):
+    out = []
+    for _ in range(n):
+        t0 = _time.perf_counter_ns()
+        try: N.decrypt_movements(b, s, ad=a)
+        except N.AuthError: pass
+        out.append(_time.perf_counter_ns() - t0)
+    return out
+_cp_tc, _cp_to = [], []
+for _ in range(40):
+    _cp_tc += _cp_time(*_cp_cases["bad commit"], 25); _cp_to += _cp_time(*_cp_cases["bad coda"], 25)
+_cp_mc, _cp_mo = sorted(_cp_tc)[len(_cp_tc) // 2], sorted(_cp_to)[len(_cp_to) // 2]
+print("conductor-polish movements timing: median commit-fail %.2f us, coda-fail %.2f us, ratio %.3f" % (_cp_mc / 1e3, _cp_mo / 1e3, _cp_mo / _cp_mc))
+check("conductor-polish L1: movements commit-fail and coda-fail medians are within 25% (was ~2.5x)",
+      0.8 < _cp_mo / _cp_mc < 1.25)
+_cp_e16m = etude(16).encrypt_movements(b"q" * 300, SEED, pickup=HW_PICKUP)
+_cp_seen = []
+_cp_ock = N._coda_key
+N._coda_key = lambda *a: (_cp_seen.append("O"), _cp_ock(*a))[1]
+try:
+    _cp_ee = catch(lambda: etude(16).decrypt_movements(_cd_mut(_cp_e16m, N.CM0), SEED))
+finally:
+    N._coda_key = _cp_ock
+check("conductor-polish L1: étude movements also compute the coda on a commitment failure (combined reject)",
+      type(_cp_ee) is N.AuthError and str(_cp_ee) == "authentication failed" and _cp_seen == ["O"]
+      and etude(16).decrypt_movements(_cp_e16m, SEED) == b"q" * 300)
+_cp_good = N.decrypt_movements(_cp_mv, _cp_seed, ad=b"from:alice")
+check("conductor-polish L1: a good movements blob still opens, and a valid-coda bad-pad block still gives DecodeError only after auth",
+      _cp_good == b"p" * 400)
+
+# L2: shown by default (fresh interpreter, called from an imported module, default filters)
+_cp_dir = _cp_tmp.mkdtemp(prefix="octavo_cp_")
+open(os.path.join(_cp_dir, "libcall.py"), "w").write(
+    "import sneak_n2 as N\n"
+    "def go():\n"
+    "    try: N.decrypt_legacy(bytes([2]) + b'SN2' + bytes(192), bytes(range(16, 144)), allow_noncommitting=True)\n"
+    "    except N.Rejected: pass\n")
+_cp_r = _cp_sp.run([sys.executable, "-B", "-c", "import libcall; libcall.go()"], cwd=_cp_dir, capture_output=True, text=True,
+                   env=dict(os.environ, PYTHONPATH=HERE + os.pathsep + _cp_dir, PYTHONWARNINGS=""))
+check("conductor-polish L2: a library module calling decrypt_legacy(..., allow_noncommitting=True) prints LegacyFormatWarning under default filters",
+      _cp_r.returncode == 0 and "LegacyFormatWarning" in _cp_r.stderr and "not key-committing" in _cp_r.stderr)
+_cp_sh.rmtree(_cp_dir, ignore_errors=True)
+
+# L3: fixed-width mask unpad equals the old rule on every length and many blocks; no per-byte loop
+_cp_rr = random.Random(2026)
+_cp_bad = 0; _cp_n = 0
+for _L in range(256):
+    _blks = [bytes([_L]) + bytes(127)]
+    for _pos in range(1, 128):
+        for _v in (1, 0x80, 0xFF):
+            _x = bytearray([_L] + [0] * 127); _x[_pos] = _v; _blks.append(bytes(_x))
+    for _ in range(12):
+        _x = bytearray([_L] + [0] * 127)
+        for _i in range(1, min(_L, 127) + 1): _x[_i] = _cp_rr.randrange(256)
+        if _cp_rr.random() < .5: _x[_cp_rr.randrange(1, 128)] = _cp_rr.randrange(1, 256)
+        _blks.append(bytes(_x))
+    for _b in _blks:
+        _Lb = _b[0]; _old = not (_Lb > 127 or any(_b[1 + _Lb:]))
+        _ok, _m = N._unpad_block(_b); _cp_n += 1
+        _cp_bad += (_ok != _old) or (_ok and _m != _b[1:1 + _Lb])
+_cp_usrc = inspect.getsource(N._unpad_block)
+check("conductor-polish L3: mask _unpad_block equals the old pad rule on %d blocks (every L 0..255, every single-byte pad position), fixed-width masks, no loop" % _cp_n,
+      _cp_bad == 0 and _cp_n > 90000 and "for " not in _cp_usrc.split('"""')[2] and "_UNPAD_MASKS[L & MAX_MSG]" in _cp_usrc
+      and len(N._UNPAD_MASKS) == 128 and all(m.bit_length() == 1017 for m in N._UNPAD_MASKS)
+      and N._UNPAD_MASKS[127] == N._UNPAD_TOP)
+def _cp_ut(L, n=3000):
+    _b = N.encode_block(b"A" * L); out = []
+    for _ in range(n):
+        t0 = _time.perf_counter_ns(); N._unpad_block(_b); out.append(_time.perf_counter_ns() - t0)
+    return sorted(out)[n // 2]
+_cp_u0, _cp_u127 = min(_cp_ut(0) for _ in range(3)), min(_cp_ut(127) for _ in range(3))
+print("conductor-polish unpad timing: median L=0 %d ns, L=127 %d ns" % (_cp_u0, _cp_u127))
+check("conductor-polish L3: unpad L=0 vs L=127 medians within 400 ns (loop version was ~750 ns apart) and under 3 us",
+      abs(_cp_u0 - _cp_u127) < 400 and max(_cp_u0, _cp_u127) < 3000)
+
+# I2: private legacy bodies are gated and version-pinned on their own
+_cp_v2 = bytes([2]) + b"SN2" + bytes(192)
+_cp_priv_noflag = [catch(lambda: N._decrypt_legacy_v2(_cp_v2, SEED, b"")),
+                   catch(lambda: N._decrypt_legacy_v3(bytes([3]) + b"SN2" + bytes(300), SEED, b"")),
+                   catch(lambda: etude(16)._decrypt_legacy_block(bytes([0xF0]) + b"SN2" + bytes(192), SEED, b"")),
+                   catch(lambda: etude(16)._decrypt_legacy_movements(bytes([0xF1]) + b"SN2" + bytes(300), SEED, b""))]
+check("conductor-polish I2: every private legacy body refuses without allow_noncommitting=True (ValueError)",
+      all(type(e) is ValueError and "allow_noncommitting=True" in str(e) for e in _cp_priv_noflag))
+_cp_live_v2like = bytes([N.FMT_VERSION]) + HW_BLOB[1:N.CM0] + HW_BLOB[N.CM1:]      # 196 bytes, byte 6
+_cp_pins = [catch(lambda: N._decrypt_legacy_v2(_cp_live_v2like, SEED, b"", allow_noncommitting=True)),
+            catch(lambda: N._decrypt_legacy_v3(_cp_mv, _cp_seed, b"", allow_noncommitting=True)),
+            catch(lambda: etude(16)._decrypt_legacy_block(bytes([2]) + _cp_live_v2like[1:], SEED, b"", allow_noncommitting=True)),
+            catch(lambda: etude(2)._decrypt_legacy_block(bytes([0xF0]) + _cp_live_v2like[1:], SEED, b"", allow_noncommitting=True)),
+            catch(lambda: etude(16)._decrypt_legacy_movements(bytes([3]) + b"SN2" + bytes(300), SEED, b"", allow_noncommitting=True))]
+check("conductor-polish I2: private legacy bodies pin the version byte (live/other bytes -> UnsupportedVersion; another round count -> mismatch)",
+      all(isinstance(e, N.UnsupportedVersion) for e in _cp_pins) and str(_cp_pins[3]) == "étude round count mismatch")
+check("conductor-polish I2: private étude legacy bodies apply the demo-seed gate too",
+      "lab_seed=True" in str(catch(lambda: E.etude(16)._decrypt_legacy_block(bytes([0xF0]) + b"SN2" + bytes(192), SEED, b"", allow_noncommitting=True))))
+if _pre_hw is not None:
+    with _w.catch_warnings(record=True) as _rec:
+        _w.simplefilter("always")
+        _cp_hw = N._decrypt_legacy_v2(_pre_hw, SEED, b"", allow_noncommitting=True)
+    check("conductor-polish I2: the published v2 hello-world opens through the private body with the flag, with exactly one warning",
+          _cp_hw == b"hello world" and sum(issubclass(r.category, N.LegacyFormatWarning) for r in _rec) == 1)
+else:
+    skip("conductor-polish I2: the published v2 hello-world opens through the private body with the flag, with exactly one warning")
+
+# I3: shared parent class
+check("conductor-polish I3: Rejected is the common ValueError parent of AuthError, DecodeError and UnsupportedVersion; AuthError and UnsupportedVersion stay disjoint",
+      issubclass(N.Rejected, ValueError) and all(issubclass(c, N.Rejected) for c in (N.AuthError, N.DecodeError, N.UnsupportedVersion))
+      and not issubclass(N.UnsupportedVersion, N.AuthError) and not issubclass(N.AuthError, N.UnsupportedVersion)
+      and "Rejected" in N.MIX_CODE_FUNCS)
+_cp_rej = [catch(f) for f in (lambda: N.decrypt(b"", SEED), lambda: N.decrypt(bytes([2]) + bytes(195), SEED), lambda: N.decrypt(HW_BLOB, _cp_seed),
+                              lambda: N.decrypt_movements(bytes([3]) + bytes(300), SEED), lambda: N.decrypt_movements(_cp_mv, SEED),
+                              lambda: etude(4).decrypt(_cd_ms[2], SEED), lambda: N.decrypt(HW_BLOB[:-1], SEED))]
+check("conductor-polish I3: one `except Rejected:` clause catches every reject class (length, version, auth, round mismatch); caller errors stay plain",
+      all(isinstance(e, N.Rejected) for e in _cp_rej)
+      and not isinstance(catch(lambda: N.decrypt_legacy(_cp_v2, SEED)), N.Rejected)
+      and not isinstance(catch(lambda: N.decrypt(HW_BLOB, bytes(128))), N.Rejected)
+      and isinstance(catch(lambda: N.decrypt("x", SEED)), TypeError))
+check("conductor-polish I3: SECURITY.md documents Rejected and recommends an allowlist / cutoff for legacy fallback, not `except UnsupportedVersion`",
+      "Rejected" in _sec and "allowlist" in _sec and "cutoff" in _sec)
+
+# I1: documented end date for legacy étude helpers
+_cp_esrc = open(os.path.join(HERE, "etudes.py"), encoding="utf-8").read()
+check("conductor-polish I1: etudes.py and SECURITY.md give an end date for the legacy étude helpers",
+      "2027-03-01" in _cp_esrc and "REMOVED" in _cp_esrc and "2027-03-01" in _sec)
+
+# I4: seed-file cache keyed on dev/inode/size/mtime/ctime
+_cp_tree = _cp_tmp.mkdtemp(prefix="octavo_cp_seed_")
+_cp_sh.copy(os.path.join(HERE, "sneak_n2.py"), _cp_tree)
+_cp_sh.copy(os.path.join(HERE, "sneak1024-seed.txt"), _cp_tree)
+_cp_alt = os.urandom(128)
+while len(set(b for b in _cp_alt if b)) < 32: _cp_alt = os.urandom(128)
+open(os.path.join(_cp_tree, "alt.txt"), "w").write(_cp_alt.hex() + "\n")
+_cp_prog = (
+    "import os, shutil, sneak_n2 as N\n"
+    "p = N.SEED_PATH; a = N.load_seed(); st = os.stat(p)\n"
+    "shutil.copyfile('alt.txt', p); os.utime(p, ns=(st.st_atime_ns, st.st_mtime_ns))\n"   # same size+mtime, new content
+    "b = N.load_seed()\n"
+    "os.replace('alt2.txt', p) if os.path.exists('alt2.txt') else None\n"
+    "print(a.hex() != b.hex(), b.hex() == open('alt.txt').read().strip(), len(N.load_seed.cache[0]))\n")
+_cp_r = _cp_sp.run([sys.executable, "-B", "-c", _cp_prog], cwd=_cp_tree, capture_output=True, text=True)
+_cp_sh.rmtree(_cp_tree, ignore_errors=True)
+check("conductor-polish I4: replacing the seed file with a same-size, same-mtime seed is noticed (cache key has inode + ctime)",
+      _cp_r.stdout.split() == ["True", "True", "6"])
+
+# I5: LRU memo; étude keys never memoized
+N._seed_bytes(SEED)
+for _ in range(15): N._seed_bytes(os.urandom(64) + bytes(range(64)))
+N._seed_bytes(SEED)                          # hit -> most recent
+for _ in range(15): N._seed_bytes(os.urandom(64) + bytes(range(64)))
+_cp_lru_kept = SEED in N._seed_bytes.ok
+for _ in range(16): N._seed_bytes(os.urandom(64) + bytes(range(64)))
+_cp_lru_dropped = SEED not in N._seed_bytes.ok
+_cp_before = len(N._seed_bytes.ok)
+_cp_ks = [E.etude_key(SEED, r) for r in (2, 4, 6, 16)]
+etude(4).decrypt(etude(4).encrypt(b"lru", SEED), SEED)
+check("conductor-polish I5: the seed memo is a bounded LRU (no clear-all), and étude keys K_e are never memoized",
+      isinstance(N._seed_bytes.ok, _cp_coll.OrderedDict) and N._seed_bytes.size == 16 and len(N._seed_bytes.ok) <= 16
+      and _cp_lru_kept and _cp_lru_dropped and _cp_before == 16
+      and all(type(k) is N._DerivedKey for k in _cp_ks) and not any(bytes(k) in N._seed_bytes.ok for k in _cp_ks)
+      and "clear()" not in inspect.getsource(N._seed_bytes))
+check("conductor-polish I5: a weak value wrapped as _DerivedKey is still rejected (marker skips the memo, never the rule)",
+      isinstance(catch(lambda: N._seed_bytes(N._DerivedKey(bytes(128)))), ValueError)
+      and N._seed_bytes(N._DerivedKey(_cp_ks[0])) == _cp_ks[0])
+
+# I6: lab_seed read-only
+_cp_h = E.etude(2)
+_cp_set = catch(lambda: setattr(_cp_h, "lab_seed", True))
+check("conductor-polish I6: Etude.lab_seed is read-only after construction; the demo seed stays refused",
+      isinstance(_cp_set, AttributeError) and _cp_h.lab_seed is False and E.etude(2, lab_seed=True).lab_seed is True
+      and "lab_seed=True" in str(catch(lambda: _cp_h.encrypt(b"x", SEED)))
+      and "ungated" in E.etude_key.__doc__.lower())
+
 # published score: regenerate in memory and compare to score/vectors.json
 import json as _json_score
 import score.generate_score as _gen_score
@@ -2027,7 +2233,7 @@ _committed = _json_score.load(open(_score_path))
 _fresh = _gen_score.build_vectors()
 check("published score regenerates identically (64 vectors: 16 permute, 24 aead, 24 movements)",
       _fresh == _committed and _committed["counts"] == {"block_cipher": 16, "aead": 24, "movements": 24, "total": 64}
-      and _committed["revision"] == "conductor" and _committed.get("score_version") == 3
+      and _committed["revision"] == "conductor-polish" and _committed.get("score_version") == 3
       and _committed["format"]["etude_fmt_block"] == {"2": 0x82, "4": 0x84, "6": 0x86, "16": 0x90}
       and _committed["EXPECTED_MIX_SHA256"] == N.EXPECTED_MIX_SHA256
       and _committed["key_sig"] == N.key_signature(SEED).hex()

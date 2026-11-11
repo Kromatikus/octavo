@@ -1,6 +1,19 @@
 # Live tree note (not a freeze)
 
-Live `/workspace/sneak_n2` is the conductor revision (2026-11-11)
+Live `/workspace/sneak_n2` is the conductor-polish revision (2026-11-11)
+on top of the conductor tree. The round function and the v6/v7 formats are
+unchanged (same nonce, commitment and ciphertext for the same inputs).
+Movements rejects are now equal-time (commitment and coda combined).
+
+- sneak_n2.py SHA-256: c07707bfde75ed4b77a4ad4f09797526f9fabe1509914fb3a49fa5288bd39d50
+- EXPECTED_MIX_SHA256: fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6
+- key_sig (demo seed): 340dc1e062502bb13462a94ba490c3dc
+- hello-world pickup 2b87dc4e184cd78e6c77b829273b17a3, nonce d4a86fc3847623035bbe3a19ceda33b1 (empty AD; same ciphertext as conductor, new tag)
+- Changes: equal-time movements rejects (L1); LegacyFormatWarning is a UserWarning (L2); fixed-width mask unpad (L3); private legacy bodies gated + version-pinned (I2); Rejected base class + allowlist/cutoff guidance (I3); legacy étude end date 2027-03-01 (I1); seed-file cache keyed on dev/inode/size/mtime/ctime (I4); 16-entry LRU seed memo, étude keys never memoized (I5); read-only Etude.lab_seed (I6); score regenerated (score version 3); picture re-rendered.
+
+# Previous live tree note — conductor (superseded by conductor-polish above)
+
+Live `/workspace/sneak_n2` was the conductor revision (2026-11-11)
 on top of the tuning-fix tree. The round function is unchanged and the
 live formats are still v6 (single-block, 228 bytes) and v7 (movements).
 Single-block rejects always run both the commitment and the tag check.

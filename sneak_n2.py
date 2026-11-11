@@ -20,7 +20,7 @@ The default seed file sneak1024-seed.txt is a PUBLIC DEMO SEED: its full
 hex is published in score/vectors.json, so any blob made with seed=None
 is readable by anyone.
 """
-import hashlib, hmac, os, json, inspect, ast, textwrap, types, time, warnings
+import hashlib, hmac, os, json, inspect, ast, textwrap, types, time, warnings, collections
 
 VERSION = b"SN2"                 # magic after the format-version byte; sponge domains stay b"SN2/"
 FMT_VERSION_V2 = 2              # legacy single-block (no tuning); decrypt_legacy() only
@@ -63,11 +63,11 @@ LEGACY_MIX_SHA256 = "4e9a7ded574924fe9635e2b7b908ba7c5fa5c489062137203d3ce03341a
 SEED_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sneak1024-seed.txt")
 # sha256(mix_description()) hex; used as the StaffSponge nonce for key_signature.
 # Excluded from attestation so this constant is not part of what it names (chicken-and-egg).
-EXPECTED_MIX_SHA256 = "53df74e18aa01bc0de218680fe88af6f4d166f7ad5cac70d81f43c5575fae797"
+EXPECTED_MIX_SHA256 = "fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6"
 
 # Picture / documentation metadata. Not part of the mix or tag; excluded from
 # attestation so a label or feature-list edit does not change key_sig or ciphertext.
-REVISION = "conductor"
+REVISION = "conductor-polish"
 REVISION_DATE = "2026-11-11"
 FEATURES = (
     "keyed SM4 S-boxes",
@@ -81,7 +81,7 @@ FEATURES = (
     "HMAC tag over clef‖key_sig‖version‖SN2‖pickup‖nonce‖tuning‖ct‖AD",
     "movements: theme T; cadence HMAC-D over theme‖index‖ct; coda HMAC-O over header‖count‖ct‖cadences‖AD",
     "tuning: HMAC-U commitment over version‖SN2‖pickup‖nonce‖AD (and nmov)",
-    "conductor: equal-time single-block rejects",
+    "conductor-polish: equal-time rejects",
     "grid IS ciphertext",
     "études 2/4/6 (lab only, own key E)",
 )
@@ -99,7 +99,15 @@ SM4_SBOX = bytes.fromhex(
     "79ee5f3ed7cb3948")
 assert len(SM4_SBOX) == 256 and len(set(SM4_SBOX)) == 256
 
-class AuthError(ValueError):
+class Rejected(ValueError):
+    """Common parent of every reject a decrypt API can raise for a bad or
+    foreign blob (conductor-polish I3): AuthError, DecodeError and
+    UnsupportedVersion. `except Rejected:` is the one clause that means
+    "this blob was not accepted". It never means "try the legacy path":
+    a legacy fallback must use an explicit allowlist or cutoff (SECURITY.md).
+    Caller mistakes (wrong argument types, weak seed, a missing
+    allow_noncommitting=True flag) stay plain TypeError / ValueError."""
+class AuthError(Rejected):
     """Authentication or format failure. No payload is ever returned.
 
     Commitment, tag, cadence and coda failures all raise AuthError with
@@ -107,30 +115,36 @@ class AuthError(ValueError):
     message do not distinguish a wrong key from wrong associated data.
     Single-block decrypt always computes and compares BOTH the commitment
     and the tag before raising (equal-time reject, conductor). Movements
-    still check the commitment first, so timing there reveals which
-    stage failed (see SECURITY.md). Structural errors (bad length, bad
-    version prefix, bad movement count) keep their own messages.
+    decrypt computes the commitment AND the coda before raising one
+    combined AuthError (conductor-polish L1). Structural errors (bad
+    length, bad version prefix, bad movement count) keep their own
+    messages; they depend only on public data.
     """
-class DecodeError(ValueError): """Tag was valid but the decrypted block is not a well-formed encoding."""
-class UnsupportedVersion(ValueError):
+class DecodeError(Rejected): """Tag was valid but the decrypted block is not a well-formed encoding."""
+class UnsupportedVersion(Rejected):
     """Blob format version is not the one this API speaks.
 
     Deliberately NOT a subclass of AuthError (conductor), so a natural
-    `except AuthError:` handler can never drift into a legacy fallback."""
-class LegacyFormatWarning(DeprecationWarning):
-    """Emitted by every non-committing legacy helper (decrypt_legacy, decrypt_movements_legacy, étude equivalents)."""
+    `except AuthError:` handler can never drift into a legacy fallback.
+    It is a Rejected (conductor-polish), so `except Rejected:` catches it."""
+class LegacyFormatWarning(UserWarning):
+    """Emitted by every non-committing legacy helper (decrypt_legacy, decrypt_movements_legacy, étude equivalents).
+    A UserWarning (conductor-polish L2), so Python's default filters SHOW it, including
+    when a library module (not __main__) calls the helper."""
 
 # ---------------------------------------------------------------- seed
 def load_seed(path=None) -> bytes:
     """Same file and parsing as N1 (256 hex digits = 1024 bits), returned as 128 big-endian bytes.
     Default: sneak1024-seed.txt next to this module. No other location is read.
     That default file is a PUBLIC DEMO SEED (published in score/vectors.json); never use it for anything real.
-    The default file is parsed once and cached, keyed by its path, mtime and size (conductor I3)."""
+    The default file is parsed once and cached. The cache key is (path, st_dev, st_ino, st_size,
+    st_mtime_ns, st_ctime_ns) (conductor-polish I4): replacing the file (new inode) or rewriting it
+    in place (new ctime, which cp -p, rsync -t and touch -r cannot set back) forces a re-read."""
     key = None
     if path is None:
         path = SEED_PATH
         st = os.stat(path)
-        key = (path, st.st_mtime_ns, st.st_size)
+        key = (path, st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns, st.st_ctime_ns)
         if load_seed.cache is not None and load_seed.cache[0] == key:
             return load_seed.cache[1]
     h = "".join(c for c in open(path).read().lower() if c in "0123456789abcdef")
@@ -141,25 +155,37 @@ def load_seed(path=None) -> bytes:
     return seed
 load_seed.cache = None
 
+class _DerivedKey(bytes):
+    """Marker for a key derived inside this package (étude keys K_e). _seed_bytes runs the
+    weak-seed rule on it every time and never puts it in the seed memo (conductor-polish I5)."""
+    __slots__ = ()
+
 def _seed_bytes(seed) -> bytes:
-    """Normalize and check a seed. A seed that already passed the weak-seed rule is remembered
-    (small in-process set, at most 16 entries) so the per-call cost no longer depends on the
-    seed's byte distribution (conductor I3)."""
+    """Normalize and check a seed. A caller seed that already passed the weak-seed rule is
+    remembered in a small LRU (at most _seed_bytes.size = 16 entries; the least recently used
+    entry is dropped, never the whole memo) so the per-call cost does not depend on the seed's
+    byte distribution (conductor I3, conductor-polish I5). Derived étude keys (_DerivedKey) are
+    checked on every use and never remembered."""
+    remember = type(seed) is not _DerivedKey
     if seed is None: seed = load_seed()
     elif isinstance(seed, int): seed = seed.to_bytes(128, "big")          # N1-style integer key
     else: seed = bytes(seed)
     if len(seed) != 128: raise ValueError("seed must be 128 bytes (1024 bits)")
-    if seed in _seed_bytes.ok:
+    memo = _seed_bytes.ok
+    if remember and seed in memo:
+        memo.move_to_end(seed)
         return seed
     # Weak-seed rule: at least 32 distinct nonzero bytes (rejects all-zero, seed=1, repeated-byte keys).
     nonzero = [b for b in seed if b]
     if len(set(nonzero)) < 32:
         raise ValueError("weak seed: need at least 32 distinct nonzero bytes")
-    if len(_seed_bytes.ok) >= 16:
-        _seed_bytes.ok.clear()
-    _seed_bytes.ok.add(seed)
+    if remember:
+        memo[seed] = True
+        while len(memo) > _seed_bytes.size:
+            memo.popitem(last=False)
     return seed
-_seed_bytes.ok = set()
+_seed_bytes.ok = collections.OrderedDict()
+_seed_bytes.size = 16
 
 # ---------------------------------------------------------------- staff sponge (SHA-256 underneath)
 class StaffSponge:
@@ -584,6 +610,8 @@ MIX_CODE_FUNCS = (
     "_decrypt_legacy_v2", "_decrypt_legacy_v3",
     # added 2026-11-11 (conductor): constant-structure unpad, legacy opt-in gate and its warning class.
     "_unpad_block", "_require_noncommitting", "LegacyFormatWarning",
+    # added 2026-11-11 (conductor-polish): shared reject parent, derived-key marker.
+    "Rejected", "_DerivedKey",
 )
 
 def _referenced_globals(obj):
@@ -767,22 +795,27 @@ def encode_block(msg: bytes) -> bytes:
     if len(msg) > MAX_MSG: raise ValueError("message too long (max 127 bytes)")
     return bytes([len(msg)]) + msg + bytes(MAX_MSG - len(msg))
 
-def _unpad_block(b: bytes):
-    """Constant-structure inverse of encode_block (conductor L4): -> (ok, msg).
+# Fixed-width masks for _unpad_block (conductor-polish L3). Payload bytes 1..127 are read as one
+# 1016-bit big-endian integer; _UNPAD_MASKS[L] selects the pad region (bytes L+1..127). Every mask
+# and every accumulator carries the same top bit, so each operand is a 1017-bit integer whatever L is.
+_UNPAD_TOP = 1 << (8 * MAX_MSG)
+_UNPAD_MASKS = tuple(_UNPAD_TOP | ((1 << (8 * (MAX_MSG - L))) - 1) for L in range(MAX_MSG + 1))
 
-    Always visits all 127 payload bytes with the same operations. bad_len is
-    a 0/1 mask for L > 127; byte i (1..127) is OR-ed into the pad check
-    under mask(i > L), so no scan or branch depends on L. The payload is
-    copied as a fixed 127-byte buffer and only then cut to L. ok is False
-    exactly when the old check `L > 127 or any(b[1+L:])` was true.
-    Python is still not constant-time; this only fixes the control flow."""
+def _unpad_block(b: bytes):
+    """Fixed-width inverse of encode_block (conductor L4, conductor-polish L3): -> (ok, msg).
+
+    bad_len is a 0/1 flag for L > 127. The 127 payload bytes become one
+    integer, OR-ed with a fixed top bit and AND-ed with the pad-region mask
+    for L & 127, so every big-int operation works on same-size operands
+    and no loop or branch depends on L. ok is False exactly when the old
+    check `L > 127 or any(b[1+L:])` was true. Python is still not
+    constant-time (the final compare and the slice are not); the Rust
+    port requirement in SECURITY.md stands."""
     L = b[0]
     bad = ((MAX_MSG - L) >> 8) & 1                      # 1 iff L > 127 (L is 0..255)
-    acc = 0
-    for i in range(1, BLOCK_LEN):
-        acc |= b[i] & (-(((L - i) >> 8) & 1) & 0xFF)    # mask 0xFF iff i > L
-    bad |= ((acc + 0xFF) >> 8) & 1                      # 1 iff acc != 0
     payload = bytes(b[1:BLOCK_LEN])
+    acc = (int.from_bytes(payload, "big") | _UNPAD_TOP) & _UNPAD_MASKS[L & MAX_MSG]
+    bad |= (acc ^ _UNPAD_TOP) != 0                      # any nonzero byte in the pad region
     return bad == 0, payload[:L & MAX_MSG]
 
 # ---------------------------------------------------------------- AE API
@@ -915,13 +948,17 @@ def decrypt(blob: bytes, seed=None, ad: bytes = b"") -> bytes:
         raise AuthError("SIV nonce mismatch")
     return msg
 
-def _require_noncommitting(allow, name):
+def _require_noncommitting(allow, name, warn=True):
     """Gate for every non-committing legacy helper: refuse unless the caller passed
-    allow_noncommitting=True (exactly True), then emit LegacyFormatWarning."""
+    allow_noncommitting=True (exactly True), then (warn=True) emit LegacyFormatWarning.
+    The public wrappers check the flag first with warn=False; the private bodies check it
+    again and emit the single warning (conductor-polish I2), so calling a private body
+    directly is gated the same way."""
     if allow is not True:
         raise ValueError(name + " opens non-committing legacy blobs; pass allow_noncommitting=True")
-    warnings.warn(name + ": legacy format is not key-committing; transition use only",
-                  LegacyFormatWarning, stacklevel=3)
+    if warn:
+        warnings.warn(name + ": legacy format is not key-committing; transition use only",
+                      LegacyFormatWarning, stacklevel=4)
 
 def decrypt_legacy(blob: bytes, seed=None, ad: bytes = b"", *, allow_noncommitting=False) -> bytes:
     """Open a published format-version-2 single-block blob (octavo009 and earlier).
@@ -933,16 +970,22 @@ def decrypt_legacy(blob: bytes, seed=None, ad: bytes = b"", *, allow_noncommitti
     blobs with UnsupportedVersion. Do not use for new messages.
     Unpublished v4 (tuning) blobs are also rejected.
     """
-    _require_noncommitting(allow_noncommitting, "decrypt_legacy")
+    _require_noncommitting(allow_noncommitting, "decrypt_legacy", warn=False)
     blob = _as_bytes("blob", blob); ad = _normalize_ad(ad)
     if len(blob) < 1: raise AuthError("bad blob length")
     if blob[0] != FMT_VERSION_V2:
         raise UnsupportedVersion("unsupported version")
-    return _decrypt_legacy_v2(blob, seed, ad)
+    return _decrypt_legacy_v2(blob, seed, ad, allow_noncommitting=allow_noncommitting)
 
-def _decrypt_legacy_v2(blob: bytes, seed, ad: bytes) -> bytes:
+def _decrypt_legacy_v2(blob: bytes, seed, ad: bytes, *, allow_noncommitting=False) -> bytes:
     """Open a format-version-2 single-block blob (no tuning). Tags bind the
-    frozen octavo009 key_sig. Not key-committing. Same decode and SIV checks."""
+    frozen octavo009 key_sig. Not key-committing. Same decode and SIV checks.
+    Gated and version-pinned here too (conductor-polish I2): needs
+    allow_noncommitting=True, emits LegacyFormatWarning, and opens only blob[0] == 2."""
+    _require_noncommitting(allow_noncommitting, "decrypt_legacy")
+    blob = _as_bytes("blob", blob); ad = _normalize_ad(ad)
+    if len(blob) < 1: raise AuthError("bad blob length")
+    if blob[0] != FMT_VERSION_V2: raise UnsupportedVersion("unsupported version")
     if len(blob) != V2_BLOB_LEN: raise AuthError("bad blob length")
     v, pickup, nonce, ct, tag = blob[:PK0], blob[PK0:N0], blob[N0:V2_CT0], blob[V2_CT0:V2_CT1], blob[V2_CT1:]
     if not hmac.compare_digest(v, bytes([FMT_VERSION_V2]) + VERSION): raise AuthError("bad version prefix")
@@ -1059,22 +1102,27 @@ def encrypt_movements(msg: bytes, seed=None, ad: bytes = b"", nonce: bytes = Non
     return bytes([FMT_MOVEMENTS]) + VERSION + pickup + nonce + commit + nmov.to_bytes(4, "big") + b"".join(parts) + coda
 
 def decrypt_movements(blob: bytes, seed=None, ad: bytes = b"") -> bytes:
-    """Format version is checked first, then length and movement count. Current
-    (v7) blobs check the tuning commitment in constant time next, before any
-    coda, cadence or Schedule work. Then the coda and every cadence
-    (constant-time compares). The cadence key is derived only after the coda
-    check passes. Commitment, tag, cadence and coda failures all raise
-    AuthError("authentication failed"); the type and message do not
-    distinguish a wrong key from wrong associated data. The full round
-    Schedule is built only after every tag passes. Legacy v3 and unpublished
-    v5 blobs are rejected as UnsupportedVersion (not an AuthError). Use
-    decrypt_movements_legacy(..., allow_noncommitting=True) to open published
-    octavo009 v3 blobs during the transition; that path is not key-committing.
-    Timing (documented, accepted): movements keep commitment-first, so a
-    commitment failure (~8 us) is faster than a coda/cadence failure, which
-    also walks the body. Timing therefore reveals WHICH stage failed (that
-    the header matches this receiver's key and AD), even though the error
-    type and message do not. Single-block decrypt does not have this split.
+    """Format version is checked first, then length and movement count. For
+    every current (v7) blob, BOTH the tuning commitment and the coda (which
+    covers the header, commitment, count, every ciphertext, every cadence
+    and AD) are computed and compared (hmac.compare_digest each), combined
+    without short-circuit, and one AuthError("authentication failed") is
+    raised if either failed (equal-time reject, conductor-polish L1). A wrong
+    key, wrong AD, bad commitment, bad ciphertext, bad cadence and bad coda
+    therefore all do the same work: one commitment HMAC plus one coda HMAC
+    over the body (O(nmov), body capped at MAX_MOVEMENTS). Nothing is
+    decrypted before both pass. Only then are the cadences checked
+    (every one, combined) and the Schedule built. Commitment, tag, cadence
+    and coda failures all raise AuthError("authentication failed"); the
+    type and message do not distinguish a wrong key from wrong associated
+    data. Legacy v3 and unpublished v5 blobs are rejected as
+    UnsupportedVersion (not an AuthError). Use
+    decrypt_movements_legacy(..., allow_noncommitting=True) to open
+    published octavo009 v3 blobs during the transition; that path is not
+    key-committing.
+    Timing: a commitment failure and a coda failure take the same time for
+    the same blob size (the size is public). Before conductor-polish the
+    commitment was checked first, so timing revealed which stage failed.
     blob and ad must be bytes-like; AD longer than MAX_AD_LEN raises ValueError."""
     blob = _as_bytes("blob", blob); ad = _normalize_ad(ad)
     if len(blob) < 1: raise AuthError("bad blob length")
@@ -1088,8 +1136,9 @@ def decrypt_movements(blob: bytes, seed=None, ad: bytes = b"") -> bytes:
     if nmov < 1 or nmov > MAX_MOVEMENTS: raise AuthError("bad movement count")
     expected = MOVEMENTS_HDR_LEN + nmov * MOVEMENT_STRIDE + TAG_LEN
     if len(blob) != expected: raise AuthError("bad blob length")
-    if not hmac.compare_digest(commit, _commitment(_commit_key(seed), FMT_MOVEMENTS, pickup, nonce, ad, nmov=nmov)):
-        raise AuthError("authentication failed")
+    # Equal-time reject (conductor-polish L1): always compute the commitment AND the coda,
+    # combine with & (no short-circuit), raise once. Nothing is decrypted before both pass.
+    commit_ok = hmac.compare_digest(commit, _commitment(_commit_key(seed), FMT_MOVEMENTS, pickup, nonce, ad, nmov=nmov))
     body = blob[MOVEMENTS_HDR_LEN:-TAG_LEN]
     coda = blob[-TAG_LEN:]
     cts, cadences = [], []
@@ -1099,8 +1148,8 @@ def decrypt_movements(blob: bytes, seed=None, ad: bytes = b"") -> bytes:
         cadences.append(body[off + BLOCK_LEN:off + MOVEMENT_STRIDE])
     clef = staff_clef(seed); key_sig = key_signature(seed)
     coda_key = _coda_key(seed, nonce)
-    if not hmac.compare_digest(coda, _coda_tag(coda_key, pickup, nonce, nmov, b"".join(cts), b"".join(cadences), clef, key_sig, ad, version=FMT_MOVEMENTS, commit=commit)):
-        raise AuthError("authentication failed")
+    coda_ok = hmac.compare_digest(coda, _coda_tag(coda_key, pickup, nonce, nmov, b"".join(cts), b"".join(cadences), clef, key_sig, ad, version=FMT_MOVEMENTS, commit=commit))
+    if not (commit_ok & coda_ok): raise AuthError("authentication failed")
     cad_key = _cadence_key(seed, nonce)
     theme = _theme_start(seed, nonce)
     cad_ok = True
@@ -1139,16 +1188,22 @@ def decrypt_movements_legacy(blob: bytes, seed=None, ad: bytes = b"", *, allow_n
     rejects these blobs with UnsupportedVersion. Do not use for new messages.
     Unpublished v5 (tuning) blobs are also rejected.
     """
-    _require_noncommitting(allow_noncommitting, "decrypt_movements_legacy")
+    _require_noncommitting(allow_noncommitting, "decrypt_movements_legacy", warn=False)
     blob = _as_bytes("blob", blob); ad = _normalize_ad(ad)
     if len(blob) < 1: raise AuthError("bad blob length")
     if blob[0] != FMT_MOVEMENTS_V3:
         raise UnsupportedVersion("unsupported version")
-    return _decrypt_legacy_v3(blob, seed, ad)
+    return _decrypt_legacy_v3(blob, seed, ad, allow_noncommitting=allow_noncommitting)
 
-def _decrypt_legacy_v3(blob: bytes, seed, ad: bytes) -> bytes:
+def _decrypt_legacy_v3(blob: bytes, seed, ad: bytes, *, allow_noncommitting=False) -> bytes:
     """Open a format-version-3 movements blob (no tuning). Tags bind the
-    frozen octavo009 key_sig. Not key-committing."""
+    frozen octavo009 key_sig. Not key-committing. Gated and version-pinned
+    here too (conductor-polish I2): needs allow_noncommitting=True, emits
+    LegacyFormatWarning, and opens only blob[0] == 3."""
+    _require_noncommitting(allow_noncommitting, "decrypt_movements_legacy")
+    blob = _as_bytes("blob", blob); ad = _normalize_ad(ad)
+    if len(blob) < 1: raise AuthError("bad blob length")
+    if blob[0] != FMT_MOVEMENTS_V3: raise UnsupportedVersion("unsupported version")
     if len(blob) < V3_MOVEMENTS_HDR_LEN + MOVEMENT_STRIDE + TAG_LEN: raise AuthError("bad blob length")
     if blob[1:4] != VERSION: raise AuthError("bad version prefix")
     pickup = blob[4:20]
