@@ -37,25 +37,31 @@ are in the JSON):
 ## Études, not the normal APIs
 
 These AEAD vectors are **étude blobs**. They use distinct format-version
-bytes so the normal `decrypt` / `decrypt_movements` APIs reject them:
+bytes so the normal `decrypt` / `decrypt_movements` APIs reject them,
+and they carry the same 32-byte tuning commitment as live v4/v5 blobs:
 
 | Rounds | Single-block | Movements |
 |--------|--------------|-----------|
-| 2      | `0xE2`       | `0xE3`    |
-| 4      | `0xE4`       | `0xE5`    |
-| 6      | `0xE6`       | `0xE7`    |
-| 16     | `0xF0`       | `0xF1`    |
+| 2      | `0xC2`       | `0xC3`    |
+| 4      | `0xC4`       | `0xC5`    |
+| 6      | `0xC6`       | `0xC7`    |
+| 16     | `0xD0`       | `0xD1`    |
+
+Pre-tuning étude bytes (`0xE2`/`0xE4`/`0xE6`/`0xF0` and
+`0xE3`/`0xE5`/`0xE7`/`0xF1`) still open through the lab API, with the
+frozen octavo009 key_sig; they are not key-committing.
 
 2-, 4- and 6-round études are weakened on purpose, for cryptanalysis only.
 A 16-round étude is published so another implementation can check itself
 against the full cipher: the raw permutation and the ciphertext (not the
-tag) are byte-identical to live `encrypt_grid` / `encrypt` on the same
-input. Tags differ because they bind the étude version byte.
+commitment or tag) are byte-identical to live `encrypt_grid` / `encrypt`
+on the same input. Commitments and tags differ because they bind the
+étude version byte.
 
 The lab API is `etudes.etude(rounds)` in the parent directory. It accepts a
 fixed `pickup` so these vectors stay deterministic. Normal `encrypt` and
 `encrypt_movements` have no pickup argument and always run 16 rounds.
 
-Full-round live blobs (`hello-world.txt`, `movements-demo.txt`) are unchanged
-in this revision; they remain the samples for the ordinary version-2 and
-version-3 APIs.
+Full-round live blobs (`hello-world.txt`, `movements-demo.txt`) are the
+samples for the ordinary version-4 and version-5 APIs, and also carry
+a tuning commitment.

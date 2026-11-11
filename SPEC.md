@@ -1,4 +1,94 @@
-## Current live revision — etudes (2026-11-11)
+## Current live revision — tuning (2026-11-11)
+
+Wrapper change only: the 16-round function, S-boxes, schedule, mixes, bow,
+rehair and cross-staff layers are unchanged from the etudes / movements-polish
+revisions. The same seed, nonce and input still produce the same ciphertext.
+Still homemade. **Not for real secrets.** Use AES-GCM-SIV, age or libsodium.
+The picture was redrawn from the new hello-world sample.
+
+### Tuning (key commitment)
+
+A current blob can only ever open under one key. The construction is:
+
+- `K_commit = StaffSponge(b"U", seed, 16 zero bytes).take(32)`
+  (seed-only, like the clef; domain letter `U` is new and unused elsewhere).
+- `commit = HMAC-SHA256(K_commit, b"U" || version || SN2 || pickup || nonce)`
+  (32 bytes). The domain letter is pinned in the HMAC input so this MAC
+  cannot be confused with the `M` / `D` / `O` tags.
+- `decrypt` and `decrypt_movements` check the commitment with
+  `hmac.compare_digest` **first**, after the version and length checks and
+  before any tag, cadence, coda, MAC-key or `Schedule` work. Failure raises
+  `CommitError` ("commitment mismatch"), a subclass of `AuthError`.
+- The single-block tag is
+  `HMAC-SHA256(mac_key, clef || key_sig || version || SN2 || pickup || nonce || commit || ct || encode_ad(ad))`.
+  Movements cadences and the coda likewise cover the commitment.
+
+Associated data is not in the commitment: a wrong AD still fails the tag
+after a passing commitment check. That keeps "wrong key" and "wrong AD"
+as distinct errors.
+
+### Formats
+
+- Single-block **version 4**, 228 bytes:
+  `version(1) || SN2(3) || pickup(16) || nonce(16) || commit(32) || ct(128) || tag(32)`.
+  Offsets: pickup `[4:20]`, nonce `[20:36]`, commit `[36:68]`,
+  ciphertext `[68:196]`, tag `[196:228]`.
+- Movements **version 5**:
+  `version(1) || SN2(3) || pickup(16) || nonce(16) || commit(32) || nmov(4) || (ct(128)||cadence(32))*nmov || coda(32)`.
+  `nmov` is at `[68:72]`; the header is 72 bytes.
+
+### Legacy compatibility
+
+Version-2 single-block (196-byte) and version-3 movements blobs still
+decrypt. They have no commitment. Their tags bind the frozen octavo009
+mix digest `LEGACY_MIX_SHA256 =
+4e9a7ded574924fe9635e2b7b908ba7c5fa5c489062137203d3ce03341a06ee6`
+(key_sig `d8a1358aae4116aaafcee90ec74a4d8e` on the demo seed). They are
+**not** key-committing. Version 1 and any other version byte still raise
+`UnsupportedVersion`. This is deliberate: the round function did not
+change, so previously published v2/v3 samples should still open, with
+the lack of key commitment documented.
+
+### Études and the score
+
+Études also carry a commitment and use new version bytes:
+
+- single-block: `0xC2` (2), `0xC4` (4), `0xC6` (6), `0xD0` (16)
+- movements: `0xC3` (2), `0xC5` (4), `0xC7` (6), `0xD1` (16)
+
+Pre-tuning étude bytes (`0xE2`/`0xE4`/`0xE6`/`0xF0` and
+`0xE3`/`0xE5`/`0xE7`/`0xF1`) still open, with the frozen key_sig.
+`decrypt` / `decrypt_movements` reject every étude version as
+`UnsupportedVersion`. The published score in `score/vectors.json` was
+regenerated (still 64 vectors). A 16-round étude permutation, and the
+ciphertext of a 16-round étude with the same seed, pickup and message,
+remain byte-identical to the live full-round cipher. Commitments and
+tags differ because they bind the étude version byte.
+
+### FEATURES
+
+The picture-header strings now also say
+`HMAC tag over clef‖key_sig‖version‖SN2‖pickup‖nonce‖tuning‖ct‖AD`
+and `tuning: HMAC-U commitment checked first`.
+`REVISION` is `tuning` (2026-11-11). Those labels remain in
+`_ATTEST_SKIP`. Because attested wrapper source and new constants
+(`COMMIT_LEN`, `COMMIT_DOMAIN`, `LEGACY_MIX_SHA256`, version numbers,
+blob sizes, and the new helpers) changed, `sha256(mix_description())`,
+`EXPECTED_MIX_SHA256` and `key_signature` moved. The round function
+did not.
+
+### Identifiers
+
+- Live `sneak_n2.py` SHA-256: `53d0f3afbef1166bade608123d008fe229123a2e36cc9acd08b5e599ce0ad10c`
+- `EXPECTED_MIX_SHA256`: `edbf9b90d95640e1c2c0595a49a956f987356df5b0d1c2cf0750744e74b1e1b9`
+- key_sig (demo seed): `5af75cc47068872de8a7513365cc9a03`
+- hello-world pickup `bba68569633acd16123080de10fedc2e`, nonce `00fe980e268c6dbf21b47ecab3577d9e` (empty AD)
+- movements-demo (188-byte plaintext, 2 movements, 424-byte blob) pickup `2e3efbd2330156584528c24def9ab9a3`
+- Score: `score/vectors.json` (64 vectors, regenerated)
+
+---
+
+## Previous revision — etudes (2026-11-11)
 
 Documentation and lab-API addition only: the 16-round function, S-boxes,
 schedule, mixes, bow, rehair, cross-staff layers and the full-round

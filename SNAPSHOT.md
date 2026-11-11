@@ -1,6 +1,22 @@
 # Live tree note (not a freeze)
 
-Live `/workspace/sneak_n2` is the etudes revision (2026-11-11)
+Live `/workspace/sneak_n2` is the tuning revision (2026-11-11)
+on top of the etudes tree. The round function is unchanged. New blobs
+are format v4 (single-block, 228 bytes, with a 32-byte tuning
+commitment) and v5 (movements). Legacy v2/v3 blobs still open under
+the frozen octavo009 key_sig; they are not key-committing. The picture
+header is generated from live module metadata so a re-render stays
+current. This is not a frozen snapshot.
+
+- sneak_n2.py SHA-256: 53d0f3afbef1166bade608123d008fe229123a2e36cc9acd08b5e599ce0ad10c
+- EXPECTED_MIX_SHA256: edbf9b90d95640e1c2c0595a49a956f987356df5b0d1c2cf0750744e74b1e1b9
+- key_sig (demo seed): 5af75cc47068872de8a7513365cc9a03
+- hello-world pickup bba68569633acd16123080de10fedc2e, nonce 00fe980e268c6dbf21b47ecab3577d9e (empty AD)
+- Changes: key commitment (tuning, domain U) on single-block and movements; format versions 4 and 5; CommitError; legacy v2/v3 and pre-tuning études still decrypt with LEGACY_MIX_SHA256; études updated to committed version bytes; score regenerated; FEATURES/REVISION updated (still in _ATTEST_SKIP); tests cover commitment, domain pinning and legacy blobs; redraw sneak-staff-n2.png.
+
+# Previous live tree note — etudes (superseded by tuning above)
+
+Live `/workspace/sneak_n2` was the etudes revision (2026-11-11)
 on top of the movements-polish tree. The round function and full-round
 wrappers are unchanged, so hello-world and movements-demo blobs still
 open. The picture header is generated from live module metadata so a

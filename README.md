@@ -1,4 +1,52 @@
-## Current live revision — etudes (2026-11-11)
+## Current live revision — tuning (2026-11-11)
+
+This section supersedes the etudes section below. The round function is
+unchanged: the same seed, nonce and input still produce the same 16-round
+ciphertext. Still N2 / SN2 (project name: Octavo), still homemade,
+**not for real secrets** (use AES-GCM-SIV, age or libsodium). The picture
+was redrawn from the new hello-world sample.
+
+This revision adds **tuning** — key commitment — so a blob can only ever
+open under one key.
+
+- Each current blob carries a 32-byte **commitment**:
+  `HMAC-SHA256(K_commit, U || version || SN2 || pickup || nonce)`, where
+  `K_commit` is `StaffSponge(b"U", seed, 16 zero bytes).take(32)`. Domain
+  letter `U` (tUning) is new and is not used by the clef, MAC, schedule,
+  theme, cadence, coda or tweak streams.
+- `K_commit` is seed-only, so `decrypt` / `decrypt_movements` can check
+  the commitment in constant time **first**, before any tag or `Schedule`
+  work. A wrong key or a flipped commitment bit raises `CommitError`
+  (`AuthError` subclass) with `commitment mismatch`.
+- The main tag (and, in movements mode, every cadence and the coda) also
+  covers the commitment, so it cannot be swapped independently.
+- This is a format change. New single-block blobs are **version 4**,
+  **228 bytes**: `version || SN2 || pickup || nonce || commit(32) || ct || tag`.
+  New movements blobs are **version 5**:
+  `version || SN2 || pickup || nonce || commit(32) || nmov || (ct||cadence)*nmov || coda`.
+- **Legacy compatibility.** Version-2 (196-byte) and version-3 movements
+  blobs still decrypt. They have no commitment and are verified with the
+  frozen octavo009 mix digest (`LEGACY_MIX_SHA256`, key_sig
+  `d8a1358a…`). They are not key-committing. Version 1 and any other
+  version byte still raise `UnsupportedVersion`.
+- Études match the new layout and also carry a commitment. New étude
+  version bytes are `0xC2`/`0xC4`/`0xC6`/`0xD0` (single-block) and
+  `0xC3`/`0xC5`/`0xC7`/`0xD1` (movements). Pre-tuning étude bytes
+  (`0xE2`…/`0xF1`) still open, again with the frozen key_sig. The
+  published score was regenerated.
+
+Because the attested wrappers changed, `EXPECTED_MIX_SHA256` and
+`key_signature` moved. The 16-round permutation itself did not.
+
+- Live `sneak_n2.py` SHA-256: `53d0f3afbef1166bade608123d008fe229123a2e36cc9acd08b5e599ce0ad10c`.
+- `EXPECTED_MIX_SHA256`: `edbf9b90d95640e1c2c0595a49a956f987356df5b0d1c2cf0750744e74b1e1b9`.
+- key_sig (demo seed): `5af75cc47068872de8a7513365cc9a03`.
+- hello-world pickup `bba68569633acd16123080de10fedc2e`, nonce `00fe980e268c6dbf21b47ecab3577d9e` (empty AD; see `hello-world.txt`).
+- See `movements-demo.txt` for a two-movement sample (188-byte plaintext, 424-byte blob, pickup `2e3efbd2330156584528c24def9ab9a3`).
+- Blob size (single-block): 228 bytes, version byte 4. Picture redrawn (`sneak-staff-n2.png`).
+- Score: `score/vectors.json` (64 vectors, regenerated). Lab API: `etudes.etude(rounds)`.
+
+## Previous revision — etudes (2026-11-11)
 
 This section supersedes the movements-polish section below. The round
 function and the full-round wrappers are unchanged: 16-round single-block

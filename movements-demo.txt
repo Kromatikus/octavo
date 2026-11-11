@@ -1,18 +1,20 @@
-Sneak staff-core N2 (Octavo) — etudes demo (format version 3; full-round ciphertext unchanged).
+Sneak staff-core N2 (Octavo) — tuning demo (format version 5, with key commitment).
 Homemade; NOT for real secrets. Use AES-GCM-SIV, age, or libsodium.
 seed: sneak1024-seed.txt next to sneak_n2.py
-live sneak_n2.py SHA-256: 38301026bad66f177e848a68ea4f56f78e28c43085bc0df3549737423eb83784
-key_sig (16 bytes): d8a1358aae4116aaafcee90ec74a4d8e
-revision: etudes / 2026-11-11
+live sneak_n2.py SHA-256: 53d0f3afbef1166bade608123d008fe229123a2e36cc9acd08b5e599ce0ad10c
+key_sig (16 bytes): 5af75cc47068872de8a7513365cc9a03
+revision: tuning / 2026-11-11
 plaintext (188 bytes): Octavo movements: a chained duplex over the staff-core. Each section is a movement, the running theme is carried forward, a cadence closes every section, and a coda covers the whole piece.
 plaintext_hex: 4f637461766f206d6f76656d656e74733a206120636861696e6564206475706c6578206f766572207468652073746166662d636f72652e20456163682073656374696f6e2069732061206d6f76656d656e742c207468652072756e6e696e67207468656d65206973206361727269656420666f72776172642c206120636164656e636520636c6f7365732065766572792073656374696f6e2c20616e64206120636f646120636f76657273207468652077686f6c652070696563652e
 associated data: (empty)
-pickup (16 bytes): 5e223cf6d0e24a0defccc9fb0bbf735a
-nonce (16 bytes; SHA-256(clef || pickup || uint64be(len(msg)) || msg || encode_ad(ad))[:16]): 4db068c2ac8c18d3d94f15a7309793fd
+pickup (16 bytes): 2e3efbd2330156584528c24def9ab9a3
+nonce (16 bytes; SHA-256(clef || pickup || uint64be(len(msg)) || msg || encode_ad(ad))[:16]): 9770aacefb3c1183f95576df98e28a35
+commit (32 bytes; HMAC-SHA256(K_commit, U || version || SN2 || pickup || nonce), domain U): 3e4feb6936edd6977b2063271ede7fb4d9e3a63e9204d9ef373652964336c681
 nmov (uint32be): 2
-first movement ciphertext (128 bytes): cbfaa210de6f43dbf4f252716394346a07d6964ba7aac9e3ed407f202d83aeefb48cd75f5bf38260ac00c85bc5d0be3a1b99b7e04ecbf1474dae16265c0271c39e112b3c974dd64117601ee32134f034e66f1763c64b4dac536edec96458fb9be66207c77611cb0795301abeaf8b050ca4b9add351c1408b785c260232eb9ff4
-first cadence (32 bytes): fdc0c56510eca2cd98a68df5a8dea43631092f032502fd5e120bee0de15817ed
-coda (32 bytes; HMAC over header, count, all ciphertext, all cadences, and AD): 8835a588b55fcb51e829d35ede644d5751a5359f2f2fbc2baf2799735393e6c0
-blob (392 bytes = version || SN2 || pickup || nonce || nmov || (ct||cadence)*nmov || coda): 03534e325e223cf6d0e24a0defccc9fb0bbf735a4db068c2ac8c18d3d94f15a7309793fd00000002cbfaa210de6f43dbf4f252716394346a07d6964ba7aac9e3ed407f202d83aeefb48cd75f5bf38260ac00c85bc5d0be3a1b99b7e04ecbf1474dae16265c0271c39e112b3c974dd64117601ee32134f034e66f1763c64b4dac536edec96458fb9be66207c77611cb0795301abeaf8b050ca4b9add351c1408b785c260232eb9ff4fdc0c56510eca2cd98a68df5a8dea43631092f032502fd5e120bee0de15817ed0dfd60a84a11f56f54e1736323cbff6ea46bcc6ede59d717d09db98f548a9d3b356720a3156216819672841985e8e5bc3d14d2974d8d84eedf3be078f4f3c482efb099309b260cae5fcadaf04dbae12afb788d34181d8ea367221f1fda8cb76ddda5423b762cbd0047f7715960c7f9bc48f684b3d94d9741fcfc1299f34a8d96939149716ed816a7087a486d57f7770aa3aae718839a7b7aa73abf4c4b7ff6278835a588b55fcb51e829d35ede644d5751a5359f2f2fbc2baf2799735393e6c0
+first movement ciphertext (128 bytes): 5bb174081fcae2af9c17be8664df501c2b3587f44bad9e0db6b8410b22204d1a501f7e522a19d0e4799cfde5fd1f10f93a024ea0f09592761f850eabcae2be65d5b2d18bfc48f1d163f13f5a7fba8457419427c02615c7167af9541828a42839ffdb32032d1eb1b0421d8671a6234df4aaa7f76551cbeb18bc7c90d855b07f3c
+first cadence (32 bytes): 5fda355cfe6f84e8221e04f6e353a93a7b577ed7a2d778a61d427f243a347dcb
+coda (32 bytes; HMAC over header, commitment, count, all ciphertext, all cadences, and AD): 29d7512abbc1a1d1278e18cb54d50a81aad818537544e48cceb875a68044faa8
+blob (424 bytes = version || SN2 || pickup || nonce || commit || nmov || (ct||cadence)*nmov || coda): 05534e322e3efbd2330156584528c24def9ab9a39770aacefb3c1183f95576df98e28a353e4feb6936edd6977b2063271ede7fb4d9e3a63e9204d9ef373652964336c681000000025bb174081fcae2af9c17be8664df501c2b3587f44bad9e0db6b8410b22204d1a501f7e522a19d0e4799cfde5fd1f10f93a024ea0f09592761f850eabcae2be65d5b2d18bfc48f1d163f13f5a7fba8457419427c02615c7167af9541828a42839ffdb32032d1eb1b0421d8671a6234df4aaa7f76551cbeb18bc7c90d855b07f3c5fda355cfe6f84e8221e04f6e353a93a7b577ed7a2d778a61d427f243a347dcb90a20c59f4414fe3eb88580ca8fc6feedf631b14fb963ec5ac91f4b9134d3466587c5592866dc02df7876a5c8ed699fb40d00c1e96740d530095fd31d81ebb2dee9e4a3ffc21a268b67f20333acc12f2703a3262a6ec47589091784466b73eb885c238d2f057a47770f5967265100af57cd2a74afdf100769162d8459092dd378649f3f2ab32dd53365a1ef044d25199b01801e4edf5bc44fa63492dbcc43c4529d7512abbc1a1d1278e18cb54d50a81aad818537544e48cceb875a68044faa8
 recovered plaintext matches.
-A version-2 single-block blob cannot be opened by decrypt_movements, and this blob cannot be opened by decrypt.
+A version-4 single-block blob cannot be opened by decrypt_movements, and this blob cannot be opened by decrypt.
+Legacy version-3 movements blobs still open (no commitment; frozen octavo009 key_sig).

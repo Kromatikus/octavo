@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Octavo (sneak staff-core N2): render dual octahedra + 16x8 hex grid for the CURRENT live design.
-# Reads the recorded hello-world sample (pickup/nonce/ct/tag); does NOT overwrite hello-world.txt,
+# Reads the recorded hello-world sample (pickup/nonce/commit/ct/tag); does NOT overwrite hello-world.txt,
 # demo-nonce.txt, sneak_n2.py, tests, snapshots, or attacks_*.
 # Seed split: INNER seed (first 128 hex digits) on a wine shell hugging the inner octahedron;
 # OUTER seed (last 128) on the amber shell around the outer octahedron.
@@ -16,10 +16,10 @@ def _hx(label):
     m=re.search(rf'(?m)^{re.escape(label)} \(.*\): ([0-9a-f]+)\s*$', HW, re.I)
     if not m: raise SystemExit(f'missing {label} in hello-world.txt')
     return bytes.fromhex(m.group(1))
-pickup=_hx('pickup'); nonce=_hx('nonce'); ct=_hx('ciphertext'); tag=_hx('tag')
-assert len(pickup)==N.PICKUP_LEN and len(nonce)==N.NONCE_LEN and len(ct)==N.BLOCK_LEN and len(tag)==N.TAG_LEN
+pickup=_hx('pickup'); nonce=_hx('nonce'); commit=_hx('commit'); ct=_hx('ciphertext'); tag=_hx('tag')
+assert len(pickup)==N.PICKUP_LEN and len(nonce)==N.NONCE_LEN and len(commit)==N.COMMIT_LEN and len(ct)==N.BLOCK_LEN and len(tag)==N.TAG_LEN
 assert nonce==N.siv_nonce(b'hello world', pickup, KEY)
-blob=bytes([N.FMT_VERSION])+N.VERSION+pickup+nonce+ct+tag
+blob=bytes([N.FMT_VERSION])+N.VERSION+pickup+nonce+commit+ct+tag
 rec=N.decrypt(blob,KEY); assert rec==b'hello world'
 final=N.bytes_to_grid(ct); sch=N.Schedule(KEY,nonce)
 # round-0 shell bridges, aggregated to face pairs (inner f <-> outer 8+g), weight = number of bridged cells
@@ -29,7 +29,7 @@ PAIRS=sorted(BR)
 SEEDHEX=KEY.hex()
 hx=lambda r:'| '+' | '.join(' '.join(f'{n:02X}' for n in r[2*m:2*m+2]) for m in range(4))+' |'
 names=[f'inner {k+1}' for k in range(8)]+[f'outer o{k+1}' for k in range(8)]
-print('decrypt OK:',rec); print('pickup',pickup.hex()); print('nonce',nonce.hex()); print('tag',tag.hex())
+print('decrypt OK:',rec); print('pickup',pickup.hex()); print('nonce',nonce.hex()); print('commit',commit.hex()); print('tag',tag.hex())
 for k in range(16): print(names[k],hx(final[k]))
 # ---------------- draw ----------------
 W,H=5200,3720; paper=(244,239,228); ink=(28,25,20); purple=(58,33,88); muted=(106,97,84); red=(150,40,40); teal=(30,90,95)
@@ -349,6 +349,7 @@ meta={
     "key_sig": key_sig,
     "pickup": pickup.hex(),
     "nonce": nonce.hex(),
+    "commit": commit.hex(),
     "tag": tag.hex(),
     "revision": N.REVISION,
     "revision_date": N.REVISION_DATE,
@@ -362,7 +363,7 @@ meta={
 footf=ImageFont.truetype(Fd+'DejaVuSans.ttf',30)
 lines=[
     f"pickup {pickup.hex()}   ·   nonce {nonce.hex()}",
-    f"tag {tag.hex()}   ·   blob = version ‖ SN2 ‖ pickup ‖ nonce ‖ ct ‖ tag   ·   \"hello world\" sample",
+    f"tag {tag.hex()}   ·   blob = version ‖ SN2 ‖ pickup ‖ nonce ‖ tuning ‖ ct ‖ tag   ·   \"hello world\" sample",
     "seed split: INNER seed (wine, first 128 digits) ↔ inner octahedron 1–8 · OUTER seed (amber, last 128 digits) ↔ outer octahedron o1–o8 · thin grey: round-0 inner↔outer ciphertext bridges",
     "each round: ⊕key → keyed S-box → weave → staff butterfly → shell bridges → bars+triplets → bow → odd restack → cross-staff → late S2 → encore (bars+triplets+bow+restack+cross) · code-closure key signature",
 ]

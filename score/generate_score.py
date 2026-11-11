@@ -66,11 +66,12 @@ def _blob_fields(blob: bytes, kind: str) -> dict:
     }
     if len(blob) <= BLOB_HEX_LIMIT:
         out["blob"] = _hx(blob)
+    out["commit"] = _hx(blob[36:68])
     if kind == "block":
-        out["ciphertext"] = _hx(blob[36:164])
-        out["tag"] = _hx(blob[164:196])
+        out["ciphertext"] = _hx(blob[68:196])
+        out["tag"] = _hx(blob[196:228])
     else:
-        nmov = int.from_bytes(blob[36:40], "big")
+        nmov = int.from_bytes(blob[68:72], "big")
         out["nmov"] = nmov
         out["coda"] = _hx(blob[-32:])
     return out
@@ -164,8 +165,9 @@ def build_vectors() -> dict:
         "note": (
             "Étude blobs use distinct version bytes and cannot be opened by "
             "encrypt/decrypt or encrypt_movements/decrypt_movements. "
+            "Current étude blobs carry a tuning commitment (like live v4/v5). "
             "16-round permute and 16-round étude ciphertext match the live "
-            "full-round cipher on the same seed, nonce and input; tags differ."
+            "full-round cipher on the same seed, nonce and input; commitments and tags differ."
         ),
         "revision": N.REVISION,
         "revision_date": N.REVISION_DATE,
