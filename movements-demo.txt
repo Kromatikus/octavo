@@ -1,9 +1,9 @@
-Sneak staff-core N2 (Octavo) — movements-polish demo (format version 3).
+Sneak staff-core N2 (Octavo) — etudes demo (format version 3; full-round ciphertext unchanged).
 Homemade; NOT for real secrets. Use AES-GCM-SIV, age, or libsodium.
 seed: sneak1024-seed.txt next to sneak_n2.py
-live sneak_n2.py SHA-256: 48cf88aca92a7157b3a4522d1afb3437deddb7a41852a4b9cfadfa305ac0b559
+live sneak_n2.py SHA-256: 38301026bad66f177e848a68ea4f56f78e28c43085bc0df3549737423eb83784
 key_sig (16 bytes): d8a1358aae4116aaafcee90ec74a4d8e
-revision: movements-polish / 2026-11-10
+revision: etudes / 2026-11-11
 plaintext (188 bytes): Octavo movements: a chained duplex over the staff-core. Each section is a movement, the running theme is carried forward, a cadence closes every section, and a coda covers the whole piece.
 plaintext_hex: 4f637461766f206d6f76656d656e74733a206120636861696e6564206475706c6578206f766572207468652073746166662d636f72652e20456163682073656374696f6e2069732061206d6f76656d656e742c207468652072756e6e696e67207468656d65206973206361727269656420666f72776172642c206120636164656e636520636c6f7365732065766572792073656374696f6e2c20616e64206120636f646120636f76657273207468652077686f6c652070696563652e
 associated data: (empty)

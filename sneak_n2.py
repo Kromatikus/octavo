@@ -9,6 +9,11 @@ named pair mixes (keyed Latin B0, six field pairs) plus six overlapping triplet 
 "staff sponge" that expands seed+nonce into the schedule, HMAC-SHA256 is the integrity tag, and the base 8-bit
 S-box table is the published SM4/SMS4 S-box (GB/T 32907-2016). No AES, AES S-box, MixColumns or GCM anywhere.
 See SPEC.md.
+
+Études (reduced-round variants at 2, 4 and 6 rounds, plus a 16-round
+comparison handle) live in etudes.py and are for cryptanalysis only.
+They are not selectable from encrypt / decrypt. Published test vectors
+are in score/vectors.json.
 """
 import hashlib, hmac, os, json, inspect, ast, textwrap, types, time
 
@@ -37,8 +42,8 @@ EXPECTED_MIX_SHA256 = "4e9a7ded574924fe9635e2b7b908ba7c5fa5c489062137203d3ce0334
 
 # Picture / documentation metadata. Not part of the mix or tag; excluded from
 # attestation so a label or feature-list edit does not change key_sig or ciphertext.
-REVISION = "movements-polish"
-REVISION_DATE = "2026-11-10"
+REVISION = "etudes"
+REVISION_DATE = "2026-11-11"
 FEATURES = (
     "keyed SM4 S-boxes",
     "latin B0 + field bar pairs",
@@ -51,6 +56,7 @@ FEATURES = (
     "HMAC tag over clef‖key_sig‖version‖SN2‖pickup‖nonce‖ct‖AD",
     "movements: theme T; cadence HMAC-D over theme‖index‖ct; coda HMAC-O over header‖count‖ct‖cadences‖AD",
     "grid IS ciphertext",
+    "études 2/4/6 (lab only)",
 )
 WARNING_LINE = "NOT for real secrets — use AES-GCM-SIV, age, or libsodium"
 

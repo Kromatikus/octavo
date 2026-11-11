@@ -1,4 +1,75 @@
-## Current live revision — movements-polish (2026-11-10)
+## Current live revision — etudes (2026-11-11)
+
+Documentation and lab-API addition only: the 16-round function, S-boxes,
+schedule, mixes, bow, rehair, cross-staff layers and the full-round
+wrappers (`encrypt`, `decrypt`, `encrypt_movements`, `decrypt_movements`
+and their helpers) are unchanged from movements-polish. Still homemade.
+**Not for real secrets.** Use AES-GCM-SIV, age or libsodium.
+The picture was redrawn so the header shows this revision. The
+hello-world and movements-demo blobs are the same bytes as
+movements-polish and still open.
+
+### Études (reduced-round variants)
+
+`etudes.py` publishes `etude(rounds)` for `rounds` in `{2, 4, 6, 16}`.
+Any other round count is rejected. These are intentionally weakened and
+are for cryptanalysis only. They are not selectable from the normal
+encrypt or decrypt APIs.
+
+The handle offers `permute` / `unpermute` (raw 128-byte keyed
+permutation plus whitening), `encrypt` / `decrypt` (single-block AEAD)
+and `encrypt_movements` / `decrypt_movements`. A reduced-round call uses
+the first `rounds` keys of a full 16-round `Schedule`, then the same
+whitening the full cipher uses (squeezed after all 16 rounds of schedule
+material), which is the existing `encrypt_grid(..., rounds=)` behaviour.
+
+Étude blobs keep the live layout but start with a distinct version byte:
+
+- single-block: `0xE2` (2), `0xE4` (4), `0xE6` (6), `0xF0` (16)
+- movements: `0xE3` (2), `0xE5` (4), `0xE7` (6), `0xF1` (16)
+
+`decrypt` and `decrypt_movements` reject those as `UnsupportedVersion`.
+Étude decrypt likewise rejects ordinary version-2 and version-3 blobs.
+HMAC tags (and movements cadences and coda) bind the étude version byte.
+The lab encrypt functions accept an optional fixed `pickup` so published
+vectors are deterministic; the normal APIs still have no public pickup
+argument.
+
+A 16-round étude permutation, and the ciphertext of a 16-round étude
+with the same seed, pickup and message, are byte-identical to the live
+full-round cipher. Tags differ.
+
+### Published score
+
+`score/vectors.json` is a fixed set of 64 deterministic vectors: 16 raw
+permutation vectors, 24 single-block AEAD vectors (lengths 0, 1, 127,
+with and without AD) and 24 movements vectors (sizes 0, 128, 1000, 4096,
+plus two with AD), each at 2, 4, 6 and 16 rounds. Large blobs are stored
+as SHA-256 plus length. `score/generate_score.py` rebuilds the file.
+The test suite regenerates the vectors in memory and compares them to
+the committed score.
+
+### FEATURES
+
+The picture-header string now also says `études 2/4/6 (lab only)`.
+`REVISION` is `etudes` (2026-11-11). Those labels remain in
+`_ATTEST_SKIP`. Because no attested function source or mix data changed,
+`sha256(mix_description())`, `EXPECTED_MIX_SHA256` and `key_signature`
+are unchanged from movements-polish, and previous movements-polish
+blobs still verify.
+
+### Identifiers
+
+- Live `sneak_n2.py` SHA-256: `38301026bad66f177e848a68ea4f56f78e28c43085bc0df3549737423eb83784`
+- `EXPECTED_MIX_SHA256`: `4e9a7ded574924fe9635e2b7b908ba7c5fa5c489062137203d3ce03341a06ee6` (unchanged)
+- key_sig (demo seed): `d8a1358aae4116aaafcee90ec74a4d8e` (unchanged)
+- hello-world pickup `c9a332594dfc60c3f16795a3cba3b16b`, nonce `eeb1b7f8afbc85008b1258efe3dc038d` (empty AD; same blob as movements-polish)
+- movements-demo (188-byte plaintext, 2 movements, 392-byte blob) pickup `5e223cf6d0e24a0defccc9fb0bbf735a` (unchanged)
+- Score: `score/vectors.json` (64 vectors)
+
+---
+
+## Previous revision — movements-polish (2026-11-10)
 
 Wrapper polish only: the 16-round function, S-boxes, schedule, mixes, bow,
 rehair and cross-staff layers are unchanged from the movements revision and

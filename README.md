@@ -1,4 +1,45 @@
-## Current live revision — movements-polish (2026-11-10)
+## Current live revision — etudes (2026-11-11)
+
+This section supersedes the movements-polish section below. The round
+function and the full-round wrappers are unchanged: 16-round single-block
+and movements ciphertexts (including tags) are byte-identical to
+movements-polish. Still N2 / SN2 (project name: Octavo), still homemade,
+**not for real secrets** (use AES-GCM-SIV, age or libsodium). The picture
+was redrawn so the header shows this revision; the hello-world sample
+itself is the same blob.
+
+This revision adds two things for outside cryptanalysis and ports, without
+changing how the live APIs behave:
+
+- **Études.** `etudes.py` exposes `etude(rounds)` for the published
+  reduced-round variants at 2, 4 and 6 rounds, plus a 16-round comparison
+  handle. Études are clearly weakened and are for lab use only. They are
+  not an argument on `encrypt` / `decrypt`. Étude blobs use distinct
+  version bytes (`0xE2`/`0xE4`/`0xE6`/`0xF0` single-block,
+  `0xE3`/`0xE5`/`0xE7`/`0xF1` movements) that the normal decrypt APIs
+  reject as `UnsupportedVersion`. A 16-round étude permutation and
+  ciphertext match the live full-round cipher on the same input; tags
+  differ because they bind the étude version.
+- **A published score.** `score/vectors.json` holds 64 fixed test vectors
+  (raw keyed permutation, single-block AEAD, movements mode) at 2, 4, 6
+  and 16 rounds, with a generator (`score/generate_score.py`) and a short
+  `score/README.md`. The test suite regenerates the vectors and compares
+  them to the committed file.
+
+`REVISION` / `FEATURES` / `REVISION_DATE` are picture-header metadata and
+stay in `_ATTEST_SKIP`, so `EXPECTED_MIX_SHA256` and `key_signature` are
+unchanged from movements-polish. Previous movements-polish blobs still
+open.
+
+- Live `sneak_n2.py` SHA-256: `38301026bad66f177e848a68ea4f56f78e28c43085bc0df3549737423eb83784`.
+- `EXPECTED_MIX_SHA256`: `4e9a7ded574924fe9635e2b7b908ba7c5fa5c489062137203d3ce03341a06ee6` (unchanged).
+- key_sig (demo seed): `d8a1358aae4116aaafcee90ec74a4d8e` (unchanged).
+- hello-world pickup `c9a332594dfc60c3f16795a3cba3b16b`, nonce `eeb1b7f8afbc85008b1258efe3dc038d` (empty AD; same blob as movements-polish).
+- See `movements-demo.txt` for the same two-movement sample (188-byte plaintext, 392-byte blob, pickup `5e223cf6d0e24a0defccc9fb0bbf735a`).
+- Blob size (single-block): 196 bytes, version byte 2. Picture redrawn (`sneak-staff-n2.png`).
+- Score: `score/vectors.json` (64 vectors). Lab API: `etudes.etude(rounds)`.
+
+## Previous revision — movements-polish (2026-11-10)
 
 This section supersedes the movements-mode section below. The round function is
 unchanged from that revision (and from octavo007). Still N2 / SN2

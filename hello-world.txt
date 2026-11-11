@@ -1,7 +1,7 @@
-Sneak staff-core N2 (Octavo) — movements-polish: coda HMAC covers cadences; cadence key after coda check; movements tag-domain tests.
+Sneak staff-core N2 (Octavo) — etudes: reduced-round études and a published score; full-round ciphertexts unchanged.
 Homemade; NOT for real secrets. Use AES-GCM-SIV, age, or libsodium. Picture redrawn from this sample.
 seed: sneak1024-seed.txt next to sneak_n2.py (same bytes as /workspace/sneak1024-seed.txt)
-live sneak_n2.py SHA-256: 48cf88aca92a7157b3a4522d1afb3437deddb7a41852a4b9cfadfa305ac0b559
+live sneak_n2.py SHA-256: 38301026bad66f177e848a68ea4f56f78e28c43085bc0df3549737423eb83784
 key_sig (16 bytes): d8a1358aae4116aaafcee90ec74a4d8e
 pickup (16 bytes; sha256(SN2/P || urandom || time_ns || counter || pid)[:16]): c9a332594dfc60c3f16795a3cba3b16b
 nonce (16 bytes; SHA-256(clef || pickup || encode_block(msg) || encode_ad(ad))[:16], empty AD): eeb1b7f8afbc85008b1258efe3dc038d

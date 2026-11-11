@@ -1,14 +1,14 @@
 {
   "blob_len": 196,
-  "file_sha256": "48cf88aca92a7157b3a4522d1afb3437deddb7a41852a4b9cfadfa305ac0b559",
+  "file_sha256": "38301026bad66f177e848a68ea4f56f78e28c43085bc0df3549737423eb83784",
   "fmt_version": 2,
   "key_sig": "d8a1358aae4116aaafcee90ec74a4d8e",
   "nonce": "eeb1b7f8afbc85008b1258efe3dc038d",
   "pickup": "c9a332594dfc60c3f16795a3cba3b16b",
-  "revision": "movements-polish",
-  "revision_date": "2026-11-10",
-  "subtitle": "keyed SM4 S-boxes \u00b7 latin B0 + field bar pairs \u00b7 six triplets \u00b7 bow-pressure \u00b7 latin odd restack \u00b7 cross-staff mix \u00b7 open 8-beat staffs \u00b7 SIV nonce from clef\u2016pickup\u2016msg\u2016AD \u00b7 HMAC tag over clef\u2016key_sig\u2016version\u2016SN2\u2016pickup\u2016nonce\u2016ct\u2016AD \u00b7 movements: theme T; cadence HMAC-D over theme\u2016index\u2016ct; coda HMAC-O over header\u2016count\u2016ct\u2016cadences\u2016AD \u00b7 grid IS ciphertext",
+  "revision": "etudes",
+  "revision_date": "2026-11-11",
+  "subtitle": "keyed SM4 S-boxes \u00b7 latin B0 + field bar pairs \u00b7 six triplets \u00b7 bow-pressure \u00b7 latin odd restack \u00b7 cross-staff mix \u00b7 open 8-beat staffs \u00b7 SIV nonce from clef\u2016pickup\u2016msg\u2016AD \u00b7 HMAC tag over clef\u2016key_sig\u2016version\u2016SN2\u2016pickup\u2016nonce\u2016ct\u2016AD \u00b7 movements: theme T; cadence HMAC-D over theme\u2016index\u2016ct; coda HMAC-O over header\u2016count\u2016ct\u2016cadences\u2016AD \u00b7 grid IS ciphertext \u00b7 \u00e9tudes 2/4/6 (lab only)",
   "tag": "149b6de64746caf7a7b77157ce622c8a361d047ebe590665b3e5a70aba447655",
-  "title": "Octavo (sneak staff-core N2)  \u00b7  movements-polish  \u00b7  v2  \u00b7  196-byte blob  \u00b7  SHA 48cf88ac\u2026  \u00b7  key_sig d8a1358a\u2026  \u00b7  2026-11-10",
+  "title": "Octavo (sneak staff-core N2)  \u00b7  etudes  \u00b7  v2  \u00b7  196-byte blob  \u00b7  SHA 38301026\u2026  \u00b7  key_sig d8a1358a\u2026  \u00b7  2026-11-11",
   "warning": "NOT for real secrets \u2014 use AES-GCM-SIV, age, or libsodium"
 }

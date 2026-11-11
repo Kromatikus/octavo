@@ -1275,7 +1275,8 @@ check("FEATURES mention the version byte and AD in the HMAC description, and AD 
       any("HMAC" in f and "version" in f and "AD" in f for f in N.FEATURES)
       and any("SIV" in f and "AD" in f for f in N.FEATURES)
       and any("movements" in f and "theme" in f and "cadence" in f and "coda" in f and "cadences" in f and "AD" in f for f in N.FEATURES)
-      and N.REVISION == "movements-polish" and N.REVISION_DATE == "2026-11-10")
+      and any("études" in f and "lab only" in f for f in N.FEATURES)
+      and N.REVISION == "etudes" and N.REVISION_DATE == "2026-11-11")
 
 # ---- movements mode (format version 3)
 check("FMT_MOVEMENTS is 3, distinct from single-block version 2, and the header/stride sizes match the layout",
@@ -1532,6 +1533,61 @@ if os.path.isfile(_mv_demo):
           and N.decrypt_movements(_mv_demo_blob, SEED) == _mv_demo_plain)
 else:
     check("movements-demo.txt is present beside the tests", False)
+
+# ---- études (reduced-round lab API) and the published score
+import etudes as E
+from etudes import etude
+check("etude() only accepts the published round counts 2, 4, 6, 16",
+      all(etude(r).rounds == r for r in (2, 4, 6, 16))
+      and all(isinstance(catch(lambda r=r: etude(r)), ValueError) for r in (0, 1, 3, 5, 8, 15, 17, 32)))
+check("etude blobs use distinct version bytes, not 2 or 3",
+      E.ETUDE_FMT_BLOCK == {2: 0xE2, 4: 0xE4, 6: 0xE6, 16: 0xF0}
+      and E.ETUDE_FMT_MOVEMENTS == {2: 0xE3, 4: 0xE5, 6: 0xE7, 16: 0xF1}
+      and set(E.ETUDE_FMT_BLOCK.values()) & {N.FMT_VERSION, N.FMT_MOVEMENTS, 1} == set()
+      and set(E.ETUDE_FMT_MOVEMENTS.values()) & {N.FMT_VERSION, N.FMT_MOVEMENTS, 1} == set())
+_e16 = etude(16)
+_pt = bytes(range(128)); _nn = bytes(range(16))
+_sch = N.Schedule(SEED, _nn)
+_full = N.grid_to_bytes(N.encrypt_grid(N.bytes_to_grid(_pt), _sch))
+check("etude(16) permute matches full-round encrypt_grid and inverts",
+      _e16.permute(_pt, SEED, _nn) == _full and _e16.unpermute(_full, SEED, _nn) == _pt)
+check("etude(2/4/6) permute differs from full-round and still inverts",
+      all((lambda r: (lambda E_, ct: ct != _full and E_.unpermute(ct, SEED, _nn) == _pt)(etude(r), etude(r).permute(_pt, SEED, _nn)))(r) for r in (2, 4, 6)))
+_eblob = _e16.encrypt(b"hello world", SEED, pickup=HW_PICKUP)
+check("etude(16) hello-world ciphertext matches the live sample; version and tag differ",
+      _eblob[0] == 0xF0 and _eblob[4:164] == HW_BLOB[4:164] and _eblob[164:] != HW_BLOB[164:]
+      and _e16.decrypt(_eblob, SEED) == b"hello world")
+check("normal decrypt rejects every étude single-block version as UnsupportedVersion",
+      all(isinstance(catch(lambda r=r: N.decrypt(etude(r).encrypt(b"x", SEED, pickup=HW_PICKUP), SEED)), N.UnsupportedVersion) for r in (2, 4, 6, 16)))
+check("normal decrypt_movements rejects every étude movements version as UnsupportedVersion",
+      all(isinstance(catch(lambda r=r: N.decrypt_movements(etude(r).encrypt_movements(b"xy", SEED, pickup=HW_PICKUP), SEED)), N.UnsupportedVersion) for r in (2, 4, 6, 16)))
+check("étude decrypt rejects ordinary version-2 and version-3 blobs",
+      isinstance(catch(lambda: _e16.decrypt(HW_BLOB, SEED)), N.UnsupportedVersion)
+      and isinstance(catch(lambda: _e16.decrypt_movements(_mv_demo_blob, SEED)), N.UnsupportedVersion))
+_ead = b"from:alice"
+_emsg = bytes(range(40))
+check("étude single-block and movements round-trip at 2, 4, 6, 16, with and without AD",
+      all(etude(r).decrypt(etude(r).encrypt(_emsg, SEED, pickup=HW_PICKUP), SEED) == _emsg
+          and etude(r).decrypt(etude(r).encrypt(_emsg, SEED, ad=_ead, pickup=HW_PICKUP), SEED, ad=_ead) == _emsg
+          and etude(r).decrypt_movements(etude(r).encrypt_movements(_emsg * 4, SEED, pickup=HW_PICKUP), SEED) == _emsg * 4
+          and etude(r).decrypt_movements(etude(r).encrypt_movements(_emsg * 4, SEED, ad=_ead, pickup=HW_PICKUP), SEED, ad=_ead) == _emsg * 4
+          for r in (2, 4, 6, 16)))
+check("encrypt still has no public pickup argument; études are not in the attested sneak_n2 module",
+      list(inspect.signature(N.encrypt).parameters) == ["msg", "seed", "nonce", "ad"]
+      and not hasattr(N, "etude") and "etude" not in N.MIX_CODE_FUNCS and "etude" not in N.MIX_CODE_ROOTS)
+
+# published score: regenerate in memory and compare to score/vectors.json
+import json as _json_score
+import score.generate_score as _gen_score
+_score_path = os.path.join(HERE, "score", "vectors.json")
+_committed = _json_score.load(open(_score_path))
+_fresh = _gen_score.build_vectors()
+check("published score regenerates identically (64 vectors: 16 permute, 24 aead, 24 movements)",
+      _fresh == _committed and _committed["counts"] == {"block_cipher": 16, "aead": 24, "movements": 24, "total": 64}
+      and _committed["revision"] == "etudes"
+      and _committed["EXPECTED_MIX_SHA256"] == N.EXPECTED_MIX_SHA256
+      and _committed["key_sig"] == N.key_signature(SEED).hex()
+      and _committed["sneak_n2_sha256"] == hashlib.sha256(open(os.path.join(HERE, "sneak_n2.py"), "rb").read()).hexdigest())
 
 # ---- picture header stays in sync with the live module and hello-world sample
 # render_n2.py writes sneak-staff-n2.json beside the PNG with the file SHA, key_sig,
