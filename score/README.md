@@ -82,3 +82,21 @@ fixed `pickup` so these vectors stay deterministic. Normal `encrypt` and
 Full-round live blobs (`hello-world.txt`, `movements-demo.txt`) are the
 samples for the ordinary version-6 and version-7 APIs, and also carry
 an AD-bound (and, for movements, nmov-bound) tuning commitment.
+
+## Live rehearsal vectors (score versions 4, 5, 6 and 7)
+
+Since the rehearsal revision the score also holds **8 live format-version-8
+rehearsal stream vectors** (full 16 rounds, demo seed, pinned pickup and
+stream nonce, listed in the JSON), so it has 72 vectors in all. Score
+version 5 (rehearsal-fix) regenerated those 8 vectors because the AD
+digest now enters the R-sponge chunk keys, tweaks and schedule nonce. v8
+was never published, so there is no legacy v8. Score version 6
+(rehearsal-polish) regenerated them again: the rehearsal digest attests the
+whole v8 API code (file helpers and workers included), the polish fixes
+changed that code, so `rehearsal_sig` and therefore every chunk **tag**
+changed. Headers and ciphertext blocks are byte-identical to score version 5
+(same pinned pickup and nonce). Score version 7 (rehearsal-finale)
+regenerated them once more for the same reason: the rehearsal-polish attack
+fixes changed attested v8 API code, so `rehearsal_sig` and every chunk tag
+moved, while headers and ciphertext blocks are byte-identical to score
+version 6. The 64 étude vectors above are unchanged.

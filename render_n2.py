@@ -315,6 +315,7 @@ for j,bow_line in enumerate(bow_lines):
 _src_path=os.path.join(HERE,'sneak_n2.py')
 file_sha=hashlib.sha256(open(_src_path,'rb').read()).hexdigest()
 key_sig=N.key_signature().hex()
+rehearsal_sig=N.rehearsal_signature().hex()
 def _centered(text, font, y, fill, label):
     bb=d.textbbox((0,0),text,font=font)
     if bb[2]-bb[0] > W-80:
@@ -347,6 +348,9 @@ else:
 meta={
     "file_sha256": file_sha,
     "key_sig": key_sig,
+    "rehearsal_sig": rehearsal_sig,
+    "expected_rehearsal_sha256": N.EXPECTED_REHEARSAL_SHA256,
+    "rehearsal_fmt_version": N.FMT_REHEARSAL,
     "pickup": pickup.hex(),
     "nonce": nonce.hex(),
     "commit": commit.hex(),
@@ -362,16 +366,18 @@ meta={
 # footer
 footf=ImageFont.truetype(Fd+'DejaVuSans.ttf',30)
 lines=[
+    f"rehearsal stream v{N.FMT_REHEARSAL}: header = version ‖ SN2 ‖ pickup ‖ nonce ‖ tuning ‖ chunk size ({N.REHEARSAL_HDR_LEN} B)   ·   chunks = ct ‖ HMAC-R tag over index ‖ final flag ‖ AD   ·   "
+    f"rehearsal_sig {rehearsal_sig[:8]}…   ·   attestation {N.EXPECTED_REHEARSAL_SHA256[:8]}…",
     f"pickup {pickup.hex()}   ·   nonce {nonce.hex()}",
     f"tag {tag.hex()}   ·   blob = version ‖ SN2 ‖ pickup ‖ nonce ‖ tuning ‖ ct ‖ tag   ·   \"hello world\" sample",
     "seed split: INNER seed (wine, first 128 digits) ↔ inner octahedron 1–8 · OUTER seed (amber, last 128 digits) ↔ outer octahedron o1–o8 · thin grey: round-0 inner↔outer ciphertext bridges",
     "each round: ⊕key → keyed S-box → weave → staff butterfly → shell bridges → bars+triplets → bow → odd restack → cross-staff → late S2 → encore (bars+triplets+bow+restack+cross) · code-closure key signature",
 ]
 for i,line in enumerate(lines):
-    bb=d.textbbox((0,0),line,font=footf); d.text(((W-bb[2])/2,H-340+i*48),line,font=footf,fill=red if i<2 else muted)
+    bb=d.textbbox((0,0),line,font=footf); d.text(((W-bb[2])/2,H-388+i*48),line,font=footf,fill=teal if i==0 else (red if i<3 else muted))
 seedcap=ImageFont.truetype(Fd+'DejaVuSansMono-Bold.ttf',26)
 parts=[('inner ',wine),(INNER_SEED.upper(),wine),(' | ',ink),(OUTER_SEED.upper(),amber),(' outer',amber)]
-tw=sum(d.textlength(t_,font=seedcap) for t_,_ in parts); x_=(W-tw)/2; y_=H-340+4*48+4
+tw=sum(d.textlength(t_,font=seedcap) for t_,_ in parts); x_=(W-tw)/2; y_=H-388+5*48+4
 for t_,c_ in parts: d.text((x_,y_),t_,font=seedcap,fill=c_); x_+=d.textlength(t_,font=seedcap)
 print('seed shell extents:',[tuple(round(c) for c in P(tuple(RS*v for v in VX[k]))) for k in VX])
 png=os.path.join(HERE,'sneak-staff-n2.png')

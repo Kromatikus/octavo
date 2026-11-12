@@ -1,4 +1,63 @@
-conductor-polish revision test results (2026-11-11)
+rehearsal-finale revision test results (2026-11-11, America/New_York; frozen as /workspace/octavo011)
+live /workspace/sneak_n2: 459/459 passed, 0 failed, 0 skipped (about 9 min, 21:46-21:55; rehearsalfinale_verification/test_run_live.txt)
+frozen copy /workspace/octavo011: see octavo011/SNAPSHOT_FREEZE.md (full run inside the frozen tree)
+sneak_n2.py SHA-256: 929bacc1bef5ebd6dee7df817aba6061ca58e871d4a18992d33fc0bc107b772f
+EXPECTED_MIX_SHA256: fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6 (unchanged from octavo010)
+key_sig: 340dc1e062502bb13462a94ba490c3dc (unchanged from octavo010)
+EXPECTED_REHEARSAL_SHA256: f28badba6dcd70e80f2524d9adb00bc177374d609a0555453256fa10451804a4 (was dd02f707...; the rehearsal-polish attack fixes changed attested v8 API code)
+rehearsal_sig (demo seed): a3b4c820528562ac17a74eb414a389a3 (was 1f8097d2...)
+score: score_version 7; 64 etude vectors unchanged, 8 rehearsal (v8) vectors regenerated: header and ciphertext blocks identical to score 6, only tags differ (rehearsalfinale_verification/v8_compare.txt: 8/8)
+v6/v7 vs octavo010: 28/28 in rehearsalfinale_verification/v6v7_compare.txt
+new tests: 11 rehearsal-finale checks (L1, L2, L3, I1, I2, I3, I4, I5, I6, I7, I8); 6 older checks updated for the intended changes (REVISION name, mix-coverage helper set gains _verify_executed_code, worker argv -S, EIO raise now checked on the named-temp path, iter_rehearsal bytes always ciphertext, score revision/version 7)
+witnesses: copies in /workspace/rehearsalfinale_witness_rerun (see SUMMARY.txt)
+
+rehearsal-polish revision test results (2026-11-11, America/New_York; live, not frozen)
+live /workspace/sneak_n2: 448/448 passed, 0 failed, 0 skipped (about 9 min, 19:52-20:01; rehearsalpolish_verification/test_run_live.txt)
+fresh copy /tmp/sneak_n2_rehearsalpolish_fresh: 448/448 passed, 0 failed, 0 skipped (about 9 min, 20:01-20:09; rehearsalpolish_verification/test_run_fresh.txt)
+sneak_n2.py SHA-256: 7ea3dd843b19b6712a00c535d6232da449972737ea54752217a913d8265c111f
+EXPECTED_MIX_SHA256: fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6 (unchanged from octavo010)
+key_sig: 340dc1e062502bb13462a94ba490c3dc (unchanged from octavo010)
+EXPECTED_REHEARSAL_SHA256: dd02f7078f46f48c14ac6ca09243a72a56c7d378f476d4ec312c960c145f1a50 (was 584758f7...; the rehearsal digest attests all v8 API code, so the file-helper and worker fixes move it)
+rehearsal_sig (demo seed): 1f8097d2d6554347d28b15b412641fcd (was 4ed3c0f3...)
+score: score_version 6; 64 etude vectors unchanged, 8 rehearsal (v8) vectors regenerated: header and ciphertext blocks identical to score 5, only tags differ (rehearsalpolish_verification/v8_compare.txt: 8/8)
+v6/v7 vs octavo010: fixed-pickup blobs identical in the suite; 28/28 in rehearsalpolish_verification/v6v7_compare.txt
+rehearsal reject medians (ns): live commit 17969 / tag 17981 / ct 17919; fresh 19064 / 18941 / 18939
+witnesses (copies in /workspace/rehearsalpolish_witness_rerun, see SUMMARY.txt): rehearsal-fix attack verbatim 6/10 exit 0
+  (w02, w03 stop where L1/I4 were fixed; w04 tap is incompatible with raw-fd worker I/O; w10 pins the old snapshot SHA);
+  targeted: L1a-c, L2, I1-I8 and the worker pipe check NOT reproduced; load_seed unclosed handle still reproduces (left on purpose, mix-attested).
+  first rehearsal attack: verbatim 3/13, adapted 8/13, same outcome as at rehearsal-fix.
+5 MB stream benchmark: not re-measured (chunk crypto unchanged; workers now default worker_timeout 600 s).
+
+rehearsal-fix revision test results (2026-11-11, America/New_York; live, not frozen)
+live /workspace/sneak_n2: 437/437 passed, 0 failed, 0 skipped (9 min 58 s; rehearsalfix_verification/test_run_live.txt)
+fresh copy /tmp/sneak_n2_rehearsalfix_fresh: 437/437 passed, 0 failed, 0 skipped (about 9 min, 17:25-17:34; rehearsalfix_verification/test_run_fresh.txt)
+sneak_n2.py SHA-256: 81686d301c6d43746a8e691223d61e53cca7093a9e187c29a014d6d404078539
+EXPECTED_MIX_SHA256: fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6 (unchanged from octavo010)
+key_sig: 340dc1e062502bb13462a94ba490c3dc (unchanged from octavo010)
+EXPECTED_REHEARSAL_SHA256: 584758f7550f51913da0b723e8c90d73bf296aa1ecde1963ab03cfe0b1ef527e
+rehearsal_sig (demo seed): 4ed3c0f3817acda643a5c44a50c55f57
+score: score_version 5; 64 etude vectors unchanged, 8 rehearsal (v8) vectors regenerated (I1 puts the AD digest into the R-sponge inputs)
+v6/v7 vs octavo010: fixed-pickup blobs identical in the suite; 28/28 in rehearsalfix_verification/v6v7_compare.txt
+rehearsal reject medians (ns): live commit 18000 / tag 18006 / ct 17884; fresh 19801 / 19845 / 19763
+rehearsal-fix I3 one-shot decrypt_rehearsal forged-final reject: 0.05 ms live / 0.059 ms fresh (was ~85 ms: every chunk is now verified before any is decrypted)
+rehearsal 5 MB stream (5,255,225 bytes, 64 KiB chunks, 8 workers): live encrypt 90.8 s / decrypt 57.7 s; fresh encrypt 38.3 s / decrypt 52.4 s.
+  The live 90.8 s came from load on the shared box (load average ~6); side-by-side benchmarks of the old and new code ran at the same speed.
+rehearsal witnesses (copies in /workspace/rehearsalfix_witness_rerun, never run in place): verbatim 3/13 exit 0 (w06, w07, w12).
+  Signature-only ADAPTED shims (ad_digest argument) make w01-w05 pass again; w08, w09, w11 still fail where a finding was fixed; w10 uses the removed pool API; w13 pins score v4.
+
+rehearsal revision test results (2026-11-11, America/New_York; not yet frozen)
+live /workspace/sneak_n2: 414/414 passed, 0 failed, 0 skipped (8 min 57 s)
+fresh copy /tmp/sneak_n2_rehearsal_fresh: see rehearsal_verification/test_run_fresh.txt
+sneak_n2.py SHA-256: 85a67178ab21399603629c31b55335276c8c792b7770d468dc08eb092047030f
+EXPECTED_MIX_SHA256: fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6 (unchanged from octavo010)
+key_sig: 340dc1e062502bb13462a94ba490c3dc (unchanged from octavo010)
+EXPECTED_REHEARSAL_SHA256: e767ae50e25cd04681b6565ec78f11a9ee9d235f6d3278f2e3e9ec458c3f682e
+rehearsal_sig (demo seed): d33225ce751062f359fd0b937f5ba337
+v6/v7 vs octavo010: 18 fixed-pickup blobs identical in the suite; 28/28 in rehearsal_verification/v6v7_compare.txt
+rehearsal reject medians (one-chunk stream, random seed, 1500 interleaved per class): commit-fail 16.85 us, tag-fail 16.82 us, ct-fail 16.80 us
+rehearsal 5 MB stream (5,255,225 bytes, 64 KiB chunks, 8 workers): encrypt 38.6 s, decrypt 51.7 s
+
+conductor-polish revision test results (2026-11-11), kept for reference
 live /workspace/sneak_n2: 366/366 passed, 0 failed, 0 skipped
 fresh copy /tmp/sneak_n2_conductorpolish_fresh: 366/366 passed, 0 failed, 0 skipped
 sneak_n2.py SHA-256: c07707bfde75ed4b77a4ad4f09797526f9fabe1509914fb3a49fa5288bd39d50

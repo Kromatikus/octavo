@@ -1,7 +1,7 @@
 Sneak staff-core N2 (Octavo) — conductor-polish demo (format version 7, commitment binds AD and nmov; commitment and coda checked together).
 Homemade; NOT for real secrets. Use AES-GCM-SIV, age, or libsodium.
 seed: sneak1024-seed.txt next to sneak_n2.py
-live sneak_n2.py SHA-256: c07707bfde75ed4b77a4ad4f09797526f9fabe1509914fb3a49fa5288bd39d50
+live sneak_n2.py SHA-256: 85a67178ab21399603629c31b55335276c8c792b7770d468dc08eb092047030f
 key_sig (16 bytes): 340dc1e062502bb13462a94ba490c3dc
 revision: conductor-polish / 2026-11-11
 plaintext (188 bytes): Octavo movements: a chained duplex over the staff-core. Each section is a movement, the running theme is carried forward, a cadence closes every section, and a coda covers the whole piece.
@@ -18,3 +18,4 @@ blob (424 bytes = version || SN2 || pickup || nonce || commit || nmov || (ct||ca
 recovered plaintext matches.
 A version-6 single-block blob cannot be opened by decrypt_movements, and this blob cannot be opened by decrypt.
 Published version-3 movements blobs open only through decrypt_movements_legacy(..., allow_noncommitting=True) (LegacyFormatWarning); they are not key-committing. Unpublished tuning v5 blobs are rejected.
+rehearsal revision: this blob is byte-identical to octavo010's and still opens on the live sneak_n2.py SHA-256 85a67178ab21399603629c31b55335276c8c792b7770d468dc08eb092047030f (v6/v7 unchanged; key_sig unchanged).

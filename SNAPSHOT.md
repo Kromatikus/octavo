@@ -1,4 +1,22 @@
-# Live tree note (not a freeze)
+# Live tree note — rehearsal-finale (frozen as /workspace/octavo011)
+
+Live `/workspace/sneak_n2` is the rehearsal-finale revision (2026-11-11). Since
+octavo010 (conductor-polish) it went through rehearsal (new v8 streaming mode),
+rehearsal-fix, rehearsal-polish and rehearsal-finale, each fixing the previous
+in-house rehearsal attack (`attacks_octavo_rehearsal`, `_rehearsalfix`,
+`_rehearsalpolish`). The round function and the v6/v7 formats are unchanged
+(byte-identical to octavo010); only v8 was added and then hardened.
+
+- sneak_n2.py SHA-256: 929bacc1bef5ebd6dee7df817aba6061ca58e871d4a18992d33fc0bc107b772f
+- EXPECTED_MIX_SHA256: fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6 (unchanged)
+- key_sig (demo seed): 340dc1e062502bb13462a94ba490c3dc (unchanged)
+- EXPECTED_REHEARSAL_SHA256: f28badba6dcd70e80f2524d9adb00bc177374d609a0555453256fa10451804a4; rehearsal_sig a3b4c820528562ac17a74eb414a389a3
+- hello-world and movements-demo: unchanged from octavo010; rehearsal-demo.txt re-sealed (same pickup/nonce, new tags); score version 7
+- Changes in rehearsal-finale: see README "Current live revision — rehearsal-finale" (L1–L3, I1–I8 of attacks_octavo_rehearsalpolish).
+
+Still homemade, NOT for real secrets. Use AES-GCM-SIV, age, or libsodium.
+
+# Previous live tree note — conductor-polish (frozen as octavo010)
 
 Live `/workspace/sneak_n2` is the conductor-polish revision (2026-11-11)
 on top of the conductor tree. The round function and the v6/v7 formats are

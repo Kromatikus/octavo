@@ -1,6 +1,11 @@
 """Sneak staff-core N2 (8-bit cells) — homemade 1024-bit block cipher (descended from N1) + HMAC-SHA256 seal.
 
-WARNING: homemade, unreviewed scheme. NOT for real secrets.
+WARNING: homemade scheme. NOT for real secrets. The 16-round function has had in-house
+attacks and one independent, non-expert review (GitHub issue #1, around octavo003: no
+distinguisher, forgery or key recovery reported). The outer construction (key commitment,
+movements, études, equal-time rejects, rehearsal streaming) has had in-house attacks only
+(rehearsal: two in-house attacks; rehearsal-fix and rehearsal-polish address their file-helper,
+worker and API findings), and nothing here is expert cryptanalysis or a proof.
 For anything that matters use AES-GCM-SIV (RFC 8452), age, or libsodium.
 
 What is homemade: the whole 1024-bit block cipher (16 faces x 8 beats on dual octahedra, one BYTE per beat,
@@ -16,11 +21,45 @@ They are not selectable from encrypt / decrypt, and since the conductor
 revision they run under their own derived key (never the live round
 material). Published test vectors are in score/vectors.json.
 
+Rehearsal (format version 8) is a STREAM-style chunked mode with no 1 MB cap:
+RehearsalEncryptor / RehearsalDecryptor (update / finalize), encrypt_rehearsal /
+decrypt_rehearsal, iter_rehearsal (safe reader that always finalizes) and the
+*_rehearsal_file helpers (private 0600 O_TMPFILE / O_EXCL temp files, published by a
+no-follow hard link and checked to be the inode written; no clobber by default). Every chunk is
+verified before any of its plaintext is released. Études have no streaming mode.
+
 The default seed file sneak1024-seed.txt is a PUBLIC DEMO SEED: its full
 hex is published in score/vectors.json, so any blob made with seed=None
 is readable by anyone.
 """
 import hashlib, hmac, os, json, inspect, ast, textwrap, types, time, warnings, collections
+import errno, pickle, subprocess, sys, tempfile
+import io, linecache, selectors, stat
+
+def _module_source_snapshot():
+    """rehearsal-polish I1: the exact source of this module, read ONCE at import (or handed in by the
+    worker loader), primed into linecache so both attestations hash these bytes and workers > 1 are
+    sent these bytes over their pipe. A later change to the file on disk changes neither."""
+    g = globals()
+    src = g.pop("__octavo_worker_source__", None)
+    path = g.get("__file__")
+    if src is None:
+        if not path or not path.endswith(".py"):
+            return None
+        try:
+            with open(path, "rb") as f:
+                src = f.read()
+        except OSError:
+            return None
+    try:
+        lines = io.StringIO(src.decode("utf-8-sig"), newline=None).readlines()
+    except UnicodeDecodeError:
+        return None
+    if path:
+        linecache.cache[path] = (len(src), None, lines, path)   # mtime None: checkcache never re-reads it
+    return src
+_MODULE_SOURCE = _module_source_snapshot()
+_MODULE_SOURCE_SHA256 = None if _MODULE_SOURCE is None else hashlib.sha256(_MODULE_SOURCE).hexdigest()
 
 VERSION = b"SN2"                 # magic after the format-version byte; sponge domains stay b"SN2/"
 FMT_VERSION_V2 = 2              # legacy single-block (no tuning); decrypt_legacy() only
@@ -64,10 +103,14 @@ SEED_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sneak1024-
 # sha256(mix_description()) hex; used as the StaffSponge nonce for key_signature.
 # Excluded from attestation so this constant is not part of what it names (chicken-and-egg).
 EXPECTED_MIX_SHA256 = "fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6"
+# sha256(rehearsal_description()) hex (rehearsal, format version 8); sponge nonce for rehearsal_signature.
+# Excluded from both attestations for the same chicken-and-egg reason. The live mix digest above is
+# unchanged by rehearsal, so key_sig and every v6/v7 blob stay byte-identical.
+EXPECTED_REHEARSAL_SHA256 = "f28badba6dcd70e80f2524d9adb00bc177374d609a0555453256fa10451804a4"
 
 # Picture / documentation metadata. Not part of the mix or tag; excluded from
 # attestation so a label or feature-list edit does not change key_sig or ciphertext.
-REVISION = "conductor-polish"
+REVISION = "rehearsal-finale"
 REVISION_DATE = "2026-11-11"
 FEATURES = (
     "keyed SM4 S-boxes",
@@ -77,7 +120,8 @@ FEATURES = (
     "latin odd restack",
     "cross-staff mix",
     "open 8-beat staffs",
-    "SIV nonce from clef‖pickup‖msg‖AD",
+    "SIV nonce SHA-256(clef‖pickup‖enc(msg)‖enc(AD))[:16]",
+    "rehearsal v8 chunked stream",
     "HMAC tag over clef‖key_sig‖version‖SN2‖pickup‖nonce‖tuning‖ct‖AD",
     "movements: theme T; cadence HMAC-D over theme‖index‖ct; coda HMAC-O over header‖count‖ct‖cadences‖AD",
     "tuning: HMAC-U commitment over version‖SN2‖pickup‖nonce‖AD (and nmov)",
@@ -626,6 +670,8 @@ _ATTEST_SKIP = frozenset({
     "EXPECTED_MIX_SHA256", "_MIX_SHA256", "_SOURCE_AVAILABLE", "_ATTEST_SKIP",
     "SEED_PATH",
     "REVISION", "REVISION_DATE", "FEATURES", "WARNING_LINE",
+    "EXPECTED_REHEARSAL_SHA256", "_REHEARSAL_SHA256",
+    "_MODULE_SOURCE", "_MODULE_SOURCE_SHA256",
 })
 
 def mix_code_closure(roots=None):
@@ -1251,6 +1297,1375 @@ def _decrypt_legacy_v3(blob: bytes, seed, ad: bytes, *, allow_noncommitting=Fals
         raise AuthError("SIV nonce mismatch")
     return msg
 
+# ---------------------------------------------------------------- rehearsal: chunked streaming AEAD (format version 8)
+# STREAM-style online AE (in the spirit of Hoang, Reyhanitabar, Rogaway and Vizar, "Online
+# Authenticated-Encryption and its Nonce-Reuse Misuse-Resistance", CRYPTO 2015). Homemade.
+# Wire:   header(72) || chunk_0 || ... || chunk_{n-1}
+# header: version(1)=8 || SN2(3) || pickup(16) || nonce(16) || commit(32) || chunk_size(4, uint32be)
+# chunk i < n-1 (non-final): ct(chunk_size) || tag(32), carrying exactly chunk_size plaintext bytes
+# chunk n-1 (final):         ct(128*k) || tag(32), carrying L in 0..chunk_size-1 bytes, padded
+#                            msg || 0x80 || zeros to the next multiple of 128 (so 128*k <= chunk_size)
+# Every stream has exactly one final chunk (an empty stream is one 128-byte final chunk).
+# Per-chunk material comes from the sponge domain R over
+#   b"chunk" || pickup || nonce || chunk_size32 || index64 || final8 || ad_digest32
+# (first 32 bytes = chunk MAC key, then one 128-byte tweak per block), and one per-stream
+# Schedule(seed, StaffSponge(R, seed, b"sched" || pickup || nonce || chunk_size32 || ad_digest32).take(16)),
+# with ad_digest = SHA-256(b"SN2/A" || encode_ad(ad)). Each block is XEX'd under the unchanged
+# 16-round staff-core: ct = E(P xor T) xor T.
+# rehearsal-fix (I1): ad_digest is in both R inputs, so one pickup and nonce under two ADs give
+# unrelated blocks. This changed every v8 ciphertext; v8 was never published, so there is no
+# legacy v8 path.
+# The nonce is a fresh random per-stream value (no SIV: a stream cannot be hashed before it is sent).
+FMT_REHEARSAL = 8                  # rehearsal stream; never confused with v6/v7 or étude bytes
+REHEARSAL_DOMAIN = b"R"            # sponge domain: per-stream schedule nonce, per-chunk MAC key and tweaks
+REHEARSAL_SIG_DOMAIN = b"H"        # sponge domain: rehearsal signature (rehearsal hall); sponge nonce = rehearsal digest
+REHEARSAL_AD_PREFIX = b"SN2/A"     # raw SHA-256 prefix for the per-stream AD digest (A is not a sponge domain)
+REHEARSAL_NONCE_PREFIX = b"SN2/Q"  # raw SHA-256 prefix for the fresh per-stream nonce (Q is not a sponge domain)
+REHEARSAL_CHUNK_DEFAULT = 65536    # 64 KiB of plaintext per non-final chunk (512 blocks)
+REHEARSAL_CHUNK_MIN = BLOCK_LEN    # 128
+REHEARSAL_CHUNK_MAX = 1 << 20      # 1 MiB (8192 blocks, the same block count as MAX_MOVEMENTS)
+MAX_REHEARSAL_CHUNKS = 1 << 24     # chunks per stream, final included: 1 TiB at the default chunk size
+REHEARSAL_MAX_WORKERS = 32         # rehearsal-fix I2: worker processes are capped at min(32, os.cpu_count())
+REHEARSAL_WORKER_TIMEOUT = 600.0   # rehearsal-polish I2: default seconds a worker may take per frame (hello or one chunk)
+RH_CS0 = CM1                       # chunk_size field = header[68:72]
+REHEARSAL_HDR_LEN = RH_CS0 + 4     # 72
+REHEARSAL_PAD = b"\x80"
+
+def _fresh_stream_nonce() -> bytes:
+    """Fresh 16-byte per-stream nonce, drawn like the pickup but under its own prefix:
+    SHA-256(b"SN2/Q" || urandom(16) || time_ns(8) || counter(8) || pid(4))[:16]."""
+    _fresh_stream_nonce.n += 1
+    mix = (os.urandom(NONCE_LEN)
+           + time.time_ns().to_bytes(8, "big")
+           + _fresh_stream_nonce.n.to_bytes(8, "big")
+           + os.getpid().to_bytes(4, "big"))
+    return hashlib.sha256(REHEARSAL_NONCE_PREFIX + mix).digest()[:NONCE_LEN]
+_fresh_stream_nonce.n = 0
+
+def _rehearsal_chunk_size(chunk_size) -> int:
+    """Caller-side check: an int (not bool), a multiple of 128, 128 <= chunk_size <= 1 MiB."""
+    if isinstance(chunk_size, bool) or not isinstance(chunk_size, int):
+        raise TypeError("chunk_size must be an int")
+    if chunk_size % BLOCK_LEN or not REHEARSAL_CHUNK_MIN <= chunk_size <= REHEARSAL_CHUNK_MAX:
+        raise ValueError("chunk_size must be a multiple of %d between %d and %d" % (BLOCK_LEN, REHEARSAL_CHUNK_MIN, REHEARSAL_CHUNK_MAX))
+    return chunk_size
+
+def _rehearsal_max_chunk_size(max_chunk_size):
+    """Receiver-side limit (rehearsal-fix I4): None (any valid size) or a valid chunk size."""
+    return None if max_chunk_size is None else _rehearsal_chunk_size(max_chunk_size)
+
+def _rehearsal_workers(workers) -> int:
+    """Validate workers (an int >= 1) and cap it at min(REHEARSAL_MAX_WORKERS, os.cpu_count()) (rehearsal-fix I2)."""
+    if isinstance(workers, bool) or not isinstance(workers, int) or workers < 1:
+        raise ValueError("workers must be an int >= 1")
+    return max(1, min(workers, REHEARSAL_MAX_WORKERS, os.cpu_count() or 1))
+
+def _rehearsal_worker_timeout(timeout) -> float:
+    """rehearsal-polish I2: None (REHEARSAL_WORKER_TIMEOUT) or a finite number of seconds > 0."""
+    if timeout is None:
+        return REHEARSAL_WORKER_TIMEOUT
+    if isinstance(timeout, bool) or not isinstance(timeout, (int, float)):
+        raise TypeError("worker_timeout must be a number of seconds or None")
+    if not 0 < timeout < float("inf"):
+        raise ValueError("worker_timeout must be finite and > 0")
+    return float(timeout)
+
+def _rehearsal_read_size(read_size, allow_none=False):
+    """rehearsal-finale I7: read_size must be an int (not bool) >= 1 (or None where a default applies)."""
+    if read_size is None and allow_none:
+        return None
+    if isinstance(read_size, bool) or not isinstance(read_size, int):
+        raise TypeError("read_size must be an int")
+    if read_size < 1:
+        raise ValueError("read_size must be >= 1")
+    return read_size
+
+def _rehearsal_bool(name, value) -> bool:
+    """rehearsal-polish I6: flags such as overwrite must be real bools (overwrite="no" used to overwrite)."""
+    if not isinstance(value, bool):
+        raise TypeError("%s must be True or False" % name)
+    return value
+
+class UnfinalizedStreamWarning(UserWarning):
+    """rehearsal-polish L2 / rehearsal-finale L2: a RehearsalDecryptor was dropped after it received
+    data but before finalize(), so the end of the stream was never verified. A UserWarning (not a
+    ResourceWarning), so Python's default filters SHOW it. At import an "always" filter for this
+    category is APPENDED to the warning filters, so every dropped decryptor warns (not once per call
+    site); filters the user set (-W, PYTHONWARNINGS, simplefilter) come first and still win. It is
+    raised outside the destructor's own error handling, so under -W error it reaches
+    sys.unraisablehook ("Exception ignored in ... UnfinalizedStreamWarning" on stderr) instead of
+    vanishing; a destructor can never make the program fail, so the exit code is unchanged."""
+
+warnings.filterwarnings("always", category=UnfinalizedStreamWarning, append=True)
+
+def _rehearsal_ad_digest(ad: bytes = b"") -> bytes:
+    """SHA-256(b"SN2/A" || encode_ad(ad)); bound into every chunk tag and (rehearsal-fix I1) into the
+    R-sponge inputs for the schedule nonce, chunk keys and tweaks. AD itself is in the commitment."""
+    return hashlib.sha256(REHEARSAL_AD_PREFIX + _encode_ad(ad)).digest()
+
+def _rehearsal_commitment(commit_key, pickup, nonce, ad, chunk_size) -> bytes:
+    """HMAC-SHA256(K_commit, b"U" || 8 || SN2 || pickup || nonce || encode_ad(ad) || chunk_size32).
+    Same seed-only K_commit and domain-U pattern as v6/v7; the version byte 8 keeps it apart from
+    v7's nmov32 commitment, and the chunk size is bound so a rewritten size fails here."""
+    data = (COMMIT_DOMAIN + bytes([FMT_REHEARSAL]) + VERSION + pickup + nonce + _encode_ad(ad)
+            + chunk_size.to_bytes(4, "big"))
+    return hmac.new(commit_key, data, hashlib.sha256).digest()
+
+def _rehearsal_schedule_nonce(seed, pickup, nonce, chunk_size, ad_digest) -> bytes:
+    """Per-stream schedule nonce: StaffSponge(R, seed, b"sched" || pickup || nonce || chunk_size32 || ad_digest).take(16)."""
+    return StaffSponge(REHEARSAL_DOMAIN, _seed_bytes(seed),
+                       b"sched" + pickup + nonce + chunk_size.to_bytes(4, "big") + ad_digest).take(NONCE_LEN)
+
+def _rehearsal_chunk_sponge(seed, pickup, nonce, chunk_size, index, final, ad_digest) -> StaffSponge:
+    """Per-chunk sponge, domain R, over b"chunk" || pickup || nonce || chunk_size32 || index64 || final8 || ad_digest.
+    First 32 bytes: the chunk MAC key. Then one 128-byte XEX tweak per block."""
+    return StaffSponge(REHEARSAL_DOMAIN, _seed_bytes(seed),
+                       b"chunk" + pickup + nonce + chunk_size.to_bytes(4, "big")
+                       + index.to_bytes(8, "big") + _final_flag(final) + ad_digest)
+
+def _rehearsal_chunk_key(seed, pickup, nonce, chunk_size, index, final, ad_digest) -> bytes:
+    return _rehearsal_chunk_sponge(seed, pickup, nonce, chunk_size, index, final, ad_digest).take(32)
+
+def _rehearsal_tag(chunk_key, clef, rsig, pickup, nonce, commit, chunk_size, index, final, ad_digest, ct) -> bytes:
+    """HMAC-SHA256(K_chunk, clef || rehearsal_sig || 8 || SN2 || pickup || nonce || commit || chunk_size32
+    || index64 || final8 || ad_digest || ct). Everything before ct is fixed-length."""
+    return hmac.new(chunk_key, clef + rsig + bytes([FMT_REHEARSAL]) + VERSION + pickup + nonce + commit
+                    + chunk_size.to_bytes(4, "big") + index.to_bytes(8, "big") + _final_flag(final)
+                    + ad_digest + ct, hashlib.sha256).digest()
+
+def _rehearsal_tweaks(seed, pickup, nonce, chunk_size, index, final, ad_digest, nblocks) -> list:
+    """The chunk's XEX tweaks: the chunk sponge's output after its 32-byte MAC key, 128 bytes per block."""
+    sp = _rehearsal_chunk_sponge(seed, pickup, nonce, chunk_size, index, final, ad_digest)
+    sp.take(32)
+    return [sp.take(BLOCK_LEN) for _ in range(nblocks)]
+
+def _rehearsal_mask(data, tweaks) -> bytes:
+    """XOR block k of data with tweaks[k]."""
+    return b"".join(_xor_bytes(data[k * BLOCK_LEN:(k + 1) * BLOCK_LEN], t) for k, t in enumerate(tweaks))
+
+def _rehearsal_blocks(sch, data, decrypt) -> bytes:
+    """Run the unchanged staff-core (encrypt_grid or decrypt_grid) on every 128-byte block of data."""
+    out = []
+    for off in range(0, len(data), BLOCK_LEN):
+        g = bytes_to_grid(data[off:off + BLOCK_LEN])
+        out.append(grid_to_bytes(decrypt_grid(g, sch) if decrypt else encrypt_grid(g, sch)))
+    return b"".join(out)
+
+def _rehearsal_crypt_chunk(seed, sch, pickup, nonce, chunk_size, index, final, ad_digest, data, decrypt) -> bytes:
+    """XEX every 128-byte block of one chunk under the stream Schedule: ct = E(P ^ T) ^ T, with
+    T the chunk's tweaks (_rehearsal_tweaks). len(data) % 128 == 0."""
+    tw = _rehearsal_tweaks(seed, pickup, nonce, chunk_size, index, final, ad_digest, len(data) // BLOCK_LEN)
+    return _rehearsal_mask(_rehearsal_blocks(sch, _rehearsal_mask(data, tw), decrypt), tw)
+
+# Worker body for workers > 1 (rehearsal-fix I2, rehearsal-polish I1/I2, rehearsal-finale I6). Runs in
+# a FRESH interpreter (python -I -B -S -c ..., empty environment), never a fork, so it inherits none
+# of the parent's memory; -S skips site, so no .pth file in site-packages runs in it. It does NOT read
+# sneak_n2.py from disk: the parent sends the exact source bytes it imported (_MODULE_SOURCE) over the
+# pipe, the worker executes those bytes under a private module name (both attestations run on them),
+# and answers with sha256(received source) || its rehearsal digest. It then receives the per-stream
+# Schedule (round material only) and tweak-masked blocks, and returns the staff-core output. It never
+# sees the seed, the AD, the AD digest, a MAC key or the commitment key. It is still part of the
+# trusted base (SECURITY.md): its transcript plus the public ciphertext gives the plaintext, and an
+# all-zero plaintext block reaches it as that block's tweak.
+_REHEARSAL_WORKER_SRC = r"""
+import hashlib, sys, types
+rd, wr = sys.stdin.buffer, sys.stdout.buffer
+h = rd.read(8)
+src = rd.read(int.from_bytes(h, "big")) if len(h) == 8 else b""
+if len(h) != 8 or len(src) != int.from_bytes(h, "big"):
+    sys.exit(2)
+name = "_octavo_rehearsal_worker"
+m = types.ModuleType(name)
+m.__file__ = "<octavo-rehearsal-worker>/sneak_n2.py"
+m.__dict__["__octavo_worker_source__"] = src
+sys.modules[name] = m
+exec(compile(src, m.__file__, "exec", dont_inherit=True), m.__dict__)
+wr.write(hashlib.sha256(src).hexdigest().encode("ascii") + m._REHEARSAL_SHA256.encode("ascii")); wr.flush()
+sch = None
+while True:
+    h = rd.read(9)
+    if len(h) < 9:
+        break
+    body = rd.read(int.from_bytes(h[1:], "big"))
+    if h[:1] == b"S":
+        rounds, white = m.pickle.loads(body)
+        sch = types.SimpleNamespace(rounds=rounds, white=white)
+        continue
+    out = m._rehearsal_blocks(sch, body, h[:1] == b"D")
+    wr.write(len(out).to_bytes(8, "big") + out); wr.flush()
+"""
+
+class _RehearsalWorkers:
+    """Spawn-style worker processes for one stream (rehearsal-fix I2). Each worker is a fresh
+    interpreter started with subprocess, not multiprocessing: multiprocessing's spawn and forkserver
+    start methods re-run the caller's __main__ in every worker unless it is guarded, and fork copies
+    the whole parent memory (other seeds in the seed memo, unrelated secrets). Workers are started
+    lazily, at most min(workers, chunks in the batch), and each one gets only the module source this
+    process imported, the stream's Schedule round material and masked blocks (rehearsal-polish I1:
+    a file replaced on disk after import is never run; the hello is only a pipe/version sanity check).
+    Every frame to or from a worker has a deadline (rehearsal-polish I2, worker_timeout seconds); a
+    worker that misses it is killed and the call raises RuntimeError."""
+    def __init__(self, n, sch, timeout=None):
+        self.n = n
+        self.timeout = _rehearsal_worker_timeout(timeout)
+        self.procs = []
+        self._sch = sch
+        self._sch_blob = pickle.dumps((sch.rounds, sch.white), protocol=pickle.HIGHEST_PROTOCOL)
+
+    def _send(self, p, data, deadline):
+        """Write all of data to the worker's stdin (non-blocking fd) before deadline."""
+        fd = p.stdin.fileno(); view = memoryview(data)
+        with selectors.DefaultSelector() as sel:
+            sel.register(fd, selectors.EVENT_WRITE)
+            while view:
+                left = deadline - time.monotonic()
+                if left <= 0 or not sel.select(left):
+                    raise TimeoutError("rehearsal worker timed out")
+                try:
+                    view = view[os.write(fd, view[:1 << 16]):]
+                except BlockingIOError:
+                    pass
+
+    def _recv(self, p, n, deadline) -> bytes:
+        """Read exactly n bytes from the worker's stdout before deadline (fewer only at EOF)."""
+        fd = p.stdout.fileno(); out = bytearray()
+        with selectors.DefaultSelector() as sel:
+            sel.register(fd, selectors.EVENT_READ)
+            while len(out) < n:
+                left = deadline - time.monotonic()
+                if left <= 0 or not sel.select(left):
+                    raise TimeoutError("rehearsal worker timed out")
+                b = os.read(fd, min(n - len(out), 1 << 20))
+                if not b:
+                    break
+                out += b
+        return bytes(out)
+
+    def _spawn(self):
+        if not sys.executable:
+            raise RuntimeError("workers > 1 needs sys.executable")
+        if _MODULE_SOURCE is None:
+            raise RuntimeError("workers > 1 needs the module source (not available in this install)")
+        p = subprocess.Popen([sys.executable, "-I", "-B", "-S", "-c", _REHEARSAL_WORKER_SRC],
+                             stdin=subprocess.PIPE, stdout=subprocess.PIPE, close_fds=True, bufsize=0,
+                             env=_rehearsal_worker_env())
+        try:
+            os.set_blocking(p.stdin.fileno(), False)
+            deadline = time.monotonic() + self.timeout
+            self._send(p, len(_MODULE_SOURCE).to_bytes(8, "big") + _MODULE_SOURCE, deadline)
+            hello = self._recv(p, 128, deadline)
+            if hello != (_MODULE_SOURCE_SHA256 + _REHEARSAL_SHA256).encode("ascii"):
+                raise RuntimeError("rehearsal worker did not load this process's sneak_n2.py source (digest mismatch)")
+            self._send(p, b"S" + len(self._sch_blob).to_bytes(8, "big") + self._sch_blob, deadline)
+        except BaseException:
+            self._stop(p, kill=True)
+            raise
+        return p
+
+    def run(self, datas, decrypt) -> list:
+        """Staff-core over each masked chunk in datas, spread over the workers; order preserved."""
+        need = min(self.n, len(datas))
+        op = b"D" if decrypt else b"E"
+        out = [None] * len(datas)
+        try:
+            while len(self.procs) < need:
+                self.procs.append(self._spawn())
+            for start in range(0, len(datas), need):
+                batch = list(range(start, min(start + need, len(datas))))
+                deadline = time.monotonic() + self.timeout
+                for k, i in enumerate(batch):
+                    self._send(self.procs[k], op + len(datas[i]).to_bytes(8, "big") + datas[i], deadline)
+                for k, i in enumerate(batch):
+                    p = self.procs[k]
+                    deadline = time.monotonic() + self.timeout
+                    h = self._recv(p, 8, deadline)
+                    body = self._recv(p, int.from_bytes(h, "big"), deadline) if len(h) == 8 else b""
+                    if len(h) != 8 or len(body) != len(datas[i]):
+                        raise RuntimeError("rehearsal worker exited")
+                    out[i] = body
+                self._spot_check(datas, out, batch, decrypt)
+        except TimeoutError as e:
+            self.close(kill=True)
+            raise RuntimeError("rehearsal worker timed out (worker_timeout=%gs); workers killed" % self.timeout) from e
+        except (OSError, ValueError) as e:
+            self.close(kill=True)
+            raise RuntimeError("rehearsal worker failed") from e
+        except BaseException:
+            self.close(kill=True)
+            raise
+        return out
+
+    def _spot_check(self, datas, out, batch, decrypt):
+        """rehearsal-finale I6: recompute ONE randomly chosen block of the batch in this process and
+        compare it with the worker's answer (about 1/(blocks in the batch) extra work). A worker that
+        returns wrong blocks is caught with probability (wrong blocks)/(blocks) per batch; this is a
+        spot check, not a proof (workers stay in the trusted base)."""
+        r = int.from_bytes(os.urandom(8), "big")
+        i = batch[r % len(batch)]
+        k = (r >> 32) % (len(datas[i]) // BLOCK_LEN)
+        blk = slice(k * BLOCK_LEN, (k + 1) * BLOCK_LEN)
+        if not hmac.compare_digest(_rehearsal_blocks(self._sch, datas[i][blk], decrypt), out[i][blk]):
+            raise RuntimeError("rehearsal worker returned a wrong block (spot check); workers killed")
+
+    @staticmethod
+    def _stop(p, kill=False):
+        if kill:
+            try: p.kill()
+            except Exception: pass
+        for f in (p.stdin, p.stdout):
+            try: f.close()
+            except Exception: pass
+        try:
+            p.wait(timeout=5)
+        except Exception:
+            try: p.kill(); p.wait(timeout=5)
+            except Exception: pass
+
+    def close(self, kill=False):
+        procs, self.procs = self.procs, []
+        for p in procs:
+            self._stop(p, kill)
+
+    def __del__(self):
+        try: self.close()
+        except Exception: pass
+
+def _rehearsal_worker_env() -> dict:
+    """rehearsal-finale I6: the environment a worker starts with. Empty on POSIX (no LD_PRELOAD,
+    LD_LIBRARY_PATH, PYTHON* or locale variables; -I already ignores PYTHON*); on Windows only
+    SYSTEMROOT, which the interpreter needs. A Python build that needs extra variables to start
+    fails closed (RuntimeError on the hello)."""
+    if os.name == "nt":
+        return {k: os.environ[k] for k in ("SYSTEMROOT",) if k in os.environ}
+    return {}
+
+def _rehearsal_pad(msg: bytes) -> bytes:
+    """Final-chunk padding: msg || 0x80 || zeros to the next multiple of 128."""
+    n = len(msg) + 1
+    return msg + REHEARSAL_PAD + bytes((-n) % BLOCK_LEN)
+
+def _rehearsal_unpad(padded: bytes):
+    """Fixed-structure inverse of _rehearsal_pad on the LAST block -> (ok, msg). The last block is
+    read as one 1024-bit integer; its lowest set bit must be bit 7 of some byte (that byte is then
+    exactly 0x80 and every later byte is zero). No loop or branch depends on the pad length."""
+    x = int.from_bytes(padded[-BLOCK_LEN:], "big")
+    tz = (x & -x).bit_length() - 1
+    ok = (x != 0) & ((tz & 7) == 7)
+    k = (tz >> 3) & (BLOCK_LEN - 1)
+    return ok, padded[:len(padded) - 1 - k]
+
+class _RehearsalBase:
+    """Shared plumbing for RehearsalEncryptor / RehearsalDecryptor: the stream Schedule (built
+    lazily, only after verification on the decrypt side) and the optional spawn-style worker
+    processes (workers > 1). Chunk order is always preserved."""
+    def _crypt_jobs(self, jobs, decrypt):
+        if not jobs:
+            return []
+        if self._sch is None:
+            self._sch = Schedule(self._seed, self._sched_nonce)
+        if self._workers > 1 and len(jobs) > 1:
+            if self._pool is None:
+                self._pool = _RehearsalWorkers(self._workers, self._sch, self._worker_timeout)
+            tws = [_rehearsal_tweaks(self._seed, self._pickup, self._nonce, self._cs, i, f, self._adh, len(d) // BLOCK_LEN)
+                   for i, f, d in jobs]
+            outs = self._pool.run([_rehearsal_mask(d, tw) for (i, f, d), tw in zip(jobs, tws)], decrypt)
+            return [_rehearsal_mask(o, tw) for o, tw in zip(outs, tws)]
+        return [_rehearsal_crypt_chunk(self._seed, self._sch, self._pickup, self._nonce, self._cs, i, f, self._adh, d, decrypt)
+                for i, f, d in jobs]
+    def _close_pool(self):
+        pool = getattr(self, "_pool", None)
+        if pool is not None:
+            self._pool = None
+            pool.close()
+    def close(self):
+        """Release the worker processes (if any). Called by finalize() and on every reject."""
+        self._close_pool()
+    def __enter__(self):
+        return self
+    def __exit__(self, *exc):
+        self.close()
+        return False
+    def __del__(self):
+        try: self._close_pool()
+        except Exception: pass
+
+class RehearsalEncryptor(_RehearsalBase):
+    """Incremental rehearsal (format version 8) encryptor.
+
+        enc = RehearsalEncryptor(seed, ad=b"...", chunk_size=65536)
+        out = enc.update(part1) + enc.update(part2) + ... + enc.finalize()
+
+    The first bytes returned (by update() or finalize()) are the 72-byte header
+    version(1)=8 || SN2 || pickup(16) || nonce(16) || commit(32) || chunk_size(4).
+    A non-final chunk is sealed and returned as soon as chunk_size plaintext bytes
+    are buffered; finalize() seals the remaining 0..chunk_size-1 bytes as the final
+    chunk (always present). pickup and nonce are fresh for every stream; there is no
+    public nonce argument. workers > 1 encrypts batches of chunks in fresh worker
+    interpreters (never fork; capped at min(32, os.cpu_count())); the output is
+    byte-identical to workers=1. worker_timeout (seconds per worker frame, default
+    REHEARSAL_WORKER_TIMEOUT) bounds how long a stuck worker can block a call. ad is bound in the commitment, every chunk tag, the
+    chunk keys and tweaks, and the schedule nonce, and is not stored. Limits: MAX_AD_LEN,
+    chunk_size in 128..1 MiB (multiple of 128), MAX_REHEARSAL_CHUNKS chunks (ValueError beyond)."""
+    def __init__(self, seed=None, ad: bytes = b"", chunk_size: int = REHEARSAL_CHUNK_DEFAULT, *, workers: int = 1,
+                 worker_timeout: float = None):
+        ad = _normalize_ad(ad)
+        self._pool = None
+        self._cs = _rehearsal_chunk_size(chunk_size)
+        self._workers = _rehearsal_workers(workers)
+        self._worker_timeout = _rehearsal_worker_timeout(worker_timeout)
+        self._seed = _seed_bytes(seed)
+        self._pickup = _fresh_pickup()
+        self._nonce = _fresh_stream_nonce()
+        self._commit = _rehearsal_commitment(_commit_key(self._seed), self._pickup, self._nonce, ad, self._cs)
+        self.header = (bytes([FMT_REHEARSAL]) + VERSION + self._pickup + self._nonce + self._commit
+                       + self._cs.to_bytes(4, "big"))
+        self._clef = staff_clef(self._seed)
+        self._rsig = rehearsal_signature(self._seed)
+        self._adh = _rehearsal_ad_digest(ad)
+        self._sched_nonce = _rehearsal_schedule_nonce(self._seed, self._pickup, self._nonce, self._cs, self._adh)
+        self._sch = None
+        self._buf = bytearray()
+        self._index = 0
+        self._header_out = False
+        self._state = "open"
+
+    @property
+    def workers(self) -> int:
+        """Worker processes actually allowed (after the min(32, cpu_count) cap)."""
+        return self._workers
+
+    def _require_open(self):
+        if self._state != "open":
+            raise ValueError("RehearsalEncryptor is " + self._state)
+
+    def _seal(self, jobs) -> bytes:
+        cts = self._crypt_jobs(jobs, decrypt=False)
+        out = []
+        for (i, final, _), ct in zip(jobs, cts):
+            key = _rehearsal_chunk_key(self._seed, self._pickup, self._nonce, self._cs, i, final, self._adh)
+            out.append(ct + _rehearsal_tag(key, self._clef, self._rsig, self._pickup, self._nonce, self._commit,
+                                           self._cs, i, final, self._adh, ct))
+        return b"".join(out)
+
+    def _take_header(self) -> bytes:
+        if self._header_out:
+            return b""
+        self._header_out = True
+        return self.header
+
+    def update(self, data) -> bytes:
+        """Absorb plaintext; return the header (first call) plus every chunk completed so far."""
+        self._require_open()
+        data = _as_bytes("data", data)
+        self._buf += data
+        cs = self._cs
+        jobs, off = [], 0
+        while len(self._buf) - off >= cs:
+            if self._index + len(jobs) + 1 >= MAX_REHEARSAL_CHUNKS:
+                self._state = "failed"; self.close()
+                raise ValueError("stream too long (max %d chunks)" % MAX_REHEARSAL_CHUNKS)
+            jobs.append((self._index + len(jobs), False, bytes(self._buf[off:off + cs])))
+            off += cs
+        del self._buf[:off]
+        self._index += len(jobs)
+        try:
+            return self._take_header() + self._seal(jobs)
+        except BaseException:
+            self._state = "failed"; self.close()
+            raise
+
+    def finalize(self) -> bytes:
+        """Seal the final chunk (0..chunk_size-1 bytes, padded) and return any header not yet returned."""
+        self._require_open()
+        try:
+            out = self._take_header() + self._seal([(self._index, True, _rehearsal_pad(bytes(self._buf)))])
+        finally:
+            self._state = "finalized"; self._buf = bytearray(); self.close()
+        return out
+
+class RehearsalDecryptor(_RehearsalBase):
+    """Incremental rehearsal (format version 8) decryptor.
+
+        dec = RehearsalDecryptor(seed, ad=b"...")
+        for piece in stream: out.write(dec.update(piece))   # verified plaintext only
+        out.write(dec.finalize())                            # raises AuthError if cut short
+
+    Prefer iter_rehearsal(), which always runs finalize(). Never releases unauthenticated
+    plaintext: a chunk is decrypted only after its tag (and, for chunk 0, the commitment)
+    has been checked, and every tag in one update() call is checked before any block of
+    that call is decrypted. A chunk counts as non-final only once at least one byte beyond
+    it has arrived, so update() holds back the last chunk_size + 32 bytes. A stream cut
+    early (at any offset, including exactly at a chunk boundary) therefore yields only
+    verified, chunk-aligned prefix plaintext from update(), and only finalize() raises
+    AuthError. Callers that must not act on a prefix should buffer until finalize()
+    returns (decrypt_rehearsal and decrypt_rehearsal_file do).
+
+    Forgetting finalize() is caught (rehearsal-fix L3, rehearsal-polish L2, rehearsal-finale
+    L2): leaving a `with` block normally after data arrived but before finalize() raises
+    AuthError("stream not finalized"), and a decryptor garbage-collected in that state
+    emits an UnfinalizedStreamWarning, a UserWarning shown under Python's default filters
+    for EVERY dropped decryptor (an "always" filter is appended at import). Under -W error
+    it is printed as "Exception ignored in ..." through sys.unraisablehook, because a
+    destructor cannot raise into the caller; the exit code is unchanged and -W ignore or
+    PYTHONWARNINGS=ignore silence it. It comes only when the object is collected, so a
+    plain update() loop that never calls finalize() is still a footgun: the prefix it
+    returned was verified chunk by chunk, but nothing proves the stream ended there. Use
+    iter_rehearsal(), `with`, or the one-shot / file helpers. close() abandons a stream
+    deliberately (no warning, later calls raise ValueError).
+
+    A worker failure or timeout (workers > 1) raises RuntimeError and leaves the decryptor
+    dead like a reject (later calls raise AuthError("stream already rejected")); it does not
+    mean the stream was forged.
+
+    max_chunk_size (rehearsal-fix I4) is an optional receiver limit: a header that
+    declares a larger chunk size is rejected at once (AuthError "chunk size above
+    max_chunk_size"), before any chunk is buffered.
+
+    Rejects. Version byte != 8 raises UnsupportedVersion (like every other decrypt API).
+    Everything else raises AuthError: "bad version prefix", "bad chunk size",
+    "chunk size above max_chunk_size", "bad stream length", "too many chunks" (public
+    structure), and "authentication failed" for commitment, tag and final-padding
+    failures. Chunk 0 always computes BOTH the commitment and its tag before one combined
+    reject (equal-time, like v6/v7). After any reject the decryptor is dead; every later
+    call raises AuthError("stream already rejected"). If update() rejects, it returns
+    nothing from that call, even for earlier chunks in the same call."""
+    def __init__(self, seed=None, ad: bytes = b"", *, workers: int = 1, max_chunk_size: int = None,
+                 worker_timeout: float = None):
+        self._pool = None
+        self._state = "init"
+        self._ad = _normalize_ad(ad)
+        self._workers = _rehearsal_workers(workers)
+        self._worker_timeout = _rehearsal_worker_timeout(worker_timeout)
+        self._max_cs = _rehearsal_max_chunk_size(max_chunk_size)
+        self._seed = _seed_bytes(seed)
+        self._clef = staff_clef(self._seed)
+        self._rsig = rehearsal_signature(self._seed)
+        self._adh = _rehearsal_ad_digest(self._ad)
+        self._hdr = None
+        self._sch = None
+        self._buf = bytearray()
+        self._index = 0
+        self._commit_ok = False
+        self._seen = False
+        self._state = "open"
+
+    @property
+    def workers(self) -> int:
+        """Worker processes actually allowed (after the min(32, cpu_count) cap)."""
+        return self._workers
+
+    def _require_open(self):
+        if self._state == "rejected":
+            raise AuthError("stream already rejected")
+        if self._state != "open":
+            raise ValueError("RehearsalDecryptor is " + self._state)
+
+    def _reject(self, exc):
+        self._state = "rejected"; self._buf = bytearray(); self.close()
+        raise exc
+
+    def _parse_header(self) -> bool:
+        b = self._buf
+        if len(b) >= 1 and b[0] != FMT_REHEARSAL:
+            raise UnsupportedVersion("unsupported version")
+        if len(b) < REHEARSAL_HDR_LEN:
+            return False
+        if bytes(b[1:PK0]) != VERSION:
+            raise AuthError("bad version prefix")
+        cs = int.from_bytes(b[RH_CS0:REHEARSAL_HDR_LEN], "big")
+        if cs % BLOCK_LEN or not REHEARSAL_CHUNK_MIN <= cs <= REHEARSAL_CHUNK_MAX:
+            raise AuthError("bad chunk size")
+        if self._max_cs is not None and cs > self._max_cs:
+            raise AuthError("chunk size above max_chunk_size")
+        self._pickup, self._nonce = bytes(b[PK0:N0]), bytes(b[N0:CM0])
+        self._commit, self._cs = bytes(b[CM0:CM1]), cs
+        # Computed now, combined with chunk 0's tag later (no early reject on the commitment).
+        self._commit_ok = hmac.compare_digest(self._commit, _rehearsal_commitment(
+            _commit_key(self._seed), self._pickup, self._nonce, self._ad, cs))
+        self._sched_nonce = _rehearsal_schedule_nonce(self._seed, self._pickup, self._nonce, cs, self._adh)
+        self._hdr = bytes(b[:REHEARSAL_HDR_LEN])
+        del self._buf[:REHEARSAL_HDR_LEN]
+        return True
+
+    def _verify(self, index, final, ct, tag) -> bool:
+        key = _rehearsal_chunk_key(self._seed, self._pickup, self._nonce, self._cs, index, final, self._adh)
+        ok = hmac.compare_digest(tag, _rehearsal_tag(key, self._clef, self._rsig, self._pickup, self._nonce,
+                                                     self._commit, self._cs, index, final, self._adh, ct))
+        if index == 0:
+            ok = ok & self._commit_ok           # equal-time: both always computed, one reject
+        return ok
+
+    def _fail(self):
+        self._state = "rejected"; self._buf = bytearray(); self.close()
+
+    def update(self, data) -> bytes:
+        """Absorb ciphertext; return the plaintext of every chunk verified so far (possibly b"")."""
+        self._require_open()
+        data = _as_bytes("data", data)
+        self._buf += data
+        if data:
+            self._seen = True
+        try:
+            if self._hdr is None and not self._parse_header():
+                return b""
+            cs = self._cs; stride = cs + TAG_LEN
+            jobs, off = [], 0
+            while len(self._buf) - off > stride:          # more bytes follow, so this chunk is not final
+                i = self._index + len(jobs)
+                if i + 1 >= MAX_REHEARSAL_CHUNKS:
+                    raise AuthError("too many chunks")
+                ct = bytes(self._buf[off:off + cs]); tag = bytes(self._buf[off + cs:off + stride])
+                if not self._verify(i, False, ct, tag):
+                    raise AuthError("authentication failed")
+                jobs.append((i, False, ct))
+                off += stride
+            pts = self._crypt_jobs(jobs, decrypt=True)
+        except Rejected as e:
+            self._reject(e)
+        except BaseException:
+            self._fail()
+            raise
+        del self._buf[:off]
+        self._index += len(jobs)
+        return b"".join(pts)
+
+    def finalize(self) -> bytes:
+        """Verify and open the final chunk. Raises AuthError if the stream is short, long or forged."""
+        self._require_open()
+        try:
+            if self._hdr is None:
+                self._parse_header()
+                if self._hdr is None:
+                    raise AuthError("bad stream length")
+            n = len(self._buf)
+            if n < BLOCK_LEN + TAG_LEN or n > self._cs + TAG_LEN or (n - TAG_LEN) % BLOCK_LEN:
+                raise AuthError("bad stream length")
+            ct = bytes(self._buf[:n - TAG_LEN]); tag = bytes(self._buf[n - TAG_LEN:])
+            if not self._verify(self._index, True, ct, tag):
+                raise AuthError("authentication failed")
+            padded = self._crypt_jobs([(self._index, True, ct)], decrypt=True)[0]
+            ok, msg = _rehearsal_unpad(padded)
+            if not ok:
+                padded = msg = None                     # rehearsal-finale I8: nothing decrypted stays reachable
+                raise AuthError("authentication failed")
+        except Rejected as e:
+            self._reject(e)
+        except BaseException:
+            self._fail()
+            raise
+        self._state = "finalized"; self._buf = bytearray(); self.close()
+        return msg
+
+    def _open_all(self, blob) -> bytes:
+        """One-shot open of a whole stream (rehearsal-fix I3): parse the header, check EVERY tag,
+        including the final chunk's, and only then decrypt anything. A forged final chunk after
+        valid chunks therefore costs HMACs only, never a decryption."""
+        self._require_open()
+        self._buf += blob
+        if blob:
+            self._seen = True
+        try:
+            if self._hdr is None and not self._parse_header():
+                raise AuthError("bad stream length")
+            b = self._buf; n = len(b); cs = self._cs; stride = cs + TAG_LEN
+            jobs, off, i = [], 0, self._index
+            while n - off > stride:
+                if i + 1 >= MAX_REHEARSAL_CHUNKS:
+                    raise AuthError("too many chunks")
+                ct = bytes(b[off:off + cs]); tag = bytes(b[off + cs:off + stride])
+                if not self._verify(i, False, ct, tag):
+                    raise AuthError("authentication failed")
+                jobs.append((i, False, ct)); off += stride; i += 1
+            rest = n - off
+            if rest < BLOCK_LEN + TAG_LEN or rest > stride or (rest - TAG_LEN) % BLOCK_LEN:
+                raise AuthError("bad stream length")
+            ct = bytes(b[off:n - TAG_LEN]); tag = bytes(b[n - TAG_LEN:])
+            if not self._verify(i, True, ct, tag):
+                raise AuthError("authentication failed")
+            jobs.append((i, True, ct))
+            pts = self._crypt_jobs(jobs, decrypt=True)       # every tag passed: only now decrypt
+            ok, last = _rehearsal_unpad(pts[-1])
+            if not ok:
+                pts.clear(); last = None                # rehearsal-finale I8: no decrypted chunk stays reachable
+                raise AuthError("authentication failed")
+        except Rejected as e:
+            self._reject(e)
+        except BaseException:
+            self._fail()
+            raise
+        self._state = "finalized"; self._buf = bytearray(); self.close()
+        return b"".join(pts[:-1]) + last
+
+    def close(self):
+        """Release the worker processes. Called by finalize() and on every reject. Called by the
+        caller after data arrived but before finalize(), it abandons the stream on purpose."""
+        self._close_pool()
+        if getattr(self, "_state", None) == "open" and getattr(self, "_seen", False):
+            self._state = "closed"; self._buf = bytearray()
+
+    def __exit__(self, exc_type, exc, tb):
+        if exc_type is None and self._state == "open" and self._seen:
+            self._fail()
+            raise AuthError("stream not finalized")
+        self.close()
+        return False
+
+    def __del__(self):
+        unfinished = getattr(self, "_state", None) == "open" and getattr(self, "_seen", False)
+        try:
+            self._close_pool()
+        except Exception:
+            pass
+        if unfinished:
+            # rehearsal-finale L2: outside any try/except, so a warning turned into an exception
+            # (-W error) is reported through sys.unraisablehook instead of being swallowed here.
+            warnings.warn("RehearsalDecryptor dropped after receiving data without finalize(): the end of the "
+                          "stream was never verified (use iter_rehearsal or call finalize())", UnfinalizedStreamWarning, stacklevel=2)
+
+def encrypt_rehearsal(msg: bytes, seed=None, ad: bytes = b"", chunk_size: int = REHEARSAL_CHUNK_DEFAULT, *, workers: int = 1,
+                      worker_timeout: float = None) -> bytes:
+    """One-shot rehearsal (v8) stream: RehearsalEncryptor(...).update(msg) + finalize(). No length cap
+    beyond MAX_REHEARSAL_CHUNKS chunks. Byte-identical to any incremental split for the same pickup/nonce.
+    Memory (rehearsal-polish I8): the caller's msg plus about 2x its size while sealing (the
+    plaintext copy buffered in the encryptor and the joined output); use RehearsalEncryptor or
+    encrypt_rehearsal_file for large inputs."""
+    msg = _as_bytes("msg", msg)
+    enc = RehearsalEncryptor(seed, ad, chunk_size, workers=workers, worker_timeout=worker_timeout)
+    return enc.update(msg) + enc.finalize()
+
+def decrypt_rehearsal(blob: bytes, seed=None, ad: bytes = b"", *, workers: int = 1, max_chunk_size: int = None,
+                      worker_timeout: float = None) -> bytes:
+    """One-shot rehearsal (v8) decrypt: all-or-nothing. Every chunk tag, the final chunk's included,
+    is checked before any block is decrypted (rehearsal-fix I3). Returns the whole plaintext only if
+    every chunk verified and the final padding is valid; otherwise raises (nothing is returned).
+    Memory (rehearsal-polish I8): on top of the caller's blob, peak use is about 4x the blob for a
+    genuine stream (5x at chunk_size 128: internal buffer, per-chunk copies, decrypted chunks and the
+    joined result) and about 2x while rejecting. For large streams use iter_rehearsal or
+    decrypt_rehearsal_file (memory bounded by read_size + chunk_size). max_chunk_size stays opt-in:
+    without it a forged header can make a streaming reader buffer up to one 1 MiB chunk."""
+    blob = _as_bytes("blob", blob)
+    dec = RehearsalDecryptor(seed, ad, workers=workers, max_chunk_size=max_chunk_size, worker_timeout=worker_timeout)
+    return dec._open_all(blob)
+
+def iter_rehearsal(src, seed=None, ad: bytes = b"", *, read_size: int = 1 << 20, workers: int = 1,
+                   max_chunk_size: int = None, worker_timeout: float = None):
+    """Safe streaming reader (rehearsal-fix L3). Yields the verified plaintext of a rehearsal stream
+    piece by piece and ALWAYS runs finalize() at the end, so a stream cut anywhere (including exactly
+    at a chunk boundary) raises AuthError from the loop instead of ending quietly. src is a path (str
+    or os.PathLike), a binary file object, a bytes-like object, or an iterable of bytes-like pieces.
+    A bytes object is always CIPHERTEXT, never a path (rehearsal-polish I7; decrypt_rehearsal_file
+    does accept bytes paths). rehearsal-finale L3: the filesystem is never consulted for a bytes
+    src, so a bytes value that is not a stream always gets the same UnsupportedVersion/AuthError
+    whether or not it happens to name a file. Pass paths as str or os.PathLike here. read_size must
+    be an int >= 1 (rehearsal-finale I7).
+
+        for piece in iter_rehearsal("msg.oct", seed, ad=b"..."):
+            sink.write(piece)          # verified, but the stream is complete only when the loop ends
+
+    Every yielded piece has passed its tag, but the stream as a whole is authentic only once the loop
+    finishes without an exception: a consumer that acts on pieces as they arrive must be able to undo
+    them. Breaking out of the loop early (break, islice, zip, dropping the generator) abandons the
+    stream with no warning: the pieces already consumed are a verified prefix, nothing more."""
+    read_size = _rehearsal_read_size(read_size)
+    dec = RehearsalDecryptor(seed, ad, workers=workers, max_chunk_size=max_chunk_size, worker_timeout=worker_timeout)
+    fin = None
+    try:
+        if isinstance(src, (str, os.PathLike)):
+            fin = open(src, "rb")
+            pieces = iter(lambda: fin.read(read_size), b"")
+        elif hasattr(src, "read"):
+            pieces = iter(lambda: src.read(read_size), b"")
+        elif isinstance(src, (bytes, bytearray, memoryview)):
+            pieces = (bytes(src),)                  # always ciphertext; never stat'd (rehearsal-finale L3)
+        else:
+            pieces = iter(src)
+        for piece in pieces:
+            out = dec.update(piece)
+            if out:
+                yield out
+        out = dec.finalize()
+        if out:
+            yield out
+    finally:
+        dec.close()
+        if fin is not None:
+            fin.close()
+
+# ---------------------------------------------------------------- rehearsal file helpers
+# rehearsal-finale (L1, I1-I4): the copy fallback keeps its descriptor open through the inode check;
+# overwrite=True swaps with renameat2(RENAME_EXCHANGE) on Linux and swaps back if the check fails, so a
+# refused race keeps the old dst; any /proc link failure on the O_TMPFILE path falls back to a copy;
+# a kept partial falls back to a fresh dot-name on ANY error (reason in partial_error); the same-file
+# check is repeated against the opened directory fd. A crash during an overwrite=True commit can leave
+# a 0600 ".<dst>.XXXXXXXX.swap" file (new plaintext, or the old dst): remove stale .*.swap / .*.tmp /
+# .*.partial dot-files after a crash.
+# rehearsal-fix M1 / L1 / L2, rehearsal-polish L1 / I3-I6. dst's directory is opened ONCE (a dirfd)
+# from an absolute path fixed at call start, and every create, link, rename, stat and unlink is
+# relative to that dirfd, so a chdir or a swapped parent symlink during the call cannot move the
+# output. Output goes to a private 0600 file: on Linux an anonymous O_TMPFILE in dst's directory (no
+# name anyone can swap, nothing left behind by a crash MID-STREAM), else a fresh dot-name created with
+# O_CREAT | O_EXCL | O_NOFOLLOW. It is fsync'd and then published with a hard link that never
+# follows a symlink and fails if dst exists (overwrite=True: link to a fresh name, then rename over
+# dst). After publishing, dst must be the very inode this call wrote (checked with lstat against
+# the open descriptor); otherwise the name this call just created is removed and RuntimeError is
+# raised, so a helper never vouches for someone else's file. Only on filesystems without hard links
+# (EPERM, EOPNOTSUPP/ENOTSUP, ENOSYS, EXDEV, EMLINK) is dst created with O_EXCL | O_NOFOLLOW and the
+# bytes copied in; every other link error is raised. The directory is fsync'd last. dst's directory
+# should not be writable by others (or should be sticky): such a user can still replace dst AFTER
+# the call returns. src and dst (or src and the temporary file) being one file is refused before
+# anything is written.
+_REHEARSAL_NO_LINK_ERRNOS = frozenset(getattr(errno, n) for n in ("EPERM", "EOPNOTSUPP", "ENOTSUP", "ENOSYS", "EXDEV", "EMLINK")
+                                      if hasattr(errno, n))
+_REHEARSAL_USE_O_TMPFILE = True      # False forces the named-temp path (tests; systems without O_TMPFILE use it anyway)
+_REHEARSAL_USE_RENAMEAT2 = True      # rehearsal-finale I1: False forces the os.replace path for overwrite=True (tests)
+_RENAME_NOREPLACE, _RENAME_EXCHANGE = 1, 2
+_REHEARSAL_PREFIX_BYTES = 100        # temp name = "." + prefix(<= 100 bytes) + "." + 8 hex + suffix  (<= 118 bytes)
+
+def _rehearsal_open(f, mode):
+    return (f, False) if hasattr(f, "read" if "r" in mode else "write") else (open(f, mode), True)
+
+def _rehearsal_fstat(f):
+    """os.fstat of a file object's descriptor, or None if it has none."""
+    try:
+        return os.fstat(f.fileno())
+    except (AttributeError, OSError, ValueError):
+        return None
+
+def _rehearsal_same_inode(a, b) -> bool:
+    return a is not None and b is not None and (a.st_dev, a.st_ino) == (b.st_dev, b.st_ino)
+
+def _rehearsal_refuse_same(src, fin, dst):
+    """ValueError if src and dst are the same file: same realpath, or same (st_dev, st_ino)
+    (hard links and symlinks included), for paths and for file objects with a descriptor."""
+    fst = _rehearsal_fstat(fin)
+    if hasattr(dst, "write"):
+        if fin is dst or _rehearsal_same_inode(fst, _rehearsal_fstat(dst)):
+            raise ValueError("src and dst are the same file")
+        return
+    path = os.fspath(dst)
+    if isinstance(src, (str, bytes, os.PathLike)) and os.path.realpath(os.fspath(src)) == os.path.realpath(path):
+        raise ValueError("src and dst are the same file")
+    try:
+        dst_st = os.stat(path)
+    except OSError:
+        dst_st = None
+    if _rehearsal_same_inode(fst, dst_st):
+        raise ValueError("src and dst are the same file")
+
+def _rehearsal_abspath(p):
+    """rehearsal-polish I4: a str/bytes/PathLike path made absolute against the cwd AT CALL START (no
+    normalisation, so ".." keeps its kernel meaning); file objects are returned unchanged."""
+    if not isinstance(p, (str, bytes, os.PathLike)):
+        return p
+    p = os.fspath(p)
+    if os.path.isabs(p):
+        return p
+    return os.path.join(os.getcwdb() if isinstance(p, bytes) else os.getcwd(), p)
+
+def _rehearsal_temp_prefix(base) -> str:
+    """rehearsal-polish I5: the first _REHEARSAL_PREFIX_BYTES BYTES of base (not characters), cut back to
+    a whole UTF-8 character, so prefix + 18 bytes always fits a 255-byte name."""
+    b = os.fsencode(base)[:_REHEARSAL_PREFIX_BYTES]
+    k = len(b)
+    while k > 0 and len(b) - k < 3 and (b[k - 1] & 0xC0) == 0x80:
+        k -= 1
+    if k > 0 and b[k - 1] >= 0xC0:
+        lead = b[k - 1]
+        need = 2 if lead < 0xE0 else 3 if lead < 0xF0 else 4
+        if len(b) - (k - 1) < need:
+            b = b[:k - 1]
+    return os.fsdecode(b)
+
+def _rehearsal_renameat2(dirfd, old, new, flags) -> bool:
+    """rehearsal-finale I1: Linux renameat2(dirfd, old, dirfd, new, flags) through libc (ctypes, loaded
+    on first use). True on success; False if renameat2 is unavailable here (no Linux/glibc symbol,
+    ENOSYS, or EINVAL: this filesystem does not support the flag); any other failure raises OSError."""
+    if not _REHEARSAL_USE_RENAMEAT2 or not sys.platform.startswith("linux"):
+        return False
+    fn = getattr(_rehearsal_renameat2, "fn", None)
+    if fn is None:
+        try:
+            import ctypes
+            fn = ctypes.CDLL(None, use_errno=True).renameat2
+            fn.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
+            fn.restype = ctypes.c_int
+            fn.get_errno = ctypes.get_errno
+        except Exception:
+            fn = False
+        _rehearsal_renameat2.fn = fn
+    if fn is False:
+        return False
+    if fn(dirfd, os.fsencode(old), dirfd, os.fsencode(new), flags) == 0:
+        return True
+    err = fn.get_errno()
+    if err in (errno.ENOSYS, errno.EINVAL):
+        return False
+    raise OSError(err, os.strerror(err), new)
+
+def _rehearsal_fsync_dir(d):
+    """fsync a directory given as a path or an open directory descriptor (int)."""
+    if isinstance(d, int):
+        try:
+            os.fsync(d)
+        except OSError:
+            pass
+        return
+    try:
+        fd = os.open(d, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    except OSError:
+        return
+    try:
+        os.fsync(fd)
+    except OSError:
+        pass
+    finally:
+        os.close(fd)
+
+class _RehearsalOutput:
+    """A private temporary output file in dst's directory (see the comment above)."""
+    def __init__(self, dst, fin, suffix, overwrite):
+        path = os.fspath(dst)
+        if isinstance(path, bytes):
+            path = os.fsdecode(path)
+        base = os.path.basename(path)
+        if not base or base in (".", ".."):
+            raise ValueError("dst must name a file")
+        path = _rehearsal_abspath(path)
+        self.path, self.overwrite, self.suffix = path, overwrite, suffix
+        self.done, self.st, self.fd, self.dirfd, self.tmp, self.f = False, None, None, None, None, None
+        self.pub_fds, self.keep_error = [], None
+        self.src_st = _rehearsal_fstat(fin)
+        self.dir, self.base = os.path.dirname(path), base
+        self.prefix = "." + _rehearsal_temp_prefix(base) + "."
+        self.dirfd = os.open(self.dir, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_CLOEXEC", 0))
+        try:
+            self._refuse_src()
+            st = self._lstat(base)
+            if st is not None:
+                if not overwrite:
+                    raise FileExistsError(errno.EEXIST, "dst exists (pass overwrite=True to replace it)", path)
+                if stat.S_ISDIR(st.st_mode):
+                    raise IsADirectoryError(errno.EISDIR, "dst is a directory", path)
+            if _REHEARSAL_USE_O_TMPFILE and hasattr(os, "O_TMPFILE") and os.path.isdir("/proc/self/fd"):
+                try:
+                    self.fd = os.open(".", os.O_TMPFILE | os.O_RDWR | getattr(os, "O_CLOEXEC", 0), 0o600, dir_fd=self.dirfd)
+                except OSError:
+                    self.fd = None                # no O_TMPFILE on this filesystem/kernel: named temp below
+            if self.fd is None:
+                self.fd, self.tmp = self._create_free(suffix)
+            os.fchmod(self.fd, 0o600)
+            self.st = os.fstat(self.fd)
+            if _rehearsal_same_inode(_rehearsal_fstat(fin), self.st):
+                raise ValueError("src is the temporary output file")
+            self.f = open(self.fd, "wb", closefd=False)
+        except BaseException:
+            self._unlink_own()
+            self._close_fds()
+            raise
+
+    def _lstat(self, name):
+        try:
+            return os.stat(name, dir_fd=self.dirfd, follow_symlinks=False)
+        except FileNotFoundError:
+            return None
+
+    def _refuse_src(self):
+        """rehearsal-finale I4: the same-file check again, relative to the directory fd this call
+        writes through (a symlink at dst is followed here, as in the path check)."""
+        if self.src_st is None:
+            return
+        try:
+            st = os.stat(self.base, dir_fd=self.dirfd, follow_symlinks=True)
+        except OSError:
+            return
+        if _rehearsal_same_inode(st, self.src_st):
+            raise ValueError("src and dst are the same file")
+
+    def _create(self, name):
+        flags = os.O_RDWR | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
+        return os.open(name, flags, 0o600, dir_fd=self.dirfd)
+
+    def _create_free(self, suffix):
+        """O_EXCL-create a fresh unique dot-name in dst's directory -> (fd, name)."""
+        for _ in range(100):
+            name = self.prefix + os.urandom(4).hex() + suffix
+            try:
+                return self._create(name), name
+            except FileExistsError:
+                continue
+        raise FileExistsError(errno.EEXIST, "no free temporary name", self.dir)
+
+    def _check(self, name, want, created):
+        """name must now be the inode `want` (lstat, never following a symlink). If not, remove the
+        name this call created (it points at someone else's inode) and raise."""
+        try:
+            st = self._lstat(name)
+        except OSError:
+            st = None
+        if not _rehearsal_same_inode(st, want):
+            if created and st is not None:
+                try: os.unlink(name, dir_fd=self.dirfd)
+                except OSError: pass
+            raise RuntimeError("output file was replaced while it was being moved into place (not published)")
+
+    def _publish(self, name):
+        """Give our file the new name `name` (FileExistsError if taken); verify it; return its stat."""
+        try:
+            if self.tmp is None:
+                os.link("/proc/self/fd/%d" % self.fd, name, dst_dir_fd=self.dirfd, follow_symlinks=True)
+            else:
+                os.link(self.tmp, name, src_dir_fd=self.dirfd, dst_dir_fd=self.dirfd, follow_symlinks=False)
+        except FileExistsError:
+            raise
+        except OSError as e:
+            # rehearsal-polish I3: no hard links on this filesystem -> copy. rehearsal-finale I3: on the
+            # O_TMPFILE path ANY link failure (odd /proc, hidepid, sandbox: ENOENT, EACCES, ...) also
+            # copies, because the verified bytes are still in our descriptor and would be lost otherwise.
+            if self.tmp is None or e.errno in _REHEARSAL_NO_LINK_ERRNOS:
+                return self._copy_to(name)
+            raise
+        self._check(name, self.st, True)
+        return self.st
+
+    def _copy_to(self, name):
+        """Copy fallback: O_EXCL | O_NOFOLLOW create name (never clobbers anything created in the
+        meantime), copy our bytes in, fsync, verify. rehearsal-finale L1: fd2 stays OPEN through the
+        check and until the helper finishes (closed in _close_fds), so its inode number cannot be
+        freed and recycled for a file someone creates at name in the meantime."""
+        fd2 = self._create(name)
+        try:
+            off = 0
+            while True:
+                data = os.pread(self.fd, 1 << 20, off)
+                if not data:
+                    break
+                view = memoryview(data)
+                while view:
+                    view = view[os.write(fd2, view):]
+                off += len(data)
+            os.fsync(fd2)
+            st2 = os.fstat(fd2)
+        except BaseException:
+            try:
+                if _rehearsal_same_inode(self._lstat(name), os.fstat(fd2)):
+                    os.unlink(name, dir_fd=self.dirfd)
+            except OSError:
+                pass
+            os.close(fd2)
+            raise
+        self.pub_fds.append(fd2)
+        self._check(name, st2, True)
+        return st2
+
+    def _publish_free(self, suffix):
+        for _ in range(100):
+            name = self.prefix + os.urandom(4).hex() + suffix
+            try:
+                return name, self._publish(name)
+            except FileExistsError:
+                continue
+        raise FileExistsError(errno.EEXIST, "no free temporary name", self.dir)
+
+    def _unlink_own(self):
+        """Unlink the named temporary file (if any) only if it is still the inode this call created."""
+        if self.tmp is None or self.dirfd is None:
+            return
+        try:
+            if self.st is None or _rehearsal_same_inode(self._lstat(self.tmp), self.st):
+                os.unlink(self.tmp, dir_fd=self.dirfd)
+        except OSError:
+            pass
+
+    def _close_fds(self):
+        fds, self.pub_fds = getattr(self, "pub_fds", []), []
+        for v in fds:
+            try: os.close(v)
+            except OSError: pass
+        for attr in ("f", "fd", "dirfd"):
+            v = getattr(self, attr, None)
+            setattr(self, attr, None)
+            if v is None:
+                continue
+            try:
+                v.close() if attr == "f" else os.close(v)
+            except Exception:
+                pass
+
+    def commit(self):
+        """fsync, publish (no clobber unless overwrite=True, never through a symlink, dst verified to be
+        our inode afterwards), fsync the directory."""
+        self.f.flush(); os.fsync(self.fd); self.f.close()
+        if self.tmp is not None and not _rehearsal_same_inode(self._lstat(self.tmp), self.st):
+            raise RuntimeError("temporary output file was replaced")
+        self._refuse_src()                          # rehearsal-finale I4: once more, just before publishing
+        if not self.overwrite:
+            try:
+                self._publish(self.base)            # atomic: fails if dst exists, even as a dangling symlink
+            except FileExistsError:
+                raise FileExistsError(errno.EEXIST, "dst exists (pass overwrite=True to replace it)", self.path)
+        else:
+            self._replace()
+        self.done = True
+        self._unlink_own()
+        _rehearsal_fsync_dir(self.dirfd)
+        self._close_fds()
+
+    def _replace(self):
+        """overwrite=True publish (rehearsal-finale I1/I2). dst absent: the no-clobber link (no hidden
+        name at all). dst present: link our file to a fresh .swap name, then on Linux swap it with dst
+        atomically (renameat2 RENAME_EXCHANGE). If dst is then not our inode (someone renamed over the
+        .swap name in between), exchange back, so the caller's old dst survives a failed call, remove
+        the stray name and raise. Otherwise unlink the old dst, now at the .swap name. Without
+        renameat2 (other OS, old libc, unsupported filesystem) it falls back to os.replace + check,
+        where a refused race can cost the old dst (documented). A crash between the .swap link and
+        the end of commit can leave that 0600 .swap file holding the new plaintext or the old dst."""
+        if self._lstat(self.base) is None:
+            try:
+                self._publish(self.base)
+                return
+            except FileExistsError:
+                pass                                # dst appeared meanwhile: replace it below
+        name, want = self._publish_free(".swap")
+        try:
+            self._refuse_src()
+            swapped = _rehearsal_renameat2(self.dirfd, name, self.base, _RENAME_EXCHANGE)
+        except FileNotFoundError:
+            swapped = False                         # dst vanished: a plain rename below is safe
+        except BaseException:
+            try: os.unlink(name, dir_fd=self.dirfd)
+            except OSError: pass
+            raise
+        if swapped:
+            if not _rehearsal_same_inode(self._lstat(self.base), want):
+                try:
+                    _rehearsal_renameat2(self.dirfd, name, self.base, _RENAME_EXCHANGE)   # old dst back
+                    os.unlink(name, dir_fd=self.dirfd)                                    # the stray file
+                except OSError:
+                    pass
+                raise RuntimeError("output file was replaced while it was being moved into place "
+                                   "(not published; the old dst was put back)")
+            try: os.unlink(name, dir_fd=self.dirfd)  # the old dst, now under our .swap name
+            except OSError: pass
+        else:
+            try:
+                os.replace(name, self.base, src_dir_fd=self.dirfd, dst_dir_fd=self.dirfd)
+            except BaseException:
+                try: os.unlink(name, dir_fd=self.dirfd)
+                except OSError: pass
+                raise
+        self._check(self.base, want, True)
+
+    def discard(self, keep=False, suffix=None):
+        """On failure: drop our file, or (keep=True, and only if it holds at least one verified byte)
+        fsync it and publish it as dst + suffix (default self.suffix, ".partial") when that name can be
+        created, else under a fresh unique dot-name (never clobbering or following anything); fsync the
+        directory; return the absolute path of the kept file (rehearsal-polish I6). rehearsal-finale
+        I3: ANY error on the dst + suffix name (taken, ENAMETOOLONG for a 248+ byte dst, a refused
+        race) falls back to the fresh dot-name; if keeping still fails, the reason is stored in
+        self.keep_error (the helper attaches it to the exception as partial_error)."""
+        if self.done:
+            return None
+        kept = None
+        suffix = self.suffix if suffix is None else suffix
+        try:
+            if self.f is not None:
+                try: self.f.close()
+                except Exception: pass
+            if keep and self.fd is not None and os.fstat(self.fd).st_size > 0:
+                os.fsync(self.fd)
+                try:
+                    self._publish(self.base + suffix)
+                    kept = self.base + suffix
+                except (OSError, RuntimeError):
+                    kept = self._publish_free(suffix)[0]
+                _rehearsal_fsync_dir(self.dirfd)
+        except Exception as e:
+            kept = None
+            self.keep_error = e
+        finally:
+            self._unlink_own()
+            self._close_fds()
+        return None if kept is None else os.path.join(self.dir, kept)
+
+def encrypt_rehearsal_file(src, dst, seed=None, ad: bytes = b"", chunk_size: int = REHEARSAL_CHUNK_DEFAULT, *,
+                           workers: int = 1, read_size: int = None, overwrite: bool = False,
+                           worker_timeout: float = None) -> int:
+    """Stream src (path or binary file object) into a rehearsal stream at dst (path or binary file
+    object), reading read_size bytes at a time (default: chunk_size * workers). Memory stays
+    O(read_size + chunk_size). A dst PATH is written through a private 0600 temporary file in dst's
+    directory (anonymous O_TMPFILE on Linux), fsync'd and published only on success, then checked
+    to be the inode this call wrote; an existing dst raises FileExistsError unless overwrite=True
+    (a real bool; overwrite=True replaces read-only files too, the result is 0600, and other hard
+    links to the old dst keep the old content); src and dst being one file raises ValueError.
+    read_size is None or an int >= 1. overwrite=True swaps with renameat2(RENAME_EXCHANGE) on
+    Linux (a refused race keeps the old dst); a crash during that commit can leave a 0600
+    ".dst.XXXXXXXX.swap" dot-file. Paths are made absolute when the call starts. Returns the
+    number of ciphertext bytes written."""
+    overwrite = _rehearsal_bool("overwrite", overwrite)
+    read_size = _rehearsal_read_size(read_size, allow_none=True)
+    src, dst = _rehearsal_abspath(src), _rehearsal_abspath(dst)
+    enc = RehearsalEncryptor(seed, ad, chunk_size, workers=workers, worker_timeout=worker_timeout)
+    rs = read_size or chunk_size * enc._workers
+    fin, close_in = _rehearsal_open(src, "rb")
+    out = None
+    total = 0
+    try:
+        _rehearsal_refuse_same(src, fin, dst)
+        if hasattr(dst, "write"):
+            fout = dst
+        else:
+            out = _RehearsalOutput(dst, fin, ".tmp", overwrite)
+            fout = out.f
+        with enc:
+            while True:
+                piece = fin.read(rs)
+                if not piece:
+                    break
+                data = enc.update(piece); fout.write(data); total += len(data)
+            data = enc.finalize(); fout.write(data); total += len(data)
+        if out is not None:
+            out.commit()
+    except BaseException:
+        enc.close()
+        if out is not None:
+            out.discard()
+        raise
+    finally:
+        if close_in: fin.close()
+    return total
+
+def decrypt_rehearsal_file(src, dst, seed=None, ad: bytes = b"", *, workers: int = 1, read_size: int = 1 << 20,
+                           keep_partial: bool = False, overwrite: bool = False, max_chunk_size: int = None,
+                           stream_verified_prefix: bool = False, worker_timeout: float = None) -> int:
+    """Decrypt a rehearsal stream from src (path or binary file object) to dst. Plaintext is written
+    only after each chunk verifies, and dst sees it only after finalize() succeeds:
+    - dst PATH: written through a private 0600 temporary file in dst's directory (anonymous
+      O_TMPFILE on Linux), fsync'd, and published as dst only after the whole stream verified; dst
+      is then checked to be the inode this call wrote, and the directory is fsync'd. An existing
+      dst raises FileExistsError unless overwrite=True (a symlink at dst is never followed). On any
+      reject the temporary file is dropped, or with keep_partial=True kept (holding only verified
+      chunk-aligned prefix plaintext, fsync'd, directory fsync'd) as dst + ".partial" if that name
+      is free, else under a fresh unique dot-name; the kept absolute path is set as the exception's
+      partial_path attribute. Nothing is kept when no chunk verified (e.g. a header reject). If
+      the WHOLE stream verified but publishing failed (dst appeared meanwhile with overwrite=False,
+      or a refused race), the kept file is named dst + ".complete" instead (rehearsal-finale I3).
+      If dst + suffix cannot be created for any reason (taken, name too long) a fresh unique
+      dot-name is used; if keeping fails altogether, the reason is the exception's partial_error.
+      The error is re-raised. A SIGKILL mid-stream leaves nothing behind with O_TMPFILE; on the
+      named-temp fallback it can leave a 0600 dot-file holding verified prefix plaintext. A crash
+      during an overwrite=True commit can leave a 0600 ".dst.XXXXXXXX.swap" dot-file holding the
+      new plaintext or the old dst (rehearsal-finale I2); clean up stale .*.swap files.
+      overwrite=True swaps atomically with renameat2(RENAME_EXCHANGE) where Linux supports it and
+      swaps back if the result is not this call's file, so a failed call keeps the old dst;
+      elsewhere it uses os.replace, and a refused race can then cost the old dst.
+    - dst FILE OBJECT: verified plaintext is buffered in an anonymous 0600 temporary file (in
+      $TMPDIR, on that filesystem; RAM/swap on a tmpfs) and copied to dst only after finalize()
+      succeeds, so after a reject dst has received nothing. stream_verified_prefix=True writes
+      verified chunks to dst as they come instead (then, after a reject, dst holds a verified
+      prefix the caller must discard). keep_partial has no effect for a file-object dst.
+    overwrite, keep_partial and stream_verified_prefix must be real bools and read_size an int >= 1;
+    paths are made absolute when the call starts.
+    src and dst being one file raises ValueError before anything is written. max_chunk_size is the
+    optional receiver limit (see RehearsalDecryptor). A forged final chunk is found only at the end
+    of the stream, after the earlier verified chunks were decrypted (streaming keeps memory bounded);
+    decrypt_rehearsal() checks every tag first. Returns the number of plaintext bytes written."""
+    overwrite = _rehearsal_bool("overwrite", overwrite)
+    keep_partial = _rehearsal_bool("keep_partial", keep_partial)
+    stream_verified_prefix = _rehearsal_bool("stream_verified_prefix", stream_verified_prefix)
+    read_size = _rehearsal_read_size(read_size)
+    src, dst = _rehearsal_abspath(src), _rehearsal_abspath(dst)
+    dec = RehearsalDecryptor(seed, ad, workers=workers, max_chunk_size=max_chunk_size, worker_timeout=worker_timeout)
+    fin, close_in = _rehearsal_open(src, "rb")
+    out = sink = None
+    total = 0
+    complete = False
+    try:
+        _rehearsal_refuse_same(src, fin, dst)
+        if hasattr(dst, "write"):
+            sink = dst if stream_verified_prefix else tempfile.TemporaryFile()
+            fout = sink
+        else:
+            out = _RehearsalOutput(dst, fin, ".partial", overwrite)
+            fout = out.f
+        with dec:
+            while True:
+                piece = fin.read(read_size)
+                if not piece:
+                    break
+                data = dec.update(piece); fout.write(data); total += len(data)
+            data = dec.finalize(); fout.write(data); total += len(data)
+        complete = True
+        if out is not None:
+            out.commit()
+        elif sink is not dst:
+            sink.seek(0)
+            while True:
+                data = sink.read(1 << 20)
+                if not data:
+                    break
+                dst.write(data)
+    except BaseException as e:
+        dec.close()
+        if out is not None:
+            kept = out.discard(keep_partial, ".complete" if complete else ".partial")
+            try:
+                if kept is not None:
+                    e.partial_path = kept
+                if out.keep_error is not None:
+                    e.partial_error = out.keep_error
+            except Exception:
+                pass
+        raise
+    finally:
+        if sink is not None and sink is not dst:
+            sink.close()
+        if close_in: fin.close()
+    return total
+
+# Rehearsal attestation. The live mix digest (_MIX_SHA256, hence key_sig) is deliberately NOT
+# changed by rehearsal: none of the code below is reachable from MIX_CODE_ROOTS, so v6/v7 blobs
+# stay byte-identical. Instead rehearsal has its own digest over everything reachable from
+# REHEARSAL_CODE_ROOTS (which includes the whole staff-core) plus the live mix digest, and its own
+# seed-keyed rehearsal signature (domain H), bound into every chunk tag.
+REHEARSAL_CODE_ROOTS = ("RehearsalEncryptor", "RehearsalDecryptor", "encrypt_rehearsal", "decrypt_rehearsal",
+                        "encrypt_rehearsal_file", "decrypt_rehearsal_file", "iter_rehearsal",
+                        "rehearsal_signature", "rehearsal_description")
+
+def rehearsal_description():
+    """Canonical ASCII JSON: the live mix digest, a framed hash of the source of every function/class
+    reachable from REHEARSAL_CODE_ROOTS, a framed hash of the module data they name, and the v8 layout."""
+    reach, data_names = mix_code_closure(REHEARSAL_CODE_ROOTS)
+    funcs = tuple(sorted(reach))
+    code = hashlib.sha256()
+    for name in funcs:
+        obj = globals()[name]
+        defaults = _canon_data((getattr(obj, "__defaults__", None), getattr(obj, "__kwdefaults__", None)))
+        for part in (name.encode("utf-8"), inspect.getsource(obj).encode("utf-8"), defaults.encode("utf-8")):
+            code.update(len(part).to_bytes(8, "big")); code.update(part)
+    data = hashlib.sha256()
+    for name in sorted(data_names):
+        for part in (name.encode("utf-8"), _canon_data(globals()[name]).encode("utf-8")):
+            data.update(len(part).to_bytes(8, "big")); data.update(part)
+    return json.dumps(dict(
+        format=FMT_REHEARSAL, mix_sha256=_MIX_SHA256,
+        code=dict(functions=funcs, roots=REHEARSAL_CODE_ROOTS, sha256=code.hexdigest()),
+        data=dict(names=tuple(sorted(data_names)), sha256=data.hexdigest()),
+        header="version(1)=8||SN2(3)||pickup(16)||nonce(16)||commit(32)||chunk_size(4)",
+        chunk="ct||tag(32); non-final ct=chunk_size; final ct=128*ceil((L+1)/128), msg||0x80||0*",
+        block=("E(P^T)^T under Schedule(seed, R-sponge(sched||pickup||nonce||cs32||ad_digest)[:16]); "
+               "T from R-sponge(chunk||pickup||nonce||cs32||index64||final8||ad_digest)"),
+        ad_digest="SHA-256(SN2/A||encode_ad(ad))",
+        domains=dict(chunk=REHEARSAL_DOMAIN.decode(), signature=REHEARSAL_SIG_DOMAIN.decode(), commit=COMMIT_DOMAIN.decode()),
+        limits=dict(chunk_min=REHEARSAL_CHUNK_MIN, chunk_max=REHEARSAL_CHUNK_MAX, chunk_default=REHEARSAL_CHUNK_DEFAULT,
+                    max_chunks=MAX_REHEARSAL_CHUNKS, max_ad=MAX_AD_LEN, max_workers=REHEARSAL_MAX_WORKERS)),
+        sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("ascii")
+
+def rehearsal_signature(seed=None) -> bytes:
+    """Seed-keyed commitment to the rehearsal digest: StaffSponge(H, seed, sha256(rehearsal_description())).take(16).
+    Hidden in every chunk tag, never stored. Separate from key_signature (domain G)."""
+    return StaffSponge(REHEARSAL_SIG_DOMAIN, _seed_bytes(seed), bytes.fromhex(_REHEARSAL_SHA256)).take(16)
+
+
 def encrypt_hello(seed=None):
     blob = encrypt(b"hello world", seed)
     v, pk, n, commit, ct, tag = split_blob(blob); g = bytes_to_grid(ct)
@@ -1273,3 +2688,57 @@ def _init_attestation():
         _MIX_SHA256 = EXPECTED_MIX_SHA256
 
 _init_attestation()
+
+def _init_rehearsal_attestation():
+    """Compute sha256(rehearsal_description()) once and check it against EXPECTED_REHEARSAL_SHA256.
+    Without source (a .pyc-only install) the embedded digest is used, as for the mix digest."""
+    global _REHEARSAL_SHA256
+    try:
+        digest = hashlib.sha256(rehearsal_description()).hexdigest()
+        if EXPECTED_REHEARSAL_SHA256 != "TO_BE_FILLED" and digest != EXPECTED_REHEARSAL_SHA256:
+            raise RuntimeError("embedded rehearsal attestation mismatch: computed %s != %s" % (digest, EXPECTED_REHEARSAL_SHA256))
+        _REHEARSAL_SHA256 = digest
+    except OSError:
+        if EXPECTED_REHEARSAL_SHA256 == "TO_BE_FILLED":
+            raise RuntimeError("no source and no embedded rehearsal attestation")
+        _REHEARSAL_SHA256 = EXPECTED_REHEARSAL_SHA256
+
+_init_rehearsal_attestation()
+
+def _verify_executed_code():
+    """rehearsal-finale I5: the attestations hash _MODULE_SOURCE (the .py bytes read at import), but
+    Python may have executed a cached .pyc instead (it trusts the .pyc when its recorded source mtime
+    and size match). Compile _MODULE_SOURCE here and require that every function and method this
+    module actually defined has exactly the code object compiled from it (bytecode, constants, names,
+    line table). A .pyc built from different source, or a .py swapped between Python's read and the
+    snapshot, makes the import fail. Module-level statements are not compared; the data the digests
+    name is hashed from the live values anyway. Skipped when there is no source (.pyc-only install)."""
+    if _MODULE_SOURCE is None:
+        return
+    want = {}
+    todo = [compile(_MODULE_SOURCE, globals().get("__file__") or "<octavo>", "exec", dont_inherit=True)]
+    while todo:
+        for k in todo.pop().co_consts:
+            if isinstance(k, types.CodeType):
+                want.setdefault((k.co_qualname, k.co_firstlineno), k); todo.append(k)
+    seen = 0
+    for obj in list(globals().values()):
+        if getattr(obj, "__module__", None) != __name__ or not isinstance(obj, (types.FunctionType, type)):
+            continue
+        members = [obj] if isinstance(obj, types.FunctionType) else list(vars(obj).values())
+        for m in members:
+            if isinstance(m, (staticmethod, classmethod)):
+                m = m.__func__
+            if isinstance(m, property):
+                m = m.fget
+            if not isinstance(m, types.FunctionType):
+                continue
+            c = m.__code__
+            if want.get((c.co_qualname, c.co_firstlineno)) != c:
+                raise RuntimeError("executed bytecode for %s does not match sneak_n2.py source "
+                                   "(stale or tampered .pyc?); remove __pycache__ and re-import" % c.co_qualname)
+            seen += 1
+    if not seen:
+        raise RuntimeError("executed-code check found nothing to compare")
+
+_verify_executed_code()

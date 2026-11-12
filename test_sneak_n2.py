@@ -945,8 +945,11 @@ check("nothing reachable from MIX_CODE_ROOTS is missing from MIX_CODE_FUNCS; lis
       and (reach,reach_data)==N.mix_code_closure() and len(N.MIX_CODE_FUNCS)==len(set(N.MIX_CODE_FUNCS)))
 mod_defs={n for n,o in vars(N).items() if (inspect.isfunction(o) or inspect.isclass(o)) and getattr(o,"__module__",None)==N.__name__}
 print("module functions/classes NOT in coverage:",sorted(mod_defs-set(N.MIX_CODE_FUNCS)))
-check("only non-cipher helpers are outside coverage (ddt_max, lat_max, grid_rows, encrypt_hello, import attestation)",
-      mod_defs-set(N.MIX_CODE_FUNCS)=={"ddt_max","lat_max","grid_rows","encrypt_hello","_init_attestation"})
+_rh_only = N.mix_code_closure(N.REHEARSAL_CODE_ROOTS)[0]-set(N.MIX_CODE_FUNCS)
+check("only non-cipher helpers are outside mix coverage (ddt_max, lat_max, grid_rows, encrypt_hello, import attestations incl. the import-time source snapshot) plus rehearsal code, which the rehearsal digest covers",
+      mod_defs-set(N.MIX_CODE_FUNCS)=={"ddt_max","lat_max","grid_rows","encrypt_hello","_init_attestation","_init_rehearsal_attestation","_module_source_snapshot","_verify_executed_code"}|_rh_only
+      and all("rehearsal" in n.lower() or n in ("_fresh_stream_nonce","UnfinalizedStreamWarning") for n in _rh_only)
+      and "UnfinalizedStreamWarning" in _rh_only and "_module_source_snapshot" not in _rh_only)
 check("closure includes staff_mix/staff_unmix/shell_mix/shell_unmix/weave/unweave/xor_grid/Schedule/keyed_sbox/encode_block/encrypt_grid/decrypt_grid",
       {"staff_mix","staff_unmix","shell_mix","shell_unmix","weave","unweave","xor_grid","Schedule","StaffSponge","keyed_sbox",
        "mat_apply","mat_invertible","encode_block","encrypt_grid","decrypt_grid","bytes_to_grid","grid_to_bytes","_tag","staff_clef"} <= reach)
@@ -978,7 +981,9 @@ def modified_source(full, name):
     return "\n".join(lines)
 live_sig=N.key_signature(SEED); results={}
 def loosen_attest(src_text):
-    return src_text.replace('EXPECTED_MIX_SHA256 = "'+N.EXPECTED_MIX_SHA256+'"', 'EXPECTED_MIX_SHA256 = "TO_BE_FILLED"', 1)
+    # rehearsal: the rehearsal digest covers the staff-core too, so a modified copy loosens both embedded digests
+    return src_text.replace('EXPECTED_MIX_SHA256 = "'+N.EXPECTED_MIX_SHA256+'"', 'EXPECTED_MIX_SHA256 = "TO_BE_FILLED"', 1).replace(
+        'EXPECTED_REHEARSAL_SHA256 = "'+N.EXPECTED_REHEARSAL_SHA256+'"', 'EXPECTED_REHEARSAL_SHA256 = "TO_BE_FILLED"', 1)
 with tempfile.TemporaryDirectory(prefix="n2_sig_gap_") as td:
     for name in [n for n in N.MIX_CODE_FUNCS if n not in ("AuthError","DecodeError","UnsupportedVersion")]:
         path=os.path.join(td,"mod_"+name+".py"); open(path,"w").write(loosen_attest(modified_source(src,name)))
@@ -1286,7 +1291,8 @@ check("FEATURES mention the version byte and AD in the HMAC description, and AD 
       and any("tuning" in f and "HMAC" in f for f in N.FEATURES)
       and any("conductor" in f and "equal-time" in f for f in N.FEATURES)
       and any("conductor-polish" in f and "equal-time" in f for f in N.FEATURES)
-      and N.REVISION == "conductor-polish" and N.REVISION_DATE == "2026-11-11")
+      and any("rehearsal" in f and "v8" in f for f in N.FEATURES)
+      and N.REVISION == "rehearsal-finale" and N.REVISION_DATE == "2026-11-11")
 
 # ---- movements mode (format version 7; legacy version 3 only via decrypt_movements_legacy)
 check("FMT_MOVEMENTS is 7, distinct from single-block version 6, and the header/stride sizes match the layout",
@@ -1491,7 +1497,9 @@ check("movements cadence HMAC covers ct, theme, index and AD; coda HMAC covers h
 def _mv_gap_mutants_caught():
     src = open(os.path.join(HERE, "sneak_n2.py")).read()
     src = src.replace('EXPECTED_MIX_SHA256 = "' + N.EXPECTED_MIX_SHA256 + '"',
-                      'EXPECTED_MIX_SHA256 = "TO_BE_FILLED"', 1)
+                      'EXPECTED_MIX_SHA256 = "TO_BE_FILLED"', 1).replace(
+                      'EXPECTED_REHEARSAL_SHA256 = "' + N.EXPECTED_REHEARSAL_SHA256 + '"',
+                      'EXPECTED_REHEARSAL_SHA256 = "TO_BE_FILLED"', 1)
     cases = []
     mutants = {
         "theme domain T->M": ('StaffSponge(b"T", _seed_bytes(seed), nonce).take(BLOCK_LEN)',
@@ -2225,19 +2233,1186 @@ check("conductor-polish I6: Etude.lab_seed is read-only after construction; the 
       and "lab_seed=True" in str(catch(lambda: _cp_h.encrypt(b"x", SEED)))
       and "ungated" in E.etude_key.__doc__.lower())
 
+# ---- rehearsal (format version 8): STREAM-style chunked online AE, lifts the 1,040,384-byte cap
+import contextlib as _rh_ctx, tempfile as _rh_tmp, shutil as _rh_sh, hmac as _rh_hmac, time as _rh_time, io as _rh_io
+_RH_PK = bytes.fromhex("a0a1a2a3a4a5a6a7a8a9aaabacadaeaf"); _RH_NC = bytes.fromhex("b0b1b2b3b4b5b6b7b8b9babbbcbdbebf")
+@_rh_ctx.contextmanager
+def _rh_fixed(pickup=_RH_PK, nonce=_RH_NC, mod=None):
+    """Pin the fresh pickup and stream nonce (tests and published vectors only)."""
+    m = N if mod is None else mod
+    o1, o2 = m._fresh_pickup, getattr(m, "_fresh_stream_nonce", None)
+    m._fresh_pickup = lambda: pickup
+    if o2 is not None: m._fresh_stream_nonce = lambda: nonce
+    try: yield
+    finally:
+        m._fresh_pickup = o1
+        if o2 is not None: m._fresh_stream_nonce = o2
+def _rh_err(f):
+    e = catch(f); return (type(e).__name__, str(e)) if e is not None else None
+def _rh_len(n, cs):
+    """Expected v8 stream length for an n-byte message at chunk size cs."""
+    full = n // cs; last = n - full * cs
+    return 72 + full * (cs + 32) + ((last + 1 + 127) // 128) * 128 + 32
+def _rh_chunks(blob, cs):
+    """Split a v8 stream into (header, [chunk bytes...]) using the public framing."""
+    body = blob[72:]; out = []
+    while len(body) > cs + 32: out.append(body[:cs + 32]); body = body[cs + 32:]
+    out.append(body); return blob[:72], out
+_rh_msgs = {n: bytes((i * 31 + n) % 256 for i in range(n)) for n in (0, 1, 127, 128, 129, 255, 256, 257, 383, 384, 1000)}
+
+check("rehearsal constants: FMT_REHEARSAL 8, 72-byte header, chunk 128..1 MiB (default 64 KiB), 2^24 chunks, domains R/H",
+      N.FMT_REHEARSAL == 8 and N.REHEARSAL_HDR_LEN == 72 == 1 + 3 + 16 + 16 + 32 + 4 and N.RH_CS0 == 68
+      and (N.REHEARSAL_CHUNK_MIN, N.REHEARSAL_CHUNK_MAX, N.REHEARSAL_CHUNK_DEFAULT) == (128, 1 << 20, 65536)
+      and N.MAX_REHEARSAL_CHUNKS == 1 << 24 and N.REHEARSAL_DOMAIN == b"R" and N.REHEARSAL_SIG_DOMAIN == b"H"
+      and N.FMT_REHEARSAL not in (N.FMT_VERSION, N.FMT_MOVEMENTS, N.FMT_VERSION_V2, N.FMT_VERSION_V4, N.FMT_MOVEMENTS_V3, N.FMT_MOVEMENTS_V5)
+      and N.FMT_REHEARSAL not in tuple(E.ETUDE_FMT_BLOCK.values()) + tuple(E.ETUDE_FMT_MOVEMENTS.values()))
+_rh_used = {b"C", b"G", b"K", b"M", b"U", b"T", b"W", b"D", b"O", b"E"}
+check("rehearsal domains are new: R and H are not existing sponge letters; raw prefixes SN2/A and SN2/Q avoid every sponge letter and P/T/I",
+      N.REHEARSAL_DOMAIN not in _rh_used and N.REHEARSAL_SIG_DOMAIN not in _rh_used and N.REHEARSAL_DOMAIN != N.REHEARSAL_SIG_DOMAIN
+      and N.REHEARSAL_AD_PREFIX == b"SN2/A" and N.REHEARSAL_NONCE_PREFIX == b"SN2/Q"
+      and not ({b"A", b"Q"} & (_rh_used | {b"R", b"H", b"P", b"I"})))
+
+# round trips and exact lengths, several chunk sizes
+_rh_rt = []
+for _cs in (128, 256, 384):
+    for _n, _m in _rh_msgs.items():
+        _b = N.encrypt_rehearsal(_m, SEED, b"rt", _cs)
+        _rh_rt.append(N.decrypt_rehearsal(_b, SEED, b"rt") == _m and len(_b) == _rh_len(_n, _cs)
+                      and _b[:4] == b"\x08SN2" and int.from_bytes(_b[68:72], "big") == _cs)
+check("rehearsal round trip for 0,1,127,128,129,255,256,257,383,384,1000 bytes at chunk sizes 128/256/384, exact stream lengths",
+      all(_rh_rt) and len(_rh_rt) == 33)
+_rh_e0 = N.encrypt_rehearsal(b"", SEED)
+check("empty stream: 232 bytes = header 72 + one 128-byte final chunk + tag; decrypts to b''; default chunk size 65536 in the header",
+      len(_rh_e0) == 232 and N.decrypt_rehearsal(_rh_e0, SEED) == b"" and int.from_bytes(_rh_e0[68:72], "big") == 65536)
+check("a plaintext that is an exact multiple of the chunk size ends with an empty 128-byte final chunk",
+      [len(c) for c in _rh_chunks(N.encrypt_rehearsal(bytes(256), SEED, b"", 128), 128)[1]] == [160, 160, 160])
+_rh_d1, _rh_d2 = N.encrypt_rehearsal(bytes(384), SEED, b"", 128), N.encrypt_rehearsal(bytes(384), SEED, b"", 128)
+_rh_c1 = _rh_chunks(_rh_d1, 128)[1]
+check("equal chunks never give equal ciphertext (per-chunk tweaks), and two encryptions of one message differ (fresh pickup and nonce)",
+      len({c[:128] for c in _rh_c1}) == len(_rh_c1) == 4 and _rh_d1 != _rh_d2 and _rh_d1[4:36] != _rh_d2[4:36])
+
+# incremental == one-shot, any split; workers > 1 byte-identical
+_rh_m = bytes(R.randrange(256) for _ in range(1500))
+with _rh_fixed():
+    _rh_one = N.encrypt_rehearsal(_rh_m, SEED, b"inc", 128)
+    _rh_incs = []
+    for _trial in range(6):
+        _enc = N.RehearsalEncryptor(SEED, b"inc", 128); _out = b""; _i = 0
+        while _i < len(_rh_m):
+            _k = R.choice((0, 1, 2, 7, 127, 128, 129, 300)); _out += _enc.update(_rh_m[_i:_i + _k]); _i += _k
+        _rh_incs.append(_out + _enc.finalize())
+    _enc = N.RehearsalEncryptor(SEED, b"inc", 128); _out = b"".join(_enc.update(bytes([x])) for x in _rh_m) + _enc.finalize()
+    _rh_incs.append(_out)
+    _rh_par = N.encrypt_rehearsal(_rh_m, SEED, b"inc", 128, workers=3)
+    _rh_par_hdr = N.RehearsalEncryptor(SEED, b"inc", 128).finalize()
+check("rehearsal incremental encryption (random splits, empty updates, 1-byte updates) is byte-identical to one-shot",
+      all(x == _rh_one for x in _rh_incs) and len(_rh_incs) == 7)
+check("workers=3 (process pool) encryption is byte-identical to workers=1; header comes first even from a finalize()-only stream",
+      _rh_par == _rh_one and _rh_par_hdr[:72] == _rh_one[:72] and len(_rh_par_hdr) == 232)
+_rh_dec_ok = []
+for _trial in range(6):
+    _dec = N.RehearsalDecryptor(SEED, b"inc"); _out = b""; _i = 0
+    while _i < len(_rh_one):
+        _k = R.choice((0, 1, 5, 71, 72, 159, 160, 161, 500)); _out += _dec.update(_rh_one[_i:_i + _k]); _i += _k
+    _rh_dec_ok.append(_out + _dec.finalize() == _rh_m)
+_dec = N.RehearsalDecryptor(SEED, b"inc"); _out = b"".join(_dec.update(bytes([x])) for x in _rh_one) + _dec.finalize()
+check("rehearsal incremental decryption (random splits, 1-byte feeds, workers=3) equals one-shot",
+      all(_rh_dec_ok) and _out == _rh_m and N.decrypt_rehearsal(_rh_one, SEED, b"inc", workers=3) == _rh_m
+      and N.decrypt_rehearsal(memoryview(bytearray(_rh_one)), SEED, b"inc") == _rh_m)
+
+# a 3-chunk sample stream for the tamper / truncation sweeps
+_rh_s = bytes(range(256)) + b"rehearsal tail"           # 270 bytes -> chunks 128, 128, final 14
+with _rh_fixed(): _rh_blob = N.encrypt_rehearsal(_rh_s, SEED, b"from:alice", 128)
+_rh_hdr, _rh_ch = _rh_chunks(_rh_blob, 128)
+check("sample stream framing: 72-byte header, two 160-byte non-final chunks, one 160-byte final chunk",
+      len(_rh_blob) == 552 and [len(c) for c in _rh_ch] == [160, 160, 160] and N.decrypt_rehearsal(_rh_blob, SEED, b"from:alice") == _rh_s)
+
+_rh_flip = []
+for _pos in range(len(_rh_blob)):
+    _t = flip(_rh_blob, 8 * _pos + (_pos % 8))
+    _e = catch(lambda: N.decrypt_rehearsal(_t, SEED, b"from:alice"))
+    _rh_flip.append((_pos, type(_e).__name__ if _e is not None else None))
+check("every single-bit flip in every byte of a v8 stream is rejected (byte 0 -> UnsupportedVersion, every other byte -> AuthError), all Rejected",
+      len(_rh_flip) == 552 and _rh_flip[0][1] == "UnsupportedVersion" and all(t == "AuthError" for p, t in _rh_flip[1:]))
+
+_rh_tr = []
+for _cut in range(len(_rh_blob)):
+    _dec = N.RehearsalDecryptor(SEED, b"from:alice")
+    _pre = _dec.update(_rh_blob[:_cut])
+    _full = max(0, (_cut - 72 - 1) // 160) if _cut > 72 else 0
+    _full = min(_full, 2)
+    _e = catch(_dec.finalize)
+    _rh_tr.append(_pre == _rh_s[:128 * _full] and isinstance(_e, N.AuthError) and isinstance(_e, N.Rejected))
+check("truncation at every offset 0..551 (including exact chunk boundaries): update() yields only the verified chunk-aligned prefix, finalize() raises AuthError",
+      all(_rh_tr) and len(_rh_tr) == 552)
+check("dropping only the final chunk is rejected: the last non-final chunk fails as a final chunk ('authentication failed')",
+      _rh_err(lambda: N.decrypt_rehearsal(_rh_hdr + _rh_ch[0] + _rh_ch[1], SEED, b"from:alice")) == ("AuthError", "authentication failed")
+      and _rh_err(lambda: N.decrypt_rehearsal(_rh_hdr, SEED, b"from:alice")) == ("AuthError", "bad stream length")
+      and _rh_err(lambda: N.decrypt_rehearsal(b"", SEED)) == ("AuthError", "bad stream length")
+      and _rh_err(lambda: N.decrypt_rehearsal(_rh_blob[:40], SEED)) == ("AuthError", "bad stream length"))
+_rh_bad = {
+    "swap 0,1": _rh_hdr + _rh_ch[1] + _rh_ch[0] + _rh_ch[2],
+    "duplicate 0": _rh_hdr + _rh_ch[0] + _rh_ch[0] + _rh_ch[1] + _rh_ch[2],
+    "duplicate 1": _rh_hdr + _rh_ch[0] + _rh_ch[1] + _rh_ch[1] + _rh_ch[2],
+    "drop 1": _rh_hdr + _rh_ch[0] + _rh_ch[2],
+    "drop 0": _rh_hdr + _rh_ch[1] + _rh_ch[2],
+    "final first": _rh_hdr + _rh_ch[2] + _rh_ch[0] + _rh_ch[1],
+    "final twice": _rh_blob + _rh_ch[2],
+    "append 1 byte": _rh_blob + b"\x00",
+    "append 32 bytes": _rh_blob + bytes(32),
+    "append chunk 0": _rh_blob + _rh_ch[0],
+    "append a whole stream": _rh_blob + _rh_blob,
+    "swap tags 0,1": _rh_hdr + _rh_ch[0][:128] + _rh_ch[1][128:] + _rh_ch[1][:128] + _rh_ch[0][128:] + _rh_ch[2],
+}
+check("reordering, duplication, dropping, moving the final chunk, extension and tag swaps are all rejected with AuthError",
+      all(isinstance(catch(lambda b=b: N.decrypt_rehearsal(b, SEED, b"from:alice")), N.AuthError) for b in _rh_bad.values()) and len(_rh_bad) == 12)
+with _rh_fixed(pickup=bytes(range(16)), nonce=bytes(range(16, 32))):
+    _rh_other = N.encrypt_rehearsal(_rh_s, SEED, b"from:alice", 128)
+with _rh_fixed(pickup=_RH_PK, nonce=bytes(range(16, 32))):
+    _rh_samepk = N.encrypt_rehearsal(_rh_s, SEED, b"from:alice", 128)
+_oh, _oc = _rh_chunks(_rh_other, 128); _ph, _pc = _rh_chunks(_rh_samepk, 128)
+_rh_splice = [_rh_hdr + _oc[0] + _rh_ch[1] + _rh_ch[2], _rh_hdr + _rh_ch[0] + _oc[1] + _rh_ch[2], _rh_hdr + _rh_ch[0] + _rh_ch[1] + _oc[2],
+              _oh + _rh_ch[0] + _rh_ch[1] + _rh_ch[2], _oh[:36] + _rh_hdr[36:] + b"".join(_rh_ch),
+              _rh_hdr + _pc[0] + _pc[1] + _pc[2], _ph + b"".join(_rh_ch)]
+check("cross-stream splicing (same seed, AD, chunk size and plaintext; other pickup or only another stream nonce) is rejected for every chunk and header mix",
+      all(isinstance(catch(lambda b=b: N.decrypt_rehearsal(b, SEED, b"from:alice")), N.AuthError) for b in _rh_splice)
+      and N.decrypt_rehearsal(_rh_other, SEED, b"from:alice") == _rh_s == N.decrypt_rehearsal(_rh_samepk, SEED, b"from:alice"))
+_rh_cs_bad = []
+for _new in (256, 384, 1024, 65536):
+    _rh_cs_bad.append(_rh_err(lambda c=_new: N.decrypt_rehearsal(_rh_blob[:68] + c.to_bytes(4, "big") + _rh_blob[72:], SEED, b"from:alice")))
+with _rh_fixed(): _rh_256 = N.encrypt_rehearsal(_rh_s, SEED, b"from:alice", 256)
+_h256, _c256 = _rh_chunks(_rh_256, 256)
+check("chunk-size changes are rejected: a rewritten valid size fails authentication; the same stream id at another size never shares chunks",
+      _rh_cs_bad[:2] == [("AuthError", "authentication failed")] * 2 and all(x is not None and x[0] == "AuthError" for x in _rh_cs_bad)
+      and _h256[:68] != _rh_hdr[:68] and _h256[4:36] == _rh_hdr[4:36]
+      and isinstance(catch(lambda: N.decrypt_rehearsal(_h256[:68] + (128).to_bytes(4, "big") + b"".join(_rh_ch), SEED, b"from:alice")), N.AuthError)
+      and isinstance(catch(lambda: N.decrypt_rehearsal(_rh_hdr + _c256[0][:128] + _rh_ch[0][128:] + _rh_ch[1] + _rh_ch[2], SEED, b"from:alice")), N.AuthError))
+check("invalid chunk-size fields (0, 64, 100, 129, 2^20+128, 2^32-1) are structural rejects AuthError('bad chunk size')",
+      all(_rh_err(lambda c=c: N.decrypt_rehearsal(_rh_blob[:68] + c.to_bytes(4, "big") + _rh_blob[72:], SEED)) == ("AuthError", "bad chunk size")
+          for c in (0, 64, 100, 129, (1 << 20) + 128, (1 << 32) - 1)))
+check("bad SN2 magic in a v8 header is AuthError('bad version prefix')",
+      _rh_err(lambda: N.decrypt_rehearsal(_rh_blob[:1] + b"SN3" + _rh_blob[4:], SEED, b"from:alice")) == ("AuthError", "bad version prefix"))
+_rh_k2 = os.urandom(128)
+while len(set(b for b in _rh_k2 if b)) < 32: _rh_k2 = os.urandom(128)
+check("wrong AD, missing AD, wrong seed all raise the same AuthError('authentication failed'); empty AD == omitted AD",
+      _rh_err(lambda: N.decrypt_rehearsal(_rh_blob, SEED, b"from:bob")) == ("AuthError", "authentication failed")
+      == _rh_err(lambda: N.decrypt_rehearsal(_rh_blob, SEED)) == _rh_err(lambda: N.decrypt_rehearsal(_rh_blob, _rh_k2, b"from:alice"))
+      and N.decrypt_rehearsal(N.encrypt_rehearsal(b"x", SEED), SEED, b"") == b"x"
+      and N.decrypt_rehearsal(N.encrypt_rehearsal(b"x", SEED, b""), SEED) == b"x")
+
+# commitment and tag formulas
+_rh_kc = N._commit_key(SEED)
+_rh_cm = _rh_hmac.new(_rh_kc, b"U" + b"\x08" + b"SN2" + _RH_PK + _RH_NC + len(b"from:alice").to_bytes(8, "big") + b"from:alice"
+                      + (128).to_bytes(4, "big"), hashlib.sha256).digest()
+_rh_adh = hashlib.sha256(b"SN2/A" + len(b"from:alice").to_bytes(8, "big") + b"from:alice").digest()
+_rh_k0 = N.StaffSponge(b"R", SEED, b"chunk" + _RH_PK + _RH_NC + (128).to_bytes(4, "big") + (0).to_bytes(8, "big") + b"\x00" + _rh_adh).take(32)
+_rh_t0 = _rh_hmac.new(_rh_k0, N.staff_clef(SEED) + N.rehearsal_signature(SEED) + b"\x08SN2" + _RH_PK + _RH_NC + _rh_cm
+                      + (128).to_bytes(4, "big") + (0).to_bytes(8, "big") + b"\x00"
+                      + _rh_adh + _rh_ch[0][:128], hashlib.sha256).digest()
+check("v8 header = 8 || SN2 || pickup || nonce || commit || chunk_size32, commit = HMAC(K_commit, U || 8 || SN2 || pickup || nonce || encode_ad(ad) || cs32)",
+      _rh_hdr == b"\x08SN2" + _RH_PK + _RH_NC + _rh_cm + (128).to_bytes(4, "big")
+      and _rh_cm == N._rehearsal_commitment(_rh_kc, _RH_PK, _RH_NC, b"from:alice", 128)
+      and _rh_cm != N._commitment(_rh_kc, N.FMT_MOVEMENTS, _RH_PK, _RH_NC, b"from:alice", nmov=128)
+      and N._rehearsal_commitment(_rh_kc, _RH_PK, _RH_NC, b"from:alice", 256) != _rh_cm
+      and N._rehearsal_commitment(_rh_kc, _RH_PK, _RH_NC, b"", 128) != _rh_cm)
+check("chunk tag = HMAC(R-sponge(chunk||pickup||nonce||cs32||index64||final8||ad_digest)[:32], clef || rehearsal_sig || 8 || SN2 || pickup || nonce || commit || cs32 || index64 || final8 || SHA-256(SN2/A || encode_ad) || ct)",
+      _rh_ch[0][128:] == _rh_t0
+      and N._rehearsal_chunk_key(SEED, _RH_PK, _RH_NC, 128, 0, False, _rh_adh) == _rh_k0
+      and N._rehearsal_chunk_key(SEED, _RH_PK, _RH_NC, 128, 0, False, _rh_adh) != N._rehearsal_chunk_key(SEED, _RH_PK, _RH_NC, 128, 0, True, _rh_adh)
+      and N._rehearsal_chunk_key(SEED, _RH_PK, _RH_NC, 128, 0, False, _rh_adh) != N._rehearsal_chunk_key(SEED, _RH_PK, _RH_NC, 128, 1, False, _rh_adh)
+      and N._rehearsal_chunk_key(SEED, _RH_PK, _RH_NC, 128, 0, False, _rh_adh) != N._rehearsal_chunk_key(SEED, _RH_PK, _RH_NC, 128, 0, False, N._rehearsal_ad_digest(b"")))
+_rh_sn = N.StaffSponge(b"R", SEED, b"sched" + _RH_PK + _RH_NC + (128).to_bytes(4, "big") + _rh_adh).take(16)
+_rh_sp = N.StaffSponge(b"R", SEED, b"chunk" + _RH_PK + _RH_NC + (128).to_bytes(4, "big") + (0).to_bytes(8, "big") + b"\x00" + _rh_adh); _rh_sp.take(32)
+_rh_T = _rh_sp.take(128)
+_rh_x0 = N.grid_to_bytes(N.encrypt_grid(N.bytes_to_grid(bytes(a ^ b for a, b in zip(_rh_s[:128], _rh_T))), N.Schedule(SEED, _rh_sn)))
+check("each block is XEX under the unchanged staff-core: ct = encrypt_grid(P ^ T, Schedule(seed, R(sched||...||ad_digest)[:16])) ^ T, T from R(chunk||...||ad_digest)",
+      bytes(a ^ b for a, b in zip(_rh_x0, _rh_T)) == _rh_ch[0][:128])
+
+# equal-time: chunk 0 always computes commitment AND tag; nothing decrypted before both pass
+_rh_calls = []
+_rh_o = (N._rehearsal_commitment, N._rehearsal_tag, N.Schedule.__init__, N.decrypt_grid)
+def _rh_pc(*a, **k): _rh_calls.append("commit"); return _rh_o[0](*a, **k)
+def _rh_pt(*a, **k): _rh_calls.append("tag"); return _rh_o[1](*a, **k)
+def _rh_ps(self, *a, **k): _rh_calls.append("Schedule"); return _rh_o[2](self, *a, **k)
+def _rh_pd(*a, **k): _rh_calls.append("dec"); return _rh_o[3](*a, **k)
+N._rehearsal_commitment, N._rehearsal_tag, N.Schedule.__init__, N.decrypt_grid = _rh_pc, _rh_pt, _rh_ps, _rh_pd
+try:
+    _rh_seq = {}
+    for _name, _b in (("commit", _rh_blob[:40] + bytes([_rh_blob[40] ^ 1]) + _rh_blob[41:]),
+                      ("tag0", _rh_blob[:72 + 140] + bytes([_rh_blob[72 + 140] ^ 1]) + _rh_blob[72 + 141:]),
+                      ("ct0", _rh_blob[:80] + bytes([_rh_blob[80] ^ 1]) + _rh_blob[81:]),
+                      ("ct1", _rh_blob[:72 + 170] + bytes([_rh_blob[72 + 170] ^ 1]) + _rh_blob[72 + 171:])):
+        _rh_calls.clear(); _e = catch(lambda: N.decrypt_rehearsal(_b, SEED, b"from:alice")); _rh_seq[_name] = (list(_rh_calls), str(_e))
+    _rh_calls.clear(); _dec = N.RehearsalDecryptor(SEED, b"from:alice")
+    _p0 = _dec.update(_rh_blob[:72 + 161]); _rh_after0 = list(_rh_calls)
+    _rh_calls.clear(); _e1 = catch(lambda: _dec.update(_rh_blob[72 + 161:72 + 170] + bytes([_rh_blob[72 + 170] ^ 1]) + _rh_blob[72 + 171:]))
+    _rh_after1 = list(_rh_calls)
+finally:
+    N._rehearsal_commitment, N._rehearsal_tag, N.Schedule.__init__, N.decrypt_grid = _rh_o
+check("chunk 0 reject is equal-time: a bad commitment, bad chunk-0 tag and bad chunk-0 ciphertext all run commitment + tag, then one AuthError, no Schedule, no decrypt",
+      all(_rh_seq[k][0] == ["commit", "tag"] and _rh_seq[k][1] == "authentication failed" for k in ("commit", "tag0", "ct0")))
+check("never releases unauthenticated plaintext: a bad chunk 1 is rejected before ANY block is decrypted in that call; incremental feed releases only verified chunk 0",
+      _rh_seq["ct1"][0] == ["commit", "tag", "tag"] and _rh_seq["ct1"][1] == "authentication failed"
+      and _p0 == _rh_s[:128] and _rh_after0 == ["commit", "tag", "Schedule", "dec"]
+      and isinstance(_e1, N.AuthError) and _rh_after1 == ["tag"])
+_dec = N.RehearsalDecryptor(SEED, b"from:alice"); catch(lambda: _dec.update(_rh_blob[:72] + bytes(200)))
+_rh_dead = (_rh_err(lambda: _dec.update(b"")), _rh_err(_dec.finalize))
+_dec2 = N.RehearsalDecryptor(SEED, b"from:alice"); _dec2.update(_rh_blob); _dec2.finalize()
+_enc = N.RehearsalEncryptor(SEED); _enc.finalize()
+check("a rejected decryptor stays dead (AuthError 'stream already rejected'); update/finalize after finalize raise ValueError",
+      _rh_dead == (("AuthError", "stream already rejected"),) * 2
+      and isinstance(catch(lambda: _dec2.update(b"x")), ValueError) and not isinstance(catch(lambda: _dec2.update(b"x")), N.Rejected)
+      and isinstance(catch(lambda: _enc.update(b"x")), ValueError) and isinstance(catch(_enc.finalize), ValueError))
+
+# timing sanity (random seed, interleaved): commitment-fail vs tag-fail vs ct-fail on a one-chunk stream
+_rh_ts = os.urandom(128)
+while len(set(b for b in _rh_ts if b)) < 32: _rh_ts = os.urandom(128)
+_rh_tb = N.encrypt_rehearsal(b"timing sample", _rh_ts, b"ad", 128)
+_rh_cls = {"commit": _rh_tb[:50] + bytes([_rh_tb[50] ^ 1]) + _rh_tb[51:], "tag": _rh_tb[:-1] + bytes([_rh_tb[-1] ^ 1]),
+           "ct": _rh_tb[:100] + bytes([_rh_tb[100] ^ 1]) + _rh_tb[101:]}
+_rh_tm = {k: [] for k in _rh_cls}
+for _ in range(1500):
+    for _k, _b in _rh_cls.items():
+        _t0 = _rh_time.perf_counter_ns(); catch(lambda: N.decrypt_rehearsal(_b, _rh_ts, b"ad")); _rh_tm[_k].append(_rh_time.perf_counter_ns() - _t0)
+_rh_med = {k: sorted(v)[len(v) // 2] for k, v in _rh_tm.items()}
+print("rehearsal reject medians (ns):", _rh_med)
+check("timing sanity: v8 commitment-fail, tag-fail and ciphertext-fail medians agree within 15% (1500 interleaved trials each)",
+      max(_rh_med.values()) <= 1.15 * min(_rh_med.values()))
+
+# limits and caller mistakes
+_rh_saved = N.MAX_REHEARSAL_CHUNKS; N.MAX_REHEARSAL_CHUNKS = 3
+try:
+    _rh_lim_ok = N.decrypt_rehearsal(N.encrypt_rehearsal(bytes(383), SEED, b"", 128), SEED) == bytes(383)
+    _rh_lim_enc = catch(lambda: N.encrypt_rehearsal(bytes(384), SEED, b"", 128))
+finally:
+    N.MAX_REHEARSAL_CHUNKS = _rh_saved
+_rh_4ch = N.encrypt_rehearsal(bytes(384), SEED, b"", 128)
+N.MAX_REHEARSAL_CHUNKS = 3
+try: _rh_lim_dec = _rh_err(lambda: N.decrypt_rehearsal(_rh_4ch, SEED))
+finally: N.MAX_REHEARSAL_CHUNKS = _rh_saved
+check("MAX_REHEARSAL_CHUNKS counts the final chunk: encrypt refuses with ValueError, decrypt rejects AuthError('too many chunks')",
+      _rh_lim_ok and isinstance(_rh_lim_enc, ValueError) and "stream too long" in str(_rh_lim_enc)
+      and _rh_lim_dec == ("AuthError", "too many chunks") and N.decrypt_rehearsal(_rh_4ch, SEED) == bytes(384))
+check("caller mistakes: bad chunk_size (ValueError / TypeError), AD over MAX_AD_LEN, non-bytes data, bad workers; none is a Rejected",
+      all(isinstance(catch(lambda c=c: N.RehearsalEncryptor(SEED, b"", c)), ValueError) for c in (0, 64, 127, 129, 1000, (1 << 20) + 128))
+      and all(isinstance(catch(lambda c=c: N.RehearsalEncryptor(SEED, b"", c)), TypeError) for c in ("128", True, 128.0, None))
+      and isinstance(catch(lambda: N.RehearsalEncryptor(SEED, bytes(N.MAX_AD_LEN + 1))), ValueError)
+      and isinstance(catch(lambda: N.RehearsalDecryptor(SEED, bytes(N.MAX_AD_LEN + 1))), ValueError)
+      and N.decrypt_rehearsal(N.encrypt_rehearsal(b"m", SEED, bytes(N.MAX_AD_LEN)), SEED, bytes(N.MAX_AD_LEN)) == b"m"
+      and isinstance(catch(lambda: N.RehearsalEncryptor(SEED).update("text")), TypeError)
+      and isinstance(catch(lambda: N.RehearsalDecryptor(SEED).update(5)), TypeError)
+      and isinstance(catch(lambda: N.encrypt_rehearsal("text", SEED)), TypeError)
+      and all(isinstance(catch(lambda w=w: N.RehearsalEncryptor(SEED, workers=w)), ValueError) for w in (0, -1, True, 1.5))
+      and isinstance(catch(lambda: N.RehearsalEncryptor(bytes(128))), ValueError)
+      and not any(isinstance(catch(lambda c=c: N.RehearsalEncryptor(SEED, b"", c)), N.Rejected) for c in (0, "x")))
+
+# version separation
+_rh_v6 = N.encrypt(b"hello", SEED); _rh_v7 = N.encrypt_movements(b"hello" * 40, SEED)
+_rh_et = etude(16)
+check("version separation: decrypt/decrypt_movements/étude handles reject v8 as UnsupportedVersion; RehearsalDecryptor rejects v6, v7 and étude bytes the same way",
+      all(isinstance(catch(lambda f=f: f(_rh_blob, SEED)), N.UnsupportedVersion) for f in (N.decrypt, N.decrypt_movements, _rh_et.decrypt, _rh_et.decrypt_movements))
+      and all(isinstance(catch(lambda b=b: N.decrypt_rehearsal(b, SEED)), N.UnsupportedVersion)
+              for b in (_rh_v6, _rh_v7, _rh_et.encrypt(b"x", SEED), _rh_et.encrypt_movements(b"x", SEED), bytes([2]) + _rh_blob[1:]))
+      and all(issubclass(c, N.Rejected) for c in (N.AuthError, N.UnsupportedVersion)))
+check("études get no streaming: no rehearsal API on Etude or in etudes.py, and no étude rehearsal version byte",
+      not any(hasattr(_rh_et, n) for n in ("encrypt_rehearsal", "decrypt_rehearsal", "rehearsal", "RehearsalEncryptor"))
+      and "rehearsal" not in open(os.path.join(HERE, "etudes.py")).read().lower())
+
+# rehearsal attestation (own digest; the live mix digest is untouched)
+check("rehearsal attestation: EXPECTED_REHEARSAL_SHA256 == sha256(rehearsal_description()); it embeds the live mix digest; closure covers the whole staff-core",
+      N.EXPECTED_REHEARSAL_SHA256 == N._REHEARSAL_SHA256 == hashlib.sha256(N.rehearsal_description()).hexdigest()
+      and N._MIX_SHA256 in N.rehearsal_description().decode()
+      and N.mix_code_closure(("encrypt_grid", "decrypt_grid", "Schedule", "staff_clef", "_commit_key"))[0] <= N.mix_code_closure(N.REHEARSAL_CODE_ROOTS)[0]
+      and {"RehearsalEncryptor", "RehearsalDecryptor", "_RehearsalBase", "_rehearsal_tag", "_rehearsal_crypt_chunk", "_rehearsal_unpad",
+           "_RehearsalWorkers", "_RehearsalOutput", "iter_rehearsal", "_rehearsal_tweaks", "_rehearsal_refuse_same",
+           "round_enc", "round_dec"} <= N.mix_code_closure(N.REHEARSAL_CODE_ROOTS)[0]
+      and "_REHEARSAL_WORKER_SRC" in N.mix_code_closure(N.REHEARSAL_CODE_ROOTS)[1]
+      and N.rehearsal_signature(SEED) == N.StaffSponge(b"H", SEED, bytes.fromhex(N._REHEARSAL_SHA256)).take(16)
+      and N.rehearsal_signature(SEED) != N.key_signature(SEED) and len(N.rehearsal_signature(SEED)) == 16)
+check("rehearsal code is invisible to the live mix closure (so key_sig and v6/v7 blobs are unchanged)",
+      not any("rehearsal" in n.lower() for n in N.mix_code_closure()[0] | N.mix_code_closure()[1])
+      and not any("rehearsal" in n.lower() for n in N.MIX_CODE_FUNCS + N.MIX_CODE_ROOTS))
+with _rh_tmp.TemporaryDirectory(prefix="octavo_rh_attest_") as _td:
+    _src = open(os.path.join(HERE, "sneak_n2.py")).read()
+    _mut = _src.replace('REHEARSAL_PAD = b"\\x80"', 'REHEARSAL_PAD = b"\\x81"', 1)
+    _mut2 = _src.replace("    sp.take(32)\n    return [", "    return [", 1)
+    _res = []
+    for _i, _txt in enumerate((_mut, _mut2)):
+        _p = os.path.join(_td, "m%d.py" % _i); open(_p, "w").write(_txt)
+        _r = subprocess.run([sys.executable, "-B", "-c", "import importlib.util as u,sys;s=u.spec_from_file_location('m',%r);m=u.module_from_spec(s);sys.modules['m']=m;s.loader.exec_module(m)" % _p],
+                            capture_output=True, text=True, cwd=_td)
+        _res.append(_txt != _src and _r.returncode != 0 and "embedded rehearsal attestation mismatch" in _r.stderr)
+check("editing rehearsal data (pad byte) or code (tweak offset) fails the embedded rehearsal attestation at import", all(_res) and len(_res) == 2)
+_rh_sig_o = N.rehearsal_signature
+N.rehearsal_signature = lambda seed=None: bytes(16)
+try: _rh_sig_e = _rh_err(lambda: N.decrypt_rehearsal(_rh_blob, SEED, b"from:alice"))
+finally: N.rehearsal_signature = _rh_sig_o
+check("the rehearsal signature is bound into every chunk tag: under a different rehearsal_signature the stream does not open",
+      _rh_sig_e == ("AuthError", "authentication failed") and N.decrypt_rehearsal(_rh_blob, SEED, b"from:alice") == _rh_s)
+
+# v6 / v7 byte-identical to the frozen octavo010 module (loaded from a temp COPY; octavo010 is never touched)
+_rh_o10 = "/workspace/octavo010"
+if os.path.isfile(os.path.join(_rh_o10, "sneak_n2.py")):
+    with _rh_tmp.TemporaryDirectory(prefix="octavo_rh_o10_") as _td:
+        for _f in ("sneak_n2.py", "sneak1024-seed.txt"): _rh_sh.copy(os.path.join(_rh_o10, _f), _td)
+        _sp10 = importlib.util.spec_from_file_location("sneak_n2_octavo010", os.path.join(_td, "sneak_n2.py"))
+        _O = importlib.util.module_from_spec(_sp10); sys.modules["sneak_n2_octavo010"] = _O; _sp10.loader.exec_module(_O)
+        _rh_same = []
+        for _pk in (bytes(16), bytes(range(16)), bytes.fromhex("2b87dc4e184cd78e6c77b829273b17a3")):
+            for _msg, _ad in ((b"", b""), (b"hello world", b""), (bytes(range(127)), b"from:alice")):
+                with _rh_fixed(pickup=_pk), _rh_fixed(pickup=_pk, mod=_O):
+                    _rh_same.append(N.encrypt(_msg, SEED, ad=_ad) == _O.encrypt(_msg, SEED, ad=_ad))
+            for _msg, _ad in ((b"", b""), (bytes(range(128)), b""), (bytes(1000), b"from:alice")):
+                with _rh_fixed(pickup=_pk), _rh_fixed(pickup=_pk, mod=_O):
+                    _rh_same.append(N.encrypt_movements(_msg, SEED, ad=_ad) == _O.encrypt_movements(_msg, SEED, ad=_ad))
+        _rh_o10_ids = (_O.EXPECTED_MIX_SHA256, _O.key_signature(SEED).hex(), _O.FMT_VERSION, _O.FMT_MOVEMENTS, _O.BLOB_LEN, _O.MOVEMENTS_HDR_LEN)
+        _rh_cross = (_O.decrypt(N.encrypt(b"cross", SEED), SEED) == b"cross"
+                     and _O.decrypt_movements(N.encrypt_movements(bytes(300), SEED, b"a"), SEED, b"a") == bytes(300)
+                     and N.decrypt(_O.encrypt(b"cross", SEED), SEED) == b"cross")
+        sys.modules.pop("sneak_n2_octavo010", None)
+    check("v6 and v7 are byte-identical to frozen octavo010: 18 fixed-pickup blobs (9 single-block, 9 movements) match exactly, and blobs cross-decrypt both ways",
+          all(_rh_same) and len(_rh_same) == 18 and _rh_cross)
+    check("live EXPECTED_MIX_SHA256, demo key_sig, FMT_VERSION 6, FMT_MOVEMENTS 7, 228-byte blob and 72-byte movements header equal octavo010's",
+          _rh_o10_ids == (N.EXPECTED_MIX_SHA256, N.key_signature(SEED).hex(), 6, 7, 228, 72)
+          and N.EXPECTED_MIX_SHA256 == "fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6"
+          and N.key_signature(SEED).hex() == "340dc1e062502bb13462a94ba490c3dc")
+    _rh_o10_hw = [l for l in open(os.path.join(_rh_o10, "hello-world.txt")) if l.startswith("blob")]
+    _rh_o10_mv = [l for l in open(os.path.join(_rh_o10, "movements-demo.txt")) if l.startswith("blob")]
+    check("hello-world.txt and movements-demo.txt blobs are octavo010's, byte for byte, and still open on the live module",
+          _rh_o10_hw and bytes.fromhex(_rh_o10_hw[0].split()[-1]) == HW_BLOB and N.decrypt(HW_BLOB, SEED) == b"hello world"
+          and _rh_o10_mv and bytes.fromhex(_rh_o10_mv[0].split()[-1]) == _mv_demo_blob)
+    _rh_o10_score = __import__("json").load(open(os.path.join(_rh_o10, "score", "vectors.json")))
+    _rh_live_score = __import__("json").load(open(os.path.join(HERE, "score", "vectors.json")))
+    check("the 64 existing score vectors (16 permute, 24 aead, 24 movements) are unchanged from octavo010's score",
+          all(_rh_live_score[k] == _rh_o10_score[k] for k in ("block_cipher", "aead", "movements"))
+          and len(_rh_o10_score["block_cipher"]) + len(_rh_o10_score["aead"]) + len(_rh_o10_score["movements"]) == 64)
+else:
+    skip("v6/v7 byte-identical to octavo010 (frozen tree missing)")
+
+# lifts the cap: a 5 MB stream through the file helpers, with a process pool
+check("movements still cap at 1,040,384 bytes (unchanged), rehearsal does not",
+      N.MAX_MOVEMENTS_MSG == 1040384 and isinstance(catch(lambda: N.encrypt_movements(bytes(N.MAX_MOVEMENTS_MSG + 1), SEED)), ValueError))
+_rh_big_n = 5 * 1024 * 1024 + 12345
+_rh_big = os.urandom(_rh_big_n)
+_rh_bd = _rh_tmp.mkdtemp(prefix="octavo_rh_big_")
+try:
+    _pin, _pct, _pout = (os.path.join(_rh_bd, n) for n in ("plain.bin", "stream.oct", "out.bin"))
+    open(_pin, "wb").write(_rh_big)
+    _t0 = _rh_time.time()
+    _nct = N.encrypt_rehearsal_file(_pin, _pct, SEED, b"big", workers=8)
+    _t1 = _rh_time.time()
+    _npt = N.decrypt_rehearsal_file(_pct, _pout, SEED, b"big", workers=8)
+    _t2 = _rh_time.time()
+    print("rehearsal 5 MB: encrypt %.1f s, decrypt %.1f s (8 workers)" % (_t1 - _t0, _t2 - _t1))
+    _big_ct = open(_pct, "rb").read()
+    check("5,255,225-byte stream (5x the movements cap) round-trips through encrypt_rehearsal_file / decrypt_rehearsal_file with workers=8",
+          _rh_big_n > 5 * N.MAX_MOVEMENTS_MSG and _npt == _rh_big_n and open(_pout, "rb").read() == _rh_big
+          and _nct == len(_big_ct) == _rh_len(_rh_big_n, 65536) and _big_ct[:1] == b"\x08"
+          and not os.path.exists(_pct + ".tmp") and not os.path.exists(_pout + ".partial"))
+    # tail-cut of the big stream: verified prefix only, error at the end, nothing left behind
+    _cut = _big_ct[:72 + 3 * (65536 + 32) + 1000]
+    open(_pct, "wb").write(_cut)
+    _e = catch(lambda: N.decrypt_rehearsal_file(_pct, os.path.join(_rh_bd, "cut.bin"), SEED, b"big", workers=8))
+    _e2 = catch(lambda: N.decrypt_rehearsal_file(_pct, os.path.join(_rh_bd, "cut2.bin"), SEED, b"big", keep_partial=True))
+    check("a cut-off 5 MB stream: decrypt_rehearsal_file raises AuthError and leaves no output; keep_partial=True leaves only the verified chunk-aligned prefix",
+          isinstance(_e, N.AuthError) and not os.path.exists(os.path.join(_rh_bd, "cut.bin")) and not os.path.exists(os.path.join(_rh_bd, "cut.bin.partial"))
+          and isinstance(_e2, N.AuthError) and not os.path.exists(os.path.join(_rh_bd, "cut2.bin"))
+          and open(os.path.join(_rh_bd, "cut2.bin.partial"), "rb").read() == _rh_big[:3 * 65536])
+finally:
+    _rh_sh.rmtree(_rh_bd, ignore_errors=True)
+del _rh_big, _big_ct
+_rh_bio_in = _rh_io.BytesIO(_rh_s); _rh_bio_ct = _rh_io.BytesIO()
+_rh_n1 = N.encrypt_rehearsal_file(_rh_bio_in, _rh_bio_ct, SEED, b"io", 128, read_size=50)
+_rh_bio_pt = _rh_io.BytesIO(); _rh_n2 = N.decrypt_rehearsal_file(_rh_io.BytesIO(_rh_bio_ct.getvalue()), _rh_bio_pt, SEED, b"io", read_size=7)
+check("file helpers also take binary file objects, any read size",
+      _rh_n1 == len(_rh_bio_ct.getvalue()) == 552 and _rh_n2 == 270 and _rh_bio_pt.getvalue() == _rh_s)
+
+# rehearsal-demo.txt sample beside the tests
+_rh_demo = os.path.join(HERE, "rehearsal-demo.txt")
+if os.path.isfile(_rh_demo):
+    _rd = {l.split()[0].rstrip(":"): l.split()[-1] for l in open(_rh_demo) if l.startswith(("blob", "plaintext_hex", "chunk_size"))}
+    _rdb = bytes.fromhex(_rd.get("blob", ""))
+    check("rehearsal-demo.txt decrypts to its recorded plaintext (format version 8)",
+          _rdb[:4] == b"\x08SN2" and N.decrypt_rehearsal(_rdb, SEED, b"rehearsal-demo") == bytes.fromhex(_rd["plaintext_hex"])
+          and int.from_bytes(_rdb[68:72], "big") == int(_rd["chunk_size"]))
+else:
+    check("rehearsal-demo.txt is present beside the tests", False)
+
+# docs carry the rehearsal section and the honest verdict
+_rh_docs = {n: open(os.path.join(HERE, n)).read() for n in ("README.md", "SECURITY.md", "LINER_NOTES.md", "ATTACKS.md")}
+check("README, SECURITY, LINER_NOTES describe rehearsal (v8) and keep the verdict: homemade, use AES-GCM-SIV, age, or libsodium",
+      all("rehearsal" in _rh_docs[n].lower() and "AES-GCM-SIV" in _rh_docs[n] and "age" in _rh_docs[n] and "libsodium" in _rh_docs[n]
+          for n in ("README.md", "SECURITY.md", "LINER_NOTES.md"))
+      and "no streaming API" not in _rh_docs["SECURITY.md"] and "not yet frozen" in _rh_docs["LINER_NOTES.md"])
+check("docs use the recorded movements timings 12.45/12.42 and 14.70/14.68 µs (no rounded 12.3/14.3 figures)",
+      all("12.45" in _rh_docs[n] and "12.42" in _rh_docs[n] and "14.70" in _rh_docs[n] and "14.68" in _rh_docs[n] for n in ("README.md", "SECURITY.md"))
+      and not any("12.3 µs" in _rh_docs[n] or "14.3 µs" in _rh_docs[n] for n in ("README.md", "SECURITY.md")))
+check("ATTACKS.md covers the history through octavo010 and the rehearsal revision, and its round count matches its table",
+      "octavo010" in _rh_docs["ATTACKS.md"] and "rehearsal" in _rh_docs["ATTACKS.md"].lower() and "ten times" not in _rh_docs["ATTACKS.md"])
+check("module docstring no longer calls the whole scheme 'unreviewed'",
+      "homemade, unreviewed scheme" not in N.__doc__ and "AES-GCM-SIV" in N.__doc__)
+
+# ---- rehearsal-fix: regression tests for the rehearsal attack (attacks_octavo_rehearsal/REPORT.md)
+# Each block is a witness from that report turned into a test that asserts the FIXED behaviour.
+import stat as _rf_stat, threading as _rf_thr, gc as _rf_gc, io as _rf_io, warnings as _rf_warn
+_rf_msg = b"TOP-SECRET-PLAINTEXT " * 30                     # 630 bytes (w09)
+_rf_blob = N.encrypt_rehearsal(_rf_msg, SEED, b"files", 128)
+_rf_cut = _rf_blob[:72 + 3 * 160]
+_rf_d = _rh_tmp.mkdtemp(prefix="octavo_rf_files_")
+_rf_P = lambda *a: os.path.join(_rf_d, *a)
+def _rf_wr(p, b, mode=0o600):
+    with open(p, "wb") as f: f.write(b)
+    os.chmod(p, mode)
+def _rf_rd(p): return open(p, "rb").read() if os.path.exists(p) else None
+def _rf_temps(): return sorted(n for n in os.listdir(_rf_d) if n.startswith(".") and n.endswith((".partial", ".tmp")))
+_rf_umask = os.umask(0o022)
+try:
+    # M1 (w09 §e): symlinks planted at the old fixed names dst.partial / dst.tmp are never touched
+    _rf_wr(_rf_P("victim.cfg"), b"victim configuration file " * 4, 0o644); os.symlink(_rf_P("victim.cfg"), _rf_P("e.txt.partial"))
+    _rf_wr(_rf_P("e.oct"), _rf_blob)
+    _rf_n = N.decrypt_rehearsal_file(_rf_P("e.oct"), _rf_P("e.txt"), SEED, b"files")
+    _rf_e = (_rf_n == len(_rf_msg) and _rf_rd(_rf_P("e.txt")) == _rf_msg and not os.path.islink(_rf_P("e.txt"))
+             and _rf_rd(_rf_P("victim.cfg")) == b"victim configuration file " * 4 and os.path.islink(_rf_P("e.txt.partial")))
+    _rf_wr(_rf_P("drop_box"), b"", 0o666); os.symlink(_rf_P("drop_box"), _rf_P("f.txt.partial")); _rf_wr(_rf_P("f.oct"), _rf_blob)
+    N.decrypt_rehearsal_file(_rf_P("f.oct"), _rf_P("f.txt"), SEED, b"files")
+    _rf_wr(_rf_P("victim2.cfg"), b"second victim " * 8, 0o644); os.symlink(_rf_P("victim2.cfg"), _rf_P("e2.txt.partial"))
+    _rf_wr(_rf_P("b.oct"), _rf_cut)
+    _rf_r2 = catch(lambda: N.decrypt_rehearsal_file(_rf_P("b.oct"), _rf_P("e2.txt"), SEED, b"files"))
+    _rf_wr(_rf_P("victim3.cfg"), b"third victim " * 8, 0o644); os.symlink(_rf_P("victim3.cfg"), _rf_P("g.oct.tmp")); _rf_wr(_rf_P("g.txt"), _rf_msg)
+    N.encrypt_rehearsal_file(_rf_P("g.txt"), _rf_P("g.oct"), SEED, b"files", 128)
+    check("rehearsal-fix M1: a symlink planted at dst.partial / dst.tmp is never written through, followed or removed (victim files untouched, dst is a regular file)",
+          _rf_e and _rf_rd(_rf_P("drop_box")) == b"" and isinstance(_rf_r2, N.AuthError)
+          and _rf_rd(_rf_P("victim2.cfg")) == b"second victim " * 8 and os.path.islink(_rf_P("e2.txt.partial"))
+          and _rf_rd(_rf_P("victim3.cfg")) == b"third victim " * 8 and os.path.islink(_rf_P("g.oct.tmp"))
+          and not os.path.islink(_rf_P("g.oct")) and N.decrypt_rehearsal(_rf_rd(_rf_P("g.oct")), SEED, b"files") == _rf_msg
+          and _rf_temps() == [])
+    # M1 (w09 §d): an unrelated pre-existing dst.partial survives a reject; only the call's own temp file is removed
+    _rf_wr(_rf_P("d.txt.partial"), b"user's own notes, unrelated")
+    _rf_r = catch(lambda: N.decrypt_rehearsal_file(_rf_P("b.oct"), _rf_P("d.txt"), SEED, b"files"))
+    check("rehearsal-fix M1: a pre-existing regular dst.partial is neither truncated nor deleted on a reject; no temp file is left",
+          isinstance(_rf_r, N.AuthError) and _rf_rd(_rf_P("d.txt.partial")) == b"user's own notes, unrelated"
+          and not os.path.exists(_rf_P("d.txt")) and _rf_temps() == [])
+    # M1 / rehearsal-polish L1: the temp file is an anonymous O_TMPFILE opened relative to dst's directory fd (0600),
+    # or with O_TMPFILE disabled a unique dot-name created O_CREAT | O_EXCL | O_NOFOLLOW (0600); never a fixed sibling name
+    _rf_mk = []; _rf_opo = N.os.open
+    def _rf_opw(p, flags, mode=0o777, *a, **k):
+        fd = _rf_opo(p, flags, mode, *a, **k)
+        if k.get("dir_fd") is not None:
+            _rf_mk.append((os.readlink("/proc/self/fd/%d" % k["dir_fd"]), p, flags, _rf_stat.S_IMODE(os.fstat(fd).st_mode)))
+        return fd
+    N.os.open = _rf_opw
+    try:
+        N.decrypt_rehearsal_file(_rf_P("e.oct"), _rf_P("m1.txt"), SEED, b"files")
+        N.encrypt_rehearsal_file(_rf_P("g.txt"), _rf_P("m1.oct"), SEED, b"files", 128)
+        N._REHEARSAL_USE_O_TMPFILE = False
+        N.decrypt_rehearsal_file(_rf_P("e.oct"), _rf_P("m2.txt"), SEED, b"files")
+        N.encrypt_rehearsal_file(_rf_P("g.txt"), _rf_P("m2.oct"), SEED, b"files", 128)
+    finally:
+        N.os.open = _rf_opo; N._REHEARSAL_USE_O_TMPFILE = True
+    _rf_src = N.inspect.getsource(N._RehearsalOutput) + N.inspect.getsource(N.decrypt_rehearsal_file) + N.inspect.getsource(N.encrypt_rehearsal_file)
+    _rf_excl = os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
+    check("rehearsal-polish L1/M1: both helpers write through an anonymous 0600 O_TMPFILE in dst's directory (via a dir fd); with O_TMPFILE off, a unique 0600 dot-name made O_EXCL|O_NOFOLLOW; never a fixed sibling name",
+          len(_rf_mk) == 4 and all(d == os.path.realpath(_rf_d) and m == 0o600 for d, _, _, m in _rf_mk)
+          and all(p == "." and f & os.O_TMPFILE == os.O_TMPFILE for _, p, f, _ in _rf_mk[:2])
+          and all(f & _rf_excl == _rf_excl for _, _, f, _ in _rf_mk[2:])
+          and _rf_mk[2][1].startswith(".m2.txt.") and _rf_mk[2][1].endswith(".partial")
+          and _rf_mk[3][1].startswith(".m2.oct.") and _rf_mk[3][1].endswith(".tmp")
+          and _rf_rd(_rf_P("m1.txt")) == _rf_msg and _rf_rd(_rf_P("m2.txt")) == _rf_msg
+          and '+ ".partial", "wb"' not in _rf_src and '+ ".tmp", "wb"' not in _rf_src and "mkstemp" not in _rf_src)
+    # L1 (w09 §f, §g): name collisions no longer destroy data
+    _rf_wr(_rf_P("report.tmp"), _rf_msg)
+    N.encrypt_rehearsal_file(_rf_P("report.tmp"), _rf_P("report"), SEED, b"files", 128)
+    _rf_wr(_rf_P("h.partial"), _rf_blob)
+    _rf_hn = N.decrypt_rehearsal_file(_rf_P("h.partial"), _rf_P("h"), SEED, b"files")
+    check("rehearsal-fix L1: encrypt('report.tmp' -> 'report') keeps the plaintext and seals all of it; decrypt('h.partial' -> 'h') keeps the ciphertext",
+          _rf_rd(_rf_P("report.tmp")) == _rf_msg and N.decrypt_rehearsal(_rf_rd(_rf_P("report")), SEED, b"files") == _rf_msg
+          and _rf_rd(_rf_P("h.partial")) == _rf_blob and _rf_hn == len(_rf_msg) and _rf_rd(_rf_P("h")) == _rf_msg)
+    # L1: src and dst the same file (same path, symlink, hard link, same descriptor) is refused before anything is written
+    os.symlink(_rf_P("g.txt"), _rf_P("g_link")); os.link(_rf_P("g.txt"), _rf_P("g_hard"))
+    _rf_same = [catch(lambda: N.encrypt_rehearsal_file(_rf_P("g.txt"), _rf_P("g.txt"), SEED, overwrite=True)),
+                catch(lambda: N.encrypt_rehearsal_file(_rf_P("g.txt"), _rf_P("g_link"), SEED, overwrite=True)),
+                catch(lambda: N.encrypt_rehearsal_file(_rf_P("g.txt"), _rf_P("g_hard"), SEED, overwrite=True)),
+                catch(lambda: N.decrypt_rehearsal_file(_rf_P("e.oct"), _rf_P("e.oct"), SEED, b"files", overwrite=True)),
+                catch(lambda: N.encrypt_rehearsal_file(_rf_P("g_link"), _rf_P("g.txt"), SEED, overwrite=True))]
+    with open(_rf_P("g.txt"), "r+b") as _rf_fo:
+        _rf_same.append(catch(lambda: N.encrypt_rehearsal_file(_rf_fo, _rf_fo, SEED)))
+        with open(_rf_P("g_hard"), "r+b") as _rf_fo2:
+            _rf_same.append(catch(lambda: N.decrypt_rehearsal_file(_rf_fo, _rf_fo2, SEED)))
+    check("rehearsal-fix L1: src == dst by path, symlink, hard link or descriptor raises ValueError (not Rejected) and leaves both files intact",
+          all(isinstance(e, ValueError) and not isinstance(e, N.Rejected) and "same file" in str(e) for e in _rf_same) and len(_rf_same) == 7
+          and _rf_rd(_rf_P("g.txt")) == _rf_msg and _rf_rd(_rf_P("e.oct")) == _rf_blob and _rf_temps() == [])
+    # L2 (w09 §a, §i, §j): 0600 output, overwrite=False by default, symlinked dst never followed, fsync file + dir
+    _rf_wr(_rf_P("a.oct"), _rf_blob, 0o644)
+    N.decrypt_rehearsal_file(_rf_P("a.oct"), _rf_P("a.txt"), SEED, b"files")
+    N.encrypt_rehearsal_file(_rf_P("a.txt"), _rf_P("a2.oct"), SEED, b"files", 128)
+    check("rehearsal-fix L2: plaintext and ciphertext outputs are created 0600 under umask 022, whatever the source mode",
+          _rf_stat.S_IMODE(os.stat(_rf_P("a.txt")).st_mode) == 0o600 and _rf_stat.S_IMODE(os.stat(_rf_P("a2.oct")).st_mode) == 0o600)
+    _rf_wr(_rf_P("k.txt"), b"keep me"); _rf_ex = catch(lambda: N.decrypt_rehearsal_file(_rf_P("a.oct"), _rf_P("k.txt"), SEED, b"files"))
+    _rf_ex2 = catch(lambda: N.encrypt_rehearsal_file(_rf_P("a.txt"), _rf_P("k.txt"), SEED, b"files"))
+    _rf_kept = _rf_rd(_rf_P("k.txt"))
+    _rf_ow = N.decrypt_rehearsal_file(_rf_P("a.oct"), _rf_P("k.txt"), SEED, b"files", overwrite=True)
+    check("rehearsal-fix L2: an existing dst raises FileExistsError by default (dst untouched, no temp left); overwrite=True replaces it",
+          isinstance(_rf_ex, FileExistsError) and isinstance(_rf_ex2, FileExistsError) and _rf_kept == b"keep me"
+          and _rf_ow == len(_rf_msg) and _rf_rd(_rf_P("k.txt")) == _rf_msg and _rf_temps() == [])
+    _rf_wr(_rf_P("target.txt"), b"target"); os.symlink(_rf_P("target.txt"), _rf_P("j.txt")); os.symlink(_rf_P("nowhere"), _rf_P("dangling"))
+    _rf_j1 = catch(lambda: N.decrypt_rehearsal_file(_rf_P("a.oct"), _rf_P("j.txt"), SEED, b"files"))
+    _rf_j2 = catch(lambda: N.decrypt_rehearsal_file(_rf_P("a.oct"), _rf_P("dangling"), SEED, b"files"))
+    _rf_j1ok = os.path.islink(_rf_P("j.txt")) and not os.path.exists(_rf_P("nowhere"))
+    N.decrypt_rehearsal_file(_rf_P("a.oct"), _rf_P("j.txt"), SEED, b"files", overwrite=True)
+    os.mkdir(_rf_P("dir_dst"))
+    _rf_dd = (catch(lambda: N.decrypt_rehearsal_file(_rf_P("a.oct"), _rf_P("dir_dst"), SEED, b"files")),
+              catch(lambda: N.decrypt_rehearsal_file(_rf_P("a.oct"), _rf_P("dir_dst"), SEED, b"files", overwrite=True)))
+    check("rehearsal-fix L2: a symlink at dst (live or dangling) is never followed: refused by default, replaced as a link with overwrite=True; a directory dst is refused up front",
+          isinstance(_rf_j1, FileExistsError) and isinstance(_rf_j2, FileExistsError) and _rf_j1ok
+          and _rf_rd(_rf_P("target.txt")) == b"target" and not os.path.islink(_rf_P("j.txt")) and _rf_rd(_rf_P("j.txt")) == _rf_msg
+          and isinstance(_rf_dd[0], FileExistsError) and isinstance(_rf_dd[1], IsADirectoryError) and os.listdir(_rf_P("dir_dst")) == []
+          and _rf_temps() == [])
+    _rf_fs = []; _rf_fso = N.os.fsync
+    def _rf_fsw(fd): _rf_fs.append(_rf_stat.S_ISDIR(os.fstat(fd).st_mode)); return _rf_fso(fd)
+    _rf_ren = []; _rf_lnk = N.os.link
+    def _rf_lnkw(a, b, **k): _rf_ren.append(("link", len(_rf_fs))); return _rf_lnk(a, b, **k)
+    N.os.fsync = _rf_fsw; N.os.link = _rf_lnkw
+    try:
+        N.decrypt_rehearsal_file(_rf_P("a.oct"), _rf_P("fs.txt"), SEED, b"files")
+        N.encrypt_rehearsal_file(_rf_P("a.txt"), _rf_P("fs.oct"), SEED, b"files", 128)
+    finally:
+        N.os.fsync = _rf_fso; N.os.link = _rf_lnk
+    check("rehearsal-fix L2: each helper fsyncs the file before moving it into place and the directory after (file, dir, file, dir)",
+          _rf_fs == [False, True, False, True] and _rf_ren == [("link", 1), ("link", 3)])
+    # keep_partial: the verified prefix is kept under dst.partial when free, else the unique temp name; path reported on the exception
+    _rf_kp = catch(lambda: N.decrypt_rehearsal_file(_rf_P("b.oct"), _rf_P("c.txt"), SEED, b"files", keep_partial=True))
+    _rf_kp2 = catch(lambda: N.decrypt_rehearsal_file(_rf_P("b.oct"), _rf_P("d.txt"), SEED, b"files", keep_partial=True))
+    check("rehearsal-fix: keep_partial=True keeps only the verified prefix, as dst.partial when that name is free, else under the call's own unique temp name (never clobbering), reported as exc.partial_path",
+          isinstance(_rf_kp, N.AuthError) and _rf_kp.partial_path == _rf_P("c.txt.partial") and _rf_rd(_rf_P("c.txt.partial")) == _rf_msg[:256]
+          and isinstance(_rf_kp2, N.AuthError) and os.path.dirname(_rf_kp2.partial_path) == _rf_d
+          and os.path.basename(_rf_kp2.partial_path).startswith(".d.txt.") and _rf_rd(_rf_kp2.partial_path) == _rf_msg[:256]
+          and _rf_rd(_rf_P("d.txt.partial")) == b"user's own notes, unrelated"
+          and _rf_stat.S_IMODE(os.stat(_rf_P("c.txt.partial")).st_mode) == 0o600)
+    os.unlink(_rf_kp2.partial_path)
+    # L3 (w08 §3): file-object dst is buffered until the stream verifies
+    _rf_bio = _rf_io.BytesIO(); _rf_l3 = catch(lambda: N.decrypt_rehearsal_file(_rf_io.BytesIO(_rf_cut), _rf_bio, SEED, b"files", read_size=64))
+    _rf_bio2 = _rf_io.BytesIO(); _rf_l3b = catch(lambda: N.decrypt_rehearsal_file(_rf_io.BytesIO(_rf_cut), _rf_bio2, SEED, b"files", read_size=64, stream_verified_prefix=True))
+    _rf_bio3 = _rf_io.BytesIO(); _rf_l3n = N.decrypt_rehearsal_file(_rf_io.BytesIO(_rf_blob), _rf_bio3, SEED, b"files", read_size=64)
+    check("rehearsal-fix L3: a file-object dst receives nothing from a cut stream (buffered until finalize); stream_verified_prefix=True keeps the old prefix behaviour",
+          isinstance(_rf_l3, N.AuthError) and _rf_bio.getvalue() == b"" and isinstance(_rf_l3b, N.AuthError) and _rf_bio2.getvalue() == _rf_msg[:256]
+          and _rf_l3n == len(_rf_msg) and _rf_bio3.getvalue() == _rf_msg)
+finally:
+    os.umask(_rf_umask)
+    _rh_sh.rmtree(_rf_d, ignore_errors=True)
+
+# L3 (w08 §3): the forgot-finalize footgun
+def _rf_iter(src, **k):
+    try: return b"".join(N.iter_rehearsal(src, SEED, b"files", **k)), None
+    except Exception as e: return None, e
+_rf_full, _rf_ef = _rf_iter(_rf_blob)
+_rf_cutr = [_rf_iter(_rf_blob[:72 + j * 160]) for j in (0, 1, 2, 3)] + [_rf_iter(_rf_blob[:-1]), _rf_iter(_rf_blob[:72])]
+_rf_pieces, _ = _rf_iter([_rf_blob[i:i + 37] for i in range(0, len(_rf_blob), 37)])
+_rf_fobj, _ = _rf_iter(_rf_io.BytesIO(_rf_blob), read_size=100)
+check("rehearsal-fix L3: iter_rehearsal always finalizes: whole stream (bytes, piece iterable, file object) yields the message; a stream cut at any chunk boundary raises AuthError",
+      _rf_ef is None and _rf_full == _rf_msg == _rf_pieces == _rf_fobj
+      and all(r is None and isinstance(e, N.AuthError) for r, e in _rf_cutr))
+_rf_it = N.iter_rehearsal(_rf_blob, SEED, b"files", read_size=50); _rf_first = next(_rf_it); _rf_it.close()
+_rf_gc.collect()
+with _rf_warn.catch_warnings(record=True) as _rf_w:
+    _rf_warn.simplefilter("always")
+    _rf_dw = N.RehearsalDecryptor(SEED, b"files"); _rf_dw.update(_rf_blob[:72 + 3 * 160]); del _rf_dw; _rf_gc.collect()
+    _rf_w1 = [w for w in _rf_w if issubclass(w.category, N.UnfinalizedStreamWarning)]
+    for _rf_case in ("fresh", "finalized", "rejected", "closed"):
+        _rf_dw = N.RehearsalDecryptor(SEED, b"files")
+        if _rf_case == "finalized": _rf_dw.update(_rf_blob); _rf_dw.finalize()
+        if _rf_case == "rejected": catch(lambda: _rf_dw.update(_rf_blob[:80] + b"\x00" * 300))
+        if _rf_case == "closed": _rf_dw.update(_rf_blob[:300]); _rf_dw.close()
+        del _rf_dw; _rf_gc.collect()
+    _rf_w2 = [w for w in _rf_w if issubclass(w.category, N.UnfinalizedStreamWarning)]
+check("rehearsal-fix L3 / rehearsal-polish L2: a decryptor dropped after data without finalize() emits one UnfinalizedStreamWarning; fresh, finalized, rejected and explicitly closed ones do not; an abandoned iter_rehearsal does not",
+      _rf_first and _rf_msg.startswith(_rf_first) and len(_rf_w1) == 1 and "finalize" in str(_rf_w1[0].message) and len(_rf_w2) == 1)
+def _rf_with(data):
+    with N.RehearsalDecryptor(SEED, b"files") as d:
+        return d.update(data)
+_rf_wc = catch(lambda: _rf_with(_rf_blob[:72 + 3 * 160]))
+_rf_dcl = N.RehearsalDecryptor(SEED, b"files"); _rf_dcl.update(_rf_blob[:300]); _rf_dcl.close()
+check("rehearsal-fix L3: leaving a `with RehearsalDecryptor` block normally without finalize() raises AuthError('stream not finalized'); close() abandons on purpose (later calls ValueError)",
+      isinstance(_rf_wc, N.AuthError) and str(_rf_wc) == "stream not finalized"
+      and isinstance(catch(lambda: _rf_dcl.update(b"x")), ValueError) and not isinstance(catch(lambda: _rf_dcl.update(b"x")), N.Rejected))
+
+# I3 (w07): one-shot decrypt checks every tag, the final chunk's included, before decrypting anything
+_rf_calls = []; _rf_o = (N._rehearsal_tag, N.Schedule.__init__, N.decrypt_grid)
+def _rf_pt(*a, **k): _rf_calls.append("tag"); return _rf_o[0](*a, **k)
+def _rf_ps(self, *a, **k): _rf_calls.append("Schedule"); return _rf_o[1](self, *a, **k)
+def _rf_pd(*a, **k): _rf_calls.append("dec"); return _rf_o[2](*a, **k)
+_rf_big = N.encrypt_rehearsal(bytes(range(256)) * 4 + b"tail", SEED, b"i3", 128)          # 8 non-final chunks + final
+N._rehearsal_tag, N.Schedule.__init__, N.decrypt_grid = _rf_pt, _rf_ps, _rf_pd
+try:
+    _rf_e3 = catch(lambda: N.decrypt_rehearsal(_rf_big[:-1] + bytes([_rf_big[-1] ^ 1]), SEED, b"i3")); _rf_bad = list(_rf_calls)
+    _rf_calls.clear(); _rf_ok3 = N.decrypt_rehearsal(_rf_big, SEED, b"i3"); _rf_good = list(_rf_calls)
+finally:
+    N._rehearsal_tag, N.Schedule.__init__, N.decrypt_grid = _rf_o
+check("rehearsal-fix I3: one-shot decrypt_rehearsal with a forged final chunk after 8 valid chunks runs 9 tags and no Schedule or decryption; a valid stream runs all 9 tags before the first decrypt",
+      isinstance(_rf_e3, N.AuthError) and _rf_bad == ["tag"] * 9
+      and _rf_ok3 == bytes(range(256)) * 4 + b"tail" and _rf_good[:10] == ["tag"] * 9 + ["Schedule"] and _rf_good.count("dec") == 9)
+_rf_ts = os.urandom(128)
+while len(set(b for b in _rf_ts if b)) < 32: _rf_ts = os.urandom(128)
+_rf_tb = N.encrypt_rehearsal(bytes(8 * 128), _rf_ts, b"", 128)
+_rf_tm = {"final forged": _rf_tb[:-1] + bytes([_rf_tb[-1] ^ 1]), "chunk0 forged": _rf_tb[:80] + bytes([_rf_tb[80] ^ 1]) + _rf_tb[81:]}
+_rf_md = {}
+for _k, _b in _rf_tm.items():
+    _ts = []
+    for _ in range(30):
+        _t0 = _rh_time.perf_counter(); catch(lambda: N.decrypt_rehearsal(_b, _rf_ts)); _ts.append(_rh_time.perf_counter() - _t0)
+    _rf_md[_k] = sorted(_ts)[15]
+print("rehearsal-fix I3 one-shot reject medians (ms):", {k: round(v * 1000, 3) for k, v in _rf_md.items()})
+check("rehearsal-fix I3: rejecting a forged final chunk in one shot costs HMACs only (well under 5 ms here, was ~85 ms for 8 blocks)",
+      _rf_md["final forged"] < 0.005)
+
+# I1 (w11 §4): AD is in the R-sponge inputs, so the same pickup and nonce under two ADs share no ciphertext block
+_rf_P1 = os.urandom(4 * 256 + 100)
+with _rh_fixed():
+    _rf_A = N.encrypt_rehearsal(_rf_P1, SEED, b"x", 256); _rf_A2 = N.encrypt_rehearsal(_rf_P1, SEED, b"other", 256)
+    _rf_A3 = N.encrypt_rehearsal(_rf_P1, SEED, b"x", 256)
+_rf_blk = lambda b: [x[o:o + 128] for x in _rh_chunks(b, 256)[1] for o in range(0, len(x) - 32, 128)]
+check("rehearsal-fix I1: same seed, pickup and nonce under two ADs: headers share pickup/nonce, but no ciphertext block, tag or schedule nonce is shared; same AD stays deterministic",
+      _rf_A[4:36] == _rf_A2[4:36] and not (set(_rf_blk(_rf_A)) & set(_rf_blk(_rf_A2))) and _rf_A3 == _rf_A
+      and N._rehearsal_schedule_nonce(SEED, _RH_PK, _RH_NC, 256, N._rehearsal_ad_digest(b"x")) != N._rehearsal_schedule_nonce(SEED, _RH_PK, _RH_NC, 256, N._rehearsal_ad_digest(b"other"))
+      and isinstance(catch(lambda: N.decrypt_rehearsal(_rf_A2[:72] + _rf_A[72:], SEED, b"other")), N.AuthError)
+      and N.decrypt_rehearsal(_rf_A2, SEED, b"other") == _rf_P1)
+check("rehearsal-fix I1: the per-stream AD digest is SHA-256(SN2/A || encode_ad(ad)) and empty AD == omitted AD (still one stream format, v8)",
+      N._rehearsal_ad_digest(b"x") == hashlib.sha256(b"SN2/A" + (1).to_bytes(8, "big") + b"x").digest()
+      and N._rehearsal_ad_digest(b"") == N._rehearsal_ad_digest() and _rf_A[0] == 8)
+
+# I2 (w10): workers are capped, are fresh interpreters (never fork), get no seed/AD/keys, and never outlive the stream
+check("rehearsal-fix I2: workers are capped at min(32, os.cpu_count()); bad values still raise ValueError",
+      N.REHEARSAL_MAX_WORKERS == 32 and N._rehearsal_workers(10 ** 6) == min(32, os.cpu_count() or 1) and N._rehearsal_workers(1) == 1
+      and N.RehearsalEncryptor(SEED, workers=10 ** 6).workers == min(32, os.cpu_count() or 1)
+      and all(isinstance(catch(lambda w=w: N.RehearsalDecryptor(SEED, workers=w)), ValueError) for w in (0, -1, True, 1.5)))
+_rf_sent = []; _rf_spawn = N._RehearsalWorkers._spawn
+def _rf_spw(self):
+    p = _rf_spawn(self); _rf_sent.append((p.pid, open("/proc/%d/cmdline" % p.pid, "rb").read().split(b"\0"), self._sch_blob)); return p
+N._RehearsalWorkers._spawn = _rf_spw
+_rf_wo = N._RehearsalWorkers.run
+_rf_payloads = []
+def _rf_runw(self, datas, decrypt): _rf_payloads.extend(datas); return _rf_wo(self, datas, decrypt)
+N._RehearsalWorkers.run = _rf_runw
+_rf_seed2 = bytes(range(1, 129)); N._seed_bytes(_rf_seed2)                       # another seed sits in the parent's memo
+_rf_secret_ad = b"unrelated-secret-AD-" + os.urandom(8).hex().encode()
+try:
+    _rf_m2 = os.urandom(6 * 128 + 5)
+    with _rh_fixed():
+        _rf_w1b = N.encrypt_rehearsal(_rf_m2, SEED, _rf_secret_ad, 128); _rf_w4b = N.encrypt_rehearsal(_rf_m2, SEED, _rf_secret_ad, 128, workers=4)
+    _rf_dec4 = N.decrypt_rehearsal(_rf_w4b, SEED, _rf_secret_ad, workers=4)
+    _rf_e12 = N.RehearsalEncryptor(SEED, b"", 128, workers=12); _rf_e12.update(os.urandom(2 * 128)); _rf_n12 = len(_rf_e12._pool.procs)
+    _rf_pids12 = [p.pid for p in _rf_e12._pool.procs]; _rf_e12.finalize()
+    _rf_dr = N.RehearsalDecryptor(SEED, _rf_secret_ad, workers=3); _rf_dr.update(_rf_w4b[:72 + 4 * 160 + 1])
+    _rf_pidsr = [p.pid for p in _rf_dr._pool.procs]
+    catch(lambda: (_rf_dr.update(_rf_w4b[72 + 4 * 160 + 1:-1] + bytes([_rf_w4b[-1] ^ 1])), _rf_dr.finalize()))
+    _rf_ea = N.RehearsalEncryptor(SEED, b"", 128, workers=3); _rf_ea.update(os.urandom(3 * 128)); _rf_pidsa = [p.pid for p in _rf_ea._pool.procs]
+    del _rf_ea; _rf_gc.collect()
+finally:
+    N._RehearsalWorkers._spawn = _rf_spawn; N._RehearsalWorkers.run = _rf_wo
+def _rf_alive(pids):
+    out = []
+    for p in pids:
+        try:
+            st = open("/proc/%d/stat" % p).read().split()[2]
+            if st != "Z": out.append(p)
+        except OSError: pass
+    return out
+_rh_time.sleep(0.3)
+_rf_allsent = b"".join(_rf_payloads) + b"".join(s for _, _, s in _rf_sent)
+check("rehearsal-fix I2: workers=4 output is byte-identical to workers=1 and decrypts with workers=4",
+      _rf_w4b == _rf_w1b and _rf_dec4 == _rf_m2)
+check("rehearsal-fix I2: every worker is a fresh interpreter (python -I -B -S -c, not a fork) and is sent no seed, no other memo seed, no AD and no plaintext",
+      _rf_sent and all(c[0] == os.fsencode(sys.executable) and c[1:5] == [b"-I", b"-B", b"-S", b"-c"] for _, c, _ in _rf_sent)
+      and SEED not in _rf_allsent and _rf_seed2 not in _rf_allsent and _rf_secret_ad not in _rf_allsent
+      and _rf_m2[:128] not in _rf_allsent and N.staff_clef(SEED) not in _rf_allsent)
+check("rehearsal-fix I2: workers are started lazily (workers=12 on a 2-chunk batch starts 2) and none survives finalize(), a reject, or an abandoned encryptor",
+      _rf_n12 == 2 and _rf_alive(_rf_pids12) == [] and _rf_alive(_rf_pidsr) == [] and _rf_alive(_rf_pidsa) == [] and len(_rf_pidsr) == 3)
+
+# I4 (w03): optional receiver-side max_chunk_size
+_rf_hdr1m = bytes([8]) + N.VERSION + os.urandom(64) + (1 << 20).to_bytes(4, "big")
+_rf_d4 = N.RehearsalDecryptor(SEED, b"", max_chunk_size=65536)
+_rf_i4 = _rh_err(lambda: _rf_d4.update(_rf_hdr1m))
+_rf_ok4 = N.encrypt_rehearsal(b"x" * 300, SEED, b"", 256)
+check("rehearsal-fix I4: max_chunk_size rejects a forged 1 MiB-chunk header at the header (nothing buffered); streams within the limit open; bad limits raise",
+      _rf_i4 == ("AuthError", "chunk size above max_chunk_size") and len(_rf_d4._buf) == 0
+      and _rh_err(lambda: _rf_d4.update(b"")) == ("AuthError", "stream already rejected")
+      and N.decrypt_rehearsal(_rf_ok4, SEED, max_chunk_size=256) == b"x" * 300
+      and _rh_err(lambda: N.decrypt_rehearsal(_rf_ok4, SEED, max_chunk_size=128)) == ("AuthError", "chunk size above max_chunk_size")
+      and b"".join(N.iter_rehearsal(_rf_ok4, SEED, max_chunk_size=256)) == b"x" * 300
+      and isinstance(catch(lambda: N.RehearsalDecryptor(SEED, max_chunk_size=100)), ValueError)
+      and isinstance(catch(lambda: N.RehearsalDecryptor(SEED, max_chunk_size="64")), TypeError)
+      and N.RehearsalDecryptor(SEED)._max_cs is None)
+
+# ---- rehearsal-polish: regression tests for the rehearsal-fix attack (attacks_octavo_rehearsalfix/REPORT.md)
+# Each block turns a witness from that report into a test that asserts the FIXED behaviour.
+import errno as _rp_errno, signal as _rp_sig, io as _rp_io, importlib.util as _rp_iu
+def _rp_try(f):
+    """f()'s value, or the exception it raised."""
+    try: return f()
+    except Exception as e: return e
+_rp_msg = b"GENUINE VERIFIED PLAINTEXT " * 20
+_rp_blob = N.encrypt_rehearsal(_rp_msg, SEED, b"race", 128)
+_rp_cut = _rp_blob[:72 + 2 * 160]
+_rp_d = os.path.realpath(_rh_tmp.mkdtemp(prefix="octavo_rp_"))
+_rp_P = lambda *a: os.path.join(_rp_d, *a)
+def _rp_rd(p): return open(p, "rb").read() if os.path.lexists(p) and not os.path.islink(p) else None
+def _rp_dots(): return sorted(n for n in os.listdir(_rp_d) if n.startswith("."))
+def _rp_clean():
+    for n in _rp_dots(): os.unlink(_rp_P(n))
+open(_rp_P("in.oct"), "wb").write(_rp_blob); open(_rp_P("cut.oct"), "wb").write(_rp_cut)
+_rp_lnk = N.os.link
+def _rp_with_link(hook, fn, tmpfile=True):
+    """Run fn with os.link wrapped by hook(real_link, src, dst, **kw) (the attacker's rename, injected
+    deterministically at the instant the race needs) and O_TMPFILE on or off."""
+    N.os.link = lambda a, b, **k: hook(_rp_lnk, a, b, **k); N._REHEARSAL_USE_O_TMPFILE = tmpfile
+    try: return _rp_try(fn)
+    finally: N.os.link = _rp_lnk; N._REHEARSAL_USE_O_TMPFILE = True
+try:
+    # L1 a: attacker renames their own file over the named temp between the inode check and the link
+    def _rp_swap(real, a, b, **k):
+        if isinstance(a, str) and a.startswith(".") and a.endswith(".partial"):
+            open(_rp_P("evil.txt"), "wb").write(b"ATTACKER-CHOSEN CONTENT\n"); os.chmod(_rp_P("evil.txt"), 0o666)
+            os.rename(_rp_P("evil.txt"), _rp_P(a))
+        return real(a, b, **k)
+    _rp_a = _rp_with_link(_rp_swap, lambda: N.decrypt_rehearsal_file(_rp_P("in.oct"), _rp_P("a.txt"), SEED, b"race"), tmpfile=False)
+    _rp_a_ok = isinstance(_rp_a, RuntimeError) and "replaced" in str(_rp_a) and not os.path.lexists(_rp_P("a.txt"))
+    _rp_clean()
+    # L1 b: a symlink planted at the temp name: the link never follows it, the after-check refuses
+    open(_rp_P("victim.key"), "wb").write(b"-----BEGIN VICTIM PRIVATE KEY-----\n"); os.chmod(_rp_P("victim.key"), 0o600)
+    def _rp_sym(real, a, b, **k):
+        if isinstance(a, str) and a.startswith(".") and a.endswith(".partial"):
+            os.unlink(_rp_P(a)); os.symlink(_rp_P("victim.key"), _rp_P(a))
+        return real(a, b, **k)
+    _rp_b = _rp_with_link(_rp_sym, lambda: N.decrypt_rehearsal_file(_rp_P("in.oct"), _rp_P("b.txt"), SEED, b"race"), tmpfile=False)
+    _rp_b_ok = (isinstance(_rp_b, RuntimeError) and not os.path.lexists(_rp_P("b.txt")) and os.stat(_rp_P("victim.key")).st_nlink == 1
+                and _rp_rd(_rp_P("victim.key")) == b"-----BEGIN VICTIM PRIVATE KEY-----\n")
+    _rp_clean()
+    # L1 c: keep_partial with a substituted temp: nothing unverified is ever reported as the verified prefix
+    def _rp_keep(real, a, b, **k):
+        if b.endswith("c.txt.partial") and isinstance(a, str) and a.startswith("."):
+            open(_rp_P("evil2"), "wb").write(b"ATTACKER PREFIX\n"); os.rename(_rp_P("evil2"), _rp_P(a))
+        return real(a, b, **k)
+    _rp_c = _rp_with_link(_rp_keep, lambda: N.decrypt_rehearsal_file(_rp_P("cut.oct"), _rp_P("c.txt"), SEED, b"race", keep_partial=True), tmpfile=False)
+    _rp_ck = getattr(_rp_c, "partial_path", None)
+    _rp_c_ok = isinstance(_rp_c, N.AuthError) and (_rp_ck is None or _rp_msg.startswith(_rp_rd(_rp_ck))) and not os.path.lexists(_rp_P("c.txt.partial"))
+    _rp_clean()
+    # L1 d: O_TMPFILE path (default): there is no temp name to swap; the link source is our own /proc/self/fd entry, and a
+    # rename over dst right after the link is caught by the inode check (the name this call created is removed)
+    _rp_calls = []
+    def _rp_post(real, a, b, **k):
+        _rp_calls.append((a, b, k.get("follow_symlinks"))); r = real(a, b, **k)
+        if b == "d.txt":
+            open(_rp_P("evil3"), "wb").write(b"swapped in after link\n"); os.rename(_rp_P("evil3"), _rp_P("d.txt"))
+        return r
+    _rp_dd = _rp_with_link(_rp_post, lambda: N.decrypt_rehearsal_file(_rp_P("in.oct"), _rp_P("d.txt"), SEED, b"race"))
+    _rp_d_ok = (isinstance(_rp_dd, RuntimeError) and not os.path.lexists(_rp_P("d.txt")) and _rp_dots() == []
+                and _rp_calls and _rp_calls[0][0].startswith("/proc/self/fd/") and _rp_calls[0][2] is True)
+    _rp_calls.clear()
+    _rp_e = _rp_with_link(lambda real, a, b, **k: (_rp_calls.append((a, k.get("follow_symlinks"))), real(a, b, **k))[1],
+                          lambda: N.decrypt_rehearsal_file(_rp_P("in.oct"), _rp_P("e.txt"), SEED, b"race"), tmpfile=False)
+    _rp_e_ok = _rp_e == len(_rp_msg) and _rp_rd(_rp_P("e.txt")) == _rp_msg and _rp_calls == [(_rp_calls[0][0], False)] and _rp_dots() == []
+    check("rehearsal-polish L1: a rename or symlink over the temp name at link time, or a rename over dst after the link, makes the helper raise RuntimeError and publish nothing (no dst, victim key not hard-linked, no fake keep_partial prefix); named temps are linked with follow_symlinks=False, O_TMPFILE via /proc/self/fd",
+          _rp_a_ok and _rp_b_ok and _rp_c_ok and _rp_d_ok and _rp_e_ok)
+    print("rehearsal-polish L1 detail:", dict(a=_rp_a_ok, b=_rp_b_ok, c=_rp_c_ok, d=_rp_d_ok, e=_rp_e_ok))
+
+    # I3: only 'no hard links here' errnos fall back, and the fallback creates dst O_EXCL (never clobbers a file made in the gap)
+    def _rp_raise(code, plant=None):
+        def h(real, a, b, **k):
+            if plant: open(_rp_P(plant), "wb").write(b"made in the gap\n")
+            raise OSError(code, os.strerror(code))
+        return h
+    _rp_i3a = _rp_with_link(_rp_raise(_rp_errno.EIO), lambda: N.decrypt_rehearsal_file(_rp_P("in.oct"), _rp_P("i3a.txt"), SEED, b"race"), tmpfile=False)   # named-temp path; O_TMPFILE now copies (rehearsal-finale I3)
+    _rp_i3b = _rp_with_link(_rp_raise(_rp_errno.EPERM), lambda: N.decrypt_rehearsal_file(_rp_P("in.oct"), _rp_P("i3b.txt"), SEED, b"race"))
+    _rp_i3c = _rp_with_link(_rp_raise(_rp_errno.EPERM, "i3c.txt"), lambda: N.decrypt_rehearsal_file(_rp_P("in.oct"), _rp_P("i3c.txt"), SEED, b"race"))
+    _rp_i3d = _rp_with_link(_rp_raise(_rp_errno.EOPNOTSUPP), lambda: N.decrypt_rehearsal_file(_rp_P("in.oct"), _rp_P("i3d.txt"), SEED, b"race", overwrite=True), tmpfile=False)
+    check("rehearsal-polish I3: on the named-temp path, link errors other than EPERM/EOPNOTSUPP/ENOTSUP/ENOSYS/EXDEV/EMLINK are raised (EIO: no dst); the no-hard-link fallback copies into an O_EXCL dst and refuses (FileExistsError) a file created in the gap, leaving it untouched",
+          isinstance(_rp_i3a, OSError) and _rp_i3a.errno == _rp_errno.EIO and not os.path.lexists(_rp_P("i3a.txt"))
+          and _rp_i3b == len(_rp_msg) and _rp_rd(_rp_P("i3b.txt")) == _rp_msg and _rf_stat.S_IMODE(os.stat(_rp_P("i3b.txt")).st_mode) == 0o600
+          and isinstance(_rp_i3c, FileExistsError) and _rp_rd(_rp_P("i3c.txt")) == b"made in the gap\n"
+          and _rp_i3d == len(_rp_msg) and _rp_rd(_rp_P("i3d.txt")) == _rp_msg
+          and N._REHEARSAL_NO_LINK_ERRNOS == {_rp_errno.EPERM, _rp_errno.EOPNOTSUPP, _rp_errno.ENOTSUP, _rp_errno.ENOSYS, _rp_errno.EXDEV, _rp_errno.EMLINK}
+          and _rp_dots() == [])
+
+    # I4: paths fixed at call start; a chdir or a parent-symlink swap during the call does not move the output or leave a temp
+    os.mkdir(_rp_P("A")); os.mkdir(_rp_P("B")); os.mkdir(_rp_P("T1")); os.mkdir(_rp_P("T2")); os.symlink(_rp_P("T1"), _rp_P("lnk"))
+    class _RpSrc(_rp_io.BytesIO):
+        def __init__(self, data, act): super().__init__(data); self.act = act
+        def read(self, n=-1):
+            if self.act: self.act(); self.act = None
+            return super().read(n)
+    _rp_cwd = os.getcwd()
+    try:
+        os.chdir(_rp_P("A"))
+        _rp_i4a = _rp_try(lambda: N.decrypt_rehearsal_file(_RpSrc(_rp_blob, lambda: os.chdir(_rp_P("B"))), "out.txt", SEED, b"race"))
+    finally:
+        os.chdir(_rp_cwd)
+    def _rp_swaplnk(): os.unlink(_rp_P("lnk")); os.symlink(_rp_P("T2"), _rp_P("lnk"))
+    _rp_i4b = _rp_try(lambda: N.decrypt_rehearsal_file(_RpSrc(_rp_blob, _rp_swaplnk), _rp_P("lnk", "out.txt"), SEED, b"race"))
+    N._REHEARSAL_USE_O_TMPFILE = False
+    try:
+        _rp_swaplnk2 = lambda: (os.unlink(_rp_P("lnk")), os.symlink(_rp_P("T1"), _rp_P("lnk")))
+        _rp_i4c = _rp_try(lambda: N.decrypt_rehearsal_file(_RpSrc(_rp_blob, _rp_swaplnk2), _rp_P("lnk", "out2.txt"), SEED, b"race"))
+    finally:
+        N._REHEARSAL_USE_O_TMPFILE = True
+    check("rehearsal-polish I4: a chdir during the call leaves a relative dst in the starting directory; swapping a symlinked parent mid-call still publishes into the directory opened at the start, with no orphaned temp file anywhere",
+          _rp_i4a == len(_rp_msg) and _rp_rd(_rp_P("A", "out.txt")) == _rp_msg and os.listdir(_rp_P("B")) == []
+          and _rp_i4b == len(_rp_msg) and _rp_rd(_rp_P("T1", "out.txt")) == _rp_msg
+          and _rp_i4c == len(_rp_msg) and _rp_rd(_rp_P("T2", "out2.txt")) == _rp_msg
+          and sorted(os.listdir(_rp_P("T1"))) == ["out.txt"] and sorted(os.listdir(_rp_P("T2"))) == ["out2.txt"])
+
+    # I5: long non-ASCII names (temp prefix cut by bytes, at a whole UTF-8 character)
+    _rp_cjk, _rp_emo = "字" * 80, "😀" * 60
+    _rp_i5a = _rp_try(lambda: N.decrypt_rehearsal_file(_rp_P("in.oct"), _rp_P(_rp_cjk), SEED, b"race"))
+    _rp_i5b = _rp_try(lambda: N.encrypt_rehearsal_file(_rp_P(_rp_cjk), _rp_P(_rp_emo), SEED, b"race", 128))
+    N._REHEARSAL_USE_O_TMPFILE = False
+    try:
+        _rp_i5c = _rp_try(lambda: N.decrypt_rehearsal_file(_rp_P("in.oct"), _rp_P("é" * 127), SEED, b"race"))
+    finally:
+        N._REHEARSAL_USE_O_TMPFILE = True
+    _rp_pf = [N._rehearsal_temp_prefix(x) for x in ("a" * 300, "字" * 80, "😀" * 60, "é" * 127, "ab" + "字" * 50, "short")]
+    check("rehearsal-polish I5: 240-byte CJK and emoji dst names (and a 254-byte é name on the named-temp path) work in both helpers; the temp prefix is <= 100 bytes and always whole UTF-8 characters",
+          _rp_i5a == len(_rp_msg) and isinstance(_rp_i5b, int) and N.decrypt_rehearsal(_rp_rd(_rp_P(_rp_emo)), SEED, b"race") == _rp_msg
+          and _rp_i5c == len(_rp_msg) and len(("é" * 127).encode()) == 254
+          and all(len(p.encode("utf-8")) <= 100 for p in _rp_pf) and _rp_pf[5] == "short" and _rp_pf[1] == "字" * 33 and _rp_pf[2] == "😀" * 25
+          and _rp_dots() == [])
+
+    # I6: overwrite / keep_partial / stream_verified_prefix must be real bools; kept partials are fsync'd (file, then dir); no empty partial
+    open(_rp_P("keep.txt"), "wb").write(b"keep me")
+    _rp_i6 = [_rp_try(lambda v=v: N.decrypt_rehearsal_file(_rp_P("in.oct"), _rp_P("keep.txt"), SEED, b"race", overwrite=v)) for v in ("no", 1, None, "")]
+    _rp_i6 += [_rp_try(lambda: N.encrypt_rehearsal_file(_rp_P("i3b.txt"), _rp_P("keep.txt"), SEED, overwrite="no")),
+               _rp_try(lambda: N.decrypt_rehearsal_file(_rp_P("cut.oct"), _rp_P("kp.txt"), SEED, b"race", keep_partial="yes")),
+               _rp_try(lambda: N.decrypt_rehearsal_file(_rp_P("in.oct"), _rp_io.BytesIO(), SEED, b"race", stream_verified_prefix=1))]
+    _rp_fs = []; _rp_fso = N.os.fsync
+    N.os.fsync = lambda fd: (_rp_fs.append(_rf_stat.S_ISDIR(os.fstat(fd).st_mode)), _rp_fso(fd))[1]
+    try:
+        _rp_kp = _rp_try(lambda: N.decrypt_rehearsal_file(_rp_P("cut.oct"), _rp_P("kp.txt"), SEED, b"race", keep_partial=True))
+    finally:
+        N.os.fsync = _rp_fso
+    _rp_hd = _rp_try(lambda: N.decrypt_rehearsal_file(_rp_P("cut.oct"), _rp_P("hd.txt"), SEED, b"wrong AD", keep_partial=True))
+    check("rehearsal-polish I6: non-bool overwrite/keep_partial/stream_verified_prefix raise TypeError before anything is written; a kept partial is fsync'd, then its directory; a header-level reject keeps no empty partial",
+          all(isinstance(e, TypeError) for e in _rp_i6) and len(_rp_i6) == 7 and _rp_rd(_rp_P("keep.txt")) == b"keep me"
+          and isinstance(_rp_kp, N.AuthError) and _rp_kp.partial_path == _rp_P("kp.txt.partial") and _rp_rd(_rp_P("kp.txt.partial")) == _rp_msg[:128]
+          and _rp_fs == [False, True]
+          and isinstance(_rp_hd, N.AuthError) and getattr(_rp_hd, "partial_path", None) is None and not os.path.lexists(_rp_P("hd.txt.partial"))
+          and _rp_dots() == [])
+finally:
+    N.os.link = _rp_lnk; N._REHEARSAL_USE_O_TMPFILE = True
+    _rh_sh.rmtree(_rp_d, ignore_errors=True)
+
+# L2: the unfinalized-decryptor warning is a UserWarning that the DEFAULT filters show (it was a hidden ResourceWarning)
+_rp_l2 = subprocess.run([sys.executable, "-B", "-c",
+    "import sys, gc; sys.path.insert(0, %r); import sneak_n2 as N\n"
+    "s = N.load_seed(); b = N.encrypt_rehearsal(b'x' * 600, s, b'', 128)\n"
+    "d = N.RehearsalDecryptor(s); print(len(d.update(b[:72 + 3 * 160]))); del d; gc.collect()" % HERE],
+    capture_output=True, text=True, timeout=120)
+check("rehearsal-polish L2: UnfinalizedStreamWarning is a UserWarning (not a ResourceWarning) and a plain update() loop without finalize() prints it under Python's default filters",
+      issubclass(N.UnfinalizedStreamWarning, UserWarning) and not issubclass(N.UnfinalizedStreamWarning, ResourceWarning)
+      and _rp_l2.returncode == 0 and _rp_l2.stdout.strip() == "256" and "UnfinalizedStreamWarning" in _rp_l2.stderr
+      and "finalize" in _rp_l2.stderr and "UnfinalizedStreamWarning" in N.RehearsalDecryptor.__doc__)
+
+# I1: workers run the source this process imported (sent over the pipe), never the file on disk
+with _rh_tmp.TemporaryDirectory(prefix="octavo_rp_i1_") as _rp_td:
+    _rp_cp = os.path.join(_rp_td, "sneak_n2.py"); _rp_mark = os.path.join(_rp_td, "PAYLOAD_RAN")
+    _rh_sh.copyfile(os.path.join(HERE, "sneak_n2.py"), _rp_cp)
+    _rp_spec = _rp_iu.spec_from_file_location("sneak_n2_rp_i1", _rp_cp); _rp_M = _rp_iu.module_from_spec(_rp_spec)
+    sys.modules["sneak_n2_rp_i1"] = _rp_M; _rp_spec.loader.exec_module(_rp_M)
+    # after import, the file is replaced: (1) the real module plus an appended payload, then (2) a 6-line fake
+    _rp_orig = open(_rp_cp, "rb").read()
+    open(_rp_cp, "wb").write(_rp_orig + ("\nopen(%r, 'w').write('ran')\n" % _rp_mark).encode())
+    _rp_m3 = os.urandom(5 * 128 + 9)
+    with _rh_fixed(mod=_rp_M):
+        _rp_w1 = _rp_M.encrypt_rehearsal(_rp_m3, SEED, b"i1", 128); _rp_w3 = _rp_M.encrypt_rehearsal(_rp_m3, SEED, b"i1", 128, workers=3)
+    open(_rp_cp, "w").write("import sys\nsys.stdout.buffer.write(b'%s'); sys.stdout.flush()\n"
+                            "while sys.stdin.buffer.read(1 << 16): sys.stdout.buffer.write(bytes(8)); sys.stdout.flush()\n"
+                            % (_rp_M._MODULE_SOURCE_SHA256 + _rp_M._REHEARSAL_SHA256))
+    _rp_dec3 = _rp_try(lambda: _rp_M.decrypt_rehearsal(_rp_w3, SEED, b"i1", workers=3))
+    _rp_it3 = _rp_try(lambda: b"".join(_rp_M.iter_rehearsal(_rp_w3, SEED, b"i1", workers=3, read_size=200)))
+    _rp_M._MODULE_SOURCE_SHA256 = "0" * 64
+    _rp_bad = _rp_try(lambda: _rp_M.encrypt_rehearsal(_rp_m3, SEED, b"i1", 128, workers=2))
+    _rp_ws = N._REHEARSAL_WORKER_SRC
+check("rehearsal-polish I1: workers execute the module source read once at import (sent over the pipe): a file replaced on disk after import (payload appended, or a fake that echoes the digests and returns zeros) is never run; a hello mismatch is refused",
+      _rp_w3 == _rp_w1 and _rp_dec3 == _rp_m3 and _rp_it3 == _rp_m3 and not os.path.exists(_rp_mark)
+      and isinstance(_rp_bad, RuntimeError) and "digest mismatch" in str(_rp_bad)
+      and "spec_from_file_location" not in _rp_ws and "sys.argv" not in _rp_ws and "exec(compile(src" in _rp_ws
+      and N._MODULE_SOURCE == open(os.path.join(HERE, "sneak_n2.py"), "rb").read()
+      and N._MODULE_SOURCE_SHA256 == hashlib.sha256(N._MODULE_SOURCE).hexdigest()
+      and "_MODULE_SOURCE" in N._ATTEST_SKIP and "_MODULE_SOURCE_SHA256" in N._ATTEST_SKIP)
+sys.modules.pop("sneak_n2_rp_i1", None)
+
+# I2: a stuck worker is killed after worker_timeout (default 600 s per frame); bad timeouts are refused
+_rp_enc = N.RehearsalEncryptor(SEED, b"", 128, workers=2, worker_timeout=1.0); _rp_enc.update(os.urandom(256))
+_rp_wp = [p.pid for p in _rp_enc._pool.procs]
+for _p in _rp_wp: os.kill(_p, _rp_sig.SIGSTOP)
+_rp_t0 = _rh_time.monotonic(); _rp_to = _rp_try(lambda: _rp_enc.update(os.urandom(256))); _rp_dt = _rh_time.monotonic() - _rp_t0
+_rh_time.sleep(0.2)
+_rp_dec = N.RehearsalDecryptor(SEED, b"x", workers=2, worker_timeout=1.0)
+_rp_xb = N.encrypt_rehearsal(os.urandom(4 * 128), SEED, b"x", 128)
+_rp_orig_spawn = N._RehearsalWorkers._spawn
+def _rp_stop_spawn(self):
+    p = _rp_orig_spawn(self); os.kill(p.pid, _rp_sig.SIGSTOP); return p
+N._RehearsalWorkers._spawn = _rp_stop_spawn
+try:
+    _rp_to2 = _rp_try(lambda: _rp_dec.update(_rp_xb)); _rp_wp2 = [p.pid for p in (_rp_dec._pool.procs if _rp_dec._pool else [])]
+finally:
+    N._RehearsalWorkers._spawn = _rp_orig_spawn
+check("rehearsal-polish I2: a SIGSTOPped worker no longer blocks forever: after worker_timeout the workers are killed and reaped and RuntimeError is raised (encrypt and decrypt); worker_timeout validates (default 600 s)",
+      isinstance(_rp_to, RuntimeError) and "timed out" in str(_rp_to) and 0.9 <= _rp_dt < 10 and _rf_alive(_rp_wp) == []
+      and isinstance(_rp_to2, RuntimeError) and "timed out" in str(_rp_to2) and _rp_wp2 == []
+      and N.REHEARSAL_WORKER_TIMEOUT == 600.0 and N.RehearsalEncryptor(SEED)._worker_timeout == 600.0
+      and all(isinstance(_rp_try(lambda v=v: N.RehearsalDecryptor(SEED, worker_timeout=v)), ValueError) for v in (0, -1, float("nan"), float("inf")))
+      and all(isinstance(_rp_try(lambda v=v: N.RehearsalEncryptor(SEED, worker_timeout=v)), TypeError) for v in (True, "5"))
+      and N.decrypt_rehearsal(_rp_xb, SEED, b"x", workers=2, worker_timeout=30) == N.decrypt_rehearsal(_rp_xb, SEED, b"x"))
+
+# I7: iter_rehearsal never treats bytes as a path, and says so when a bytes value names an existing file
+_rp_i7p = os.path.join(_rh_tmp.gettempdir(), "octavo_rp_i7_%d.oct" % os.getpid()); open(_rp_i7p, "wb").write(_rp_blob)
+try:
+    _rp_i7 = _rp_try(lambda: list(N.iter_rehearsal(os.fsencode(_rp_i7p), SEED, b"race")))
+    _rp_i7s = b"".join(N.iter_rehearsal(_rp_i7p, SEED, b"race"))
+    _rp_i7j = _rp_try(lambda: list(N.iter_rehearsal(b"not a stream, not a file", SEED)))
+finally:
+    os.unlink(_rp_i7p)
+check("rehearsal-polish I7 (as changed by rehearsal-finale L3): iter_rehearsal(bytes path) is read as ciphertext (UnsupportedVersion, no file probe); str paths and bytes ciphertext still work; other bytes stay ciphertext (UnsupportedVersion)",
+      isinstance(_rp_i7, N.UnsupportedVersion) and "str or os.PathLike" in N.iter_rehearsal.__doc__ and _rp_i7s == _rp_msg
+      and b"".join(N.iter_rehearsal(_rp_blob, SEED, b"race")) == _rp_msg and isinstance(_rp_i7j, N.UnsupportedVersion)
+      and "always CIPHERTEXT" in N.iter_rehearsal.__doc__)
+
+# I8: one-shot memory and the opt-in receiver limit are documented (behaviour unchanged)
+check("rehearsal-polish I8: decrypt_rehearsal / encrypt_rehearsal document one-shot memory (about 4x / 2x) and that max_chunk_size stays opt-in (default None)",
+      "4x the blob" in N.decrypt_rehearsal.__doc__ and "opt-in" in N.decrypt_rehearsal.__doc__ and "2x" in N.encrypt_rehearsal.__doc__
+      and N.RehearsalDecryptor(SEED)._max_cs is None)
+
+# ---- rehearsal-finale: regression tests for the rehearsal-polish attack (attacks_octavo_rehearsalpolish/REPORT.md)
+import traceback as _fn_tb, py_compile as _fn_pyc
+_fn_d = os.path.realpath(_rh_tmp.mkdtemp(prefix="octavo_fn_"))
+_fn_P = lambda *a: os.path.join(_fn_d, *a)
+def _fn_dots(d=None): return sorted(n for n in os.listdir(d or _fn_d) if n.startswith("."))
+def _fn_rd(p): return open(p, "rb").read() if os.path.lexists(p) and not os.path.islink(p) else None
+open(_fn_P("in.oct"), "wb").write(_rp_blob); open(_fn_P("cut.oct"), "wb").write(_rp_cut)
+try:
+    # L1: copy fallback (no hard links): the copy's descriptor stays open through the inode check, so a file created at
+    # dst after an unlink can never get the same inode back; the substitute is refused (RuntimeError) and removed
+    _fn_l1 = {}
+    _fn_chk = N._RehearsalOutput._check
+    def _fn_race_check(self, name, want, created):
+        if self.pub_fds and name == "l1.txt" and not _fn_l1:
+            _fn_l1["open"] = [os.fstat(fd).st_ino for fd in self.pub_fds]
+            os.unlink(_fn_P(name)); open(_fn_P(name), "wb").write(b"ATTACKER CONTENT\n")
+            _fn_l1["new_ino"] = os.lstat(_fn_P(name)).st_ino; _fn_l1["want"] = want.st_ino
+        return _fn_chk(self, name, want, created)
+    N._RehearsalOutput._check = _fn_race_check
+    try:
+        _fn_l1r = _rp_with_link(_rp_raise(_rp_errno.EPERM), lambda: N.decrypt_rehearsal_file(_fn_P("in.oct"), _fn_P("l1.txt"), SEED, b"race"))
+    finally:
+        N._RehearsalOutput._check = _fn_chk
+    _fn_l1ok = _rp_with_link(_rp_raise(_rp_errno.EPERM), lambda: N.decrypt_rehearsal_file(_fn_P("in.oct"), _fn_P("l1ok.txt"), SEED, b"race"), tmpfile=False)
+    check("rehearsal-finale L1: the no-hard-link copy keeps its fd open through the check (inode cannot be recycled): a file swapped in at dst is refused with RuntimeError and removed, never vouched for; the clean fallback still publishes 0600",
+          isinstance(_fn_l1r, RuntimeError) and _fn_l1.get("open") == [_fn_l1["want"]] and _fn_l1["new_ino"] != _fn_l1["want"]
+          and not os.path.lexists(_fn_P("l1.txt")) and _fn_l1ok == len(_rp_msg) and _fn_rd(_fn_P("l1ok.txt")) == _rp_msg
+          and _rf_stat.S_IMODE(os.stat(_fn_P("l1ok.txt")).st_mode) == 0o600 and _fn_dots() == [])
+
+    # I1: overwrite=True race refused -> the OLD dst survives (RENAME_EXCHANGE + exchange back); clean overwrite works on
+    # both the renameat2 path and the os.replace fallback and leaves no .swap file
+    open(_fn_P("old.txt"), "wb").write(b"CALLER'S OLD FILE\n")
+    _fn_r2 = N._rehearsal_renameat2; _fn_i1 = []
+    def _fn_race_x(dirfd, old, new, flags):
+        if not _fn_i1 and flags == N._RENAME_EXCHANGE:
+            open(_fn_P("evil.x"), "wb").write(b"ATTACKER\n"); os.rename(_fn_P("evil.x"), _fn_P(old)); _fn_i1.append(old)
+        return _fn_r2(dirfd, old, new, flags)
+    N._rehearsal_renameat2 = _fn_race_x
+    try:
+        _fn_i1r = _rp_try(lambda: N.decrypt_rehearsal_file(_fn_P("in.oct"), _fn_P("old.txt"), SEED, b"race", overwrite=True))
+    finally:
+        N._rehearsal_renameat2 = _fn_r2
+    _fn_i1a = N.decrypt_rehearsal_file(_fn_P("in.oct"), _fn_P("old.txt"), SEED, b"race", overwrite=True)
+    _fn_i1a_ok = _fn_rd(_fn_P("old.txt")) == _rp_msg and _fn_dots() == []
+    open(_fn_P("old2.txt"), "wb").write(b"old\n"); N._REHEARSAL_USE_RENAMEAT2 = False
+    try:
+        _fn_i1b = N.decrypt_rehearsal_file(_fn_P("in.oct"), _fn_P("old2.txt"), SEED, b"race", overwrite=True)
+    finally:
+        N._REHEARSAL_USE_RENAMEAT2 = True
+    _fn_i1c = N.decrypt_rehearsal_file(_fn_P("in.oct"), _fn_P("fresh.txt"), SEED, b"race", overwrite=True)
+    check("rehearsal-finale I1: an overwrite=True race (rename over the .swap name) raises RuntimeError and the caller's old dst is put back intact (no stray .swap); clean overwrites work with renameat2 and with the os.replace fallback; overwrite=True onto a missing dst links directly",
+          isinstance(_fn_i1r, RuntimeError) and "put back" in str(_fn_i1r) and _fn_i1 and _fn_i1a_ok
+          and _fn_i1a == len(_rp_msg) and _fn_i1b == len(_rp_msg) and _fn_rd(_fn_P("old2.txt")) == _rp_msg
+          and _fn_i1c == len(_rp_msg) and _fn_rd(_fn_P("fresh.txt")) == _rp_msg and _fn_dots() == [])
+    # I2: the crash-at-commit leftover is documented
+    check("rehearsal-finale I2: the .swap leftover after a crash during an overwrite=True commit is documented (helpers, README, SPEC, SECURITY), and 'a crash leaves nothing behind' is qualified as mid-stream",
+          ".swap" in N.decrypt_rehearsal_file.__doc__ and ".swap" in N.encrypt_rehearsal_file.__doc__
+          and all(".swap" in open(os.path.join(HERE, f), encoding="utf-8").read() for f in ("README.md", "SPEC.md", "SECURITY.md"))
+          and all("a crash leaves nothing behind. " not in open(os.path.join(HERE, f), encoding="utf-8").read() for f in ("README.md", "SPEC.md")))
+
+    # I3 a: any link failure on the O_TMPFILE path (here ENOENT/EACCES from /proc) copies instead of losing verified output
+    _fn_i3a = _rp_with_link(_rp_raise(_rp_errno.ENOENT), lambda: N.decrypt_rehearsal_file(_fn_P("in.oct"), _fn_P("i3a.txt"), SEED, b"race"))
+    _fn_i3a2 = _rp_with_link(_rp_raise(_rp_errno.EACCES), lambda: N.decrypt_rehearsal_file(_fn_P("cut.oct"), _fn_P("i3a2.txt"), SEED, b"race", keep_partial=True))
+    _fn_i3a2p = getattr(_fn_i3a2, "partial_path", None)
+    # I3 b: a 250-byte dst name: dst + ".partial" is too long, so the partial is kept under a fresh dot-name
+    _fn_long = "L" * 250
+    _fn_i3b = _rp_try(lambda: N.decrypt_rehearsal_file(_fn_P("cut.oct"), _fn_P(_fn_long), SEED, b"race", keep_partial=True))
+    _fn_i3bp = getattr(_fn_i3b, "partial_path", None)
+    # I3 c: dst created mid-call (overwrite=False) after the whole stream verified: kept as dst.complete, not .partial
+    class _FnSrc:
+        def __init__(self): self.f = open(_fn_P("in.oct"), "rb")
+        def read(self, n):
+            b = self.f.read(n)
+            if not b and not os.path.exists(_fn_P("i3c.txt")): open(_fn_P("i3c.txt"), "wb").write(b"appeared\n")
+            return b
+    _fn_src = _FnSrc()
+    _fn_i3c = _rp_try(lambda: N.decrypt_rehearsal_file(_fn_src, _fn_P("i3c.txt"), SEED, b"race", keep_partial=True)); _fn_src.f.close()
+    _fn_i3cp = getattr(_fn_i3c, "partial_path", None)
+    check("rehearsal-finale I3: a /proc link error on the O_TMPFILE path falls back to a copy (verified output and keep_partial survive); a 250-byte dst keeps its partial under a fresh dot-name; a dst that appeared after full verification keeps the whole plaintext as dst.complete",
+          _fn_i3a == len(_rp_msg) and _fn_rd(_fn_P("i3a.txt")) == _rp_msg
+          and isinstance(_fn_i3a2, N.AuthError) and _fn_i3a2p == _fn_P("i3a2.txt.partial") and _rp_msg.startswith(_fn_rd(_fn_i3a2p) or b"x")
+          and isinstance(_fn_i3b, N.AuthError) and _fn_i3bp is not None and os.path.basename(_fn_i3bp).startswith(".L") and _fn_i3bp.endswith(".partial")
+          and _rp_msg.startswith(_fn_rd(_fn_i3bp) or b"x") and getattr(_fn_i3b, "partial_error", None) is None
+          and isinstance(_fn_i3c, FileExistsError) and _fn_i3cp == _fn_P("i3c.txt.complete") and _fn_rd(_fn_i3cp) == _rp_msg
+          and _fn_rd(_fn_P("i3c.txt")) == b"appeared\n")
+    for _n in _fn_dots(): os.unlink(_fn_P(_n))
+
+    # I4: parent-symlink swap between the path check and the dirfd open: the dirfd re-check refuses src == dst
+    os.mkdir(_fn_P("real")); os.mkdir(_fn_P("other")); open(_fn_P("real", "x.oct"), "wb").write(_rp_blob)
+    os.symlink(_fn_P("other"), _fn_P("L"))
+    _fn_rs = N._rehearsal_refuse_same
+    def _fn_swap_after_check(*a):
+        r = _fn_rs(*a); os.unlink(_fn_P("L")); os.symlink(_fn_P("real"), _fn_P("L")); return r
+    N._rehearsal_refuse_same = _fn_swap_after_check
+    try:
+        _fn_i4 = _rp_try(lambda: N.decrypt_rehearsal_file(_fn_P("real", "x.oct"), _fn_P("L", "x.oct"), SEED, b"race", overwrite=True))
+    finally:
+        N._rehearsal_refuse_same = _fn_rs
+    check("rehearsal-finale I4: a parent-symlink swap after the path check no longer lets overwrite=True replace the ciphertext source with its own plaintext (ValueError; source intact, nothing left behind)",
+          isinstance(_fn_i4, ValueError) and "same file" in str(_fn_i4) and _fn_rd(_fn_P("real", "x.oct")) == _rp_blob
+          and _fn_dots(_fn_P("real")) == [] and os.listdir(_fn_P("other")) == [])
+finally:
+    _rh_sh.rmtree(_fn_d, ignore_errors=True)
+
+# L2: -W error no longer swallows the warning; every dropped decryptor warns (not once per call site)
+_fn_l2code = ("import sys, gc; sys.path.insert(0, %r); import sneak_n2 as N\n"
+              "s = N.load_seed(); b = N.encrypt_rehearsal(b'x' * 600, s, b'', 128)\n"
+              "for i in range(5):\n    d = N.RehearsalDecryptor(s); d.update(b[:72 + 3 * 160]); del d; gc.collect()\n"
+              "print('done')" % HERE)
+_fn_l2e = subprocess.run([sys.executable, "-B", "-W", "error", "-c", _fn_l2code], capture_output=True, text=True, timeout=120)
+_fn_l2d = subprocess.run([sys.executable, "-B", "-c", _fn_l2code], capture_output=True, text=True, timeout=120)
+_fn_l2i = subprocess.run([sys.executable, "-B", "-W", "ignore", "-c", _fn_l2code], capture_output=True, text=True, timeout=120)
+check("rehearsal-finale L2: under -W error the UnfinalizedStreamWarning is reported through sys.unraisablehook (not swallowed); under default filters 5 dropped decryptors give 5 warnings; -W ignore still silences it",
+      _fn_l2e.returncode == 0 and _fn_l2e.stdout.strip() == "done" and _fn_l2e.stderr.count("UnfinalizedStreamWarning") >= 5
+      and "Exception ignored" in _fn_l2e.stderr
+      and _fn_l2d.returncode == 0 and _fn_l2d.stderr.count("UnfinalizedStreamWarning:") == 5
+      and _fn_l2i.returncode == 0 and "UnfinalizedStreamWarning" not in _fn_l2i.stderr
+      and "unraisablehook" in N.RehearsalDecryptor.__doc__)
+
+# L3: iter_rehearsal(bytes) never consults the filesystem: existing and missing "paths" give the same error type
+_fn_ex = _rp_try(lambda: list(N.iter_rehearsal(os.fsencode(os.path.join(HERE, "sneak_n2.py")), SEED)))
+_fn_mi = _rp_try(lambda: list(N.iter_rehearsal(os.fsencode(os.path.join(HERE, "no-such-file-%d" % os.getpid())), SEED)))
+_fn_root = _rp_try(lambda: list(N.iter_rehearsal(b"/root", SEED)))
+check("rehearsal-finale L3: iter_rehearsal treats every bytes src as ciphertext (no os.path.exists probe): an existing path, /root and a missing path all raise UnsupportedVersion",
+      all(type(e) is N.UnsupportedVersion for e in (_fn_ex, _fn_mi, _fn_root))
+      and "os.path.exists" not in inspect.getsource(N.iter_rehearsal) and "never consulted" in N.iter_rehearsal.__doc__)
+
+# I5: a .pyc compiled from a same-size modified source (honest .py restored with the same mtime) is refused at import
+with _rh_tmp.TemporaryDirectory(prefix="octavo_fn_i5_") as _fn_td:
+    for _f in ("sneak_n2.py", "sneak1024-seed.txt"):
+        _rh_sh.copyfile(os.path.join(HERE, _f), os.path.join(_fn_td, _f))
+    _fn_py = os.path.join(_fn_td, "sneak_n2.py"); _fn_honest = open(_fn_py, "rb").read()
+    _fn_evil = _fn_honest.replace(b"ok = (x != 0) & ((tz & 7) == 7)", b"ok = (x != 0) | ((tz & 7) == 7)")
+    _fn_imp = [sys.executable, "-c", "import sys; sys.path.insert(0, %r); import sneak_n2 as N; print(N.REVISION)" % _fn_td]
+    _fn_good = subprocess.run(_fn_imp, capture_output=True, text=True, timeout=120)          # writes an honest .pyc
+    _fn_good2 = subprocess.run(_fn_imp, capture_output=True, text=True, timeout=120)         # imports from that .pyc
+    open(_fn_py, "wb").write(_fn_evil); os.utime(_fn_py, ns=(10**18, 10**18))
+    _fn_pyc.compile(_fn_py, cfile=_rp_iu.cache_from_source(_fn_py), doraise=True)
+    open(_fn_py, "wb").write(_fn_honest); os.utime(_fn_py, ns=(10**18, 10**18))
+    _fn_bad = subprocess.run(_fn_imp, capture_output=True, text=True, timeout=120)
+check("rehearsal-finale I5: the module verifies that the bytecode it executed was compiled from _MODULE_SOURCE: an honest .pyc imports, a .pyc built from a same-size modified source (unpad accepting zero blocks) with the honest .py restored at the same mtime fails the import",
+      len(_fn_evil) == len(_fn_honest) and _fn_evil != _fn_honest
+      and _fn_good.returncode == 0 and _fn_good2.returncode == 0 and _fn_good2.stdout.strip() == N.REVISION
+      and _fn_bad.returncode != 0 and "executed bytecode for _rehearsal_unpad does not match" in _fn_bad.stderr)
+
+# I6: workers start as python -I -B -S with an empty environment; the parent spot-checks one block per batch
+_fn_popen = N.subprocess.Popen; _fn_calls = []
+def _fn_rec_popen(args, **kw):
+    _fn_calls.append((list(args), kw.get("env"))); return _fn_popen(args, **kw)
+N.subprocess.Popen = _fn_rec_popen
+try:
+    _fn_m6 = os.urandom(7 * 256 + 5); _fn_b6 = N.encrypt_rehearsal(_fn_m6, SEED, b"w", 256, workers=3)
+finally:
+    N.subprocess.Popen = _fn_popen
+_fn_recv = N._RehearsalWorkers._recv
+def _fn_lying_recv(self, p, n, deadline):
+    b = _fn_recv(self, p, n, deadline)
+    return bytes(x ^ 1 for x in b) if n > 128 else b   # chunk bodies (256 B), not the 128-byte hello
+N._RehearsalWorkers._recv = _fn_lying_recv
+try:
+    _fn_lie = _rp_try(lambda: N.decrypt_rehearsal(_fn_b6, SEED, b"w", workers=3))
+    _fn_lie2 = _rp_try(lambda: N.encrypt_rehearsal(_fn_m6, SEED, b"w", 256, workers=3))
+finally:
+    N._RehearsalWorkers._recv = _fn_recv
+check("rehearsal-finale I6: workers are started as python -I -B -S -c with an empty environment (no site/.pth, no LD_PRELOAD); a worker returning wrong blocks is caught by the parent's per-batch spot check (RuntimeError) on decrypt and encrypt; honest workers round-trip",
+      _fn_calls and all(a[1:5] == ["-I", "-B", "-S", "-c"] and e == {} for a, e in _fn_calls)
+      and N.decrypt_rehearsal(_fn_b6, SEED, b"w", workers=3) == _fn_m6
+      and isinstance(_fn_lie, RuntimeError) and "spot check" in str(_fn_lie)
+      and isinstance(_fn_lie2, RuntimeError) and "spot check" in str(_fn_lie2))
+
+# I7: read_size is validated (int, not bool, >= 1) on every helper that takes it
+_fn_rs_cases = [(0, ValueError), (-1, ValueError), (True, TypeError), (1.5, TypeError), ("8", TypeError)]
+_fn_i7 = all(isinstance(_rp_try(lambda v=v: N.decrypt_rehearsal_file(_rp_io.BytesIO(_rp_blob), _rp_io.BytesIO(), SEED, b"race", read_size=v)), t)
+             and isinstance(_rp_try(lambda v=v: list(N.iter_rehearsal(_rp_blob, SEED, b"race", read_size=v))), t)
+             and isinstance(_rp_try(lambda v=v: N.encrypt_rehearsal_file(_rp_io.BytesIO(b"x"), _rp_io.BytesIO(), SEED, read_size=v)), t)
+             for v, t in _fn_rs_cases)
+check("rehearsal-finale I7: read_size 0/-1 raise ValueError and True/1.5/'8' raise TypeError in decrypt_rehearsal_file, iter_rehearsal and encrypt_rehearsal_file; read_size=1 and encrypt's None default still work",
+      _fn_i7 and b"".join(N.iter_rehearsal(_rp_blob, SEED, b"race", read_size=1)) == _rp_msg
+      and N.encrypt_rehearsal_file(_rp_io.BytesIO(b"abc"), _rp_io.BytesIO(), SEED, read_size=None) > 0)
+
+# I8: an insider stream whose tags verify but whose final padding is bad leaves no decrypted chunk in the traceback frames
+_fn_pad = N._rehearsal_pad
+N._rehearsal_pad = lambda m: bytes(N.BLOCK_LEN * ((len(m) + N.BLOCK_LEN) // N.BLOCK_LEN))
+try:
+    _fn_bp = N.encrypt_rehearsal(b"S" * 300, SEED, b"pad", 128)
+finally:
+    N._rehearsal_pad = _fn_pad
+def _fn_leaks(exc):
+    found = []
+    for fr, _ in _fn_tb.walk_tb(exc.__traceback__):
+        for k, v in fr.f_locals.items():
+            if isinstance(v, list) and any(isinstance(x, bytes) and b"S" * 64 in x for x in v): found.append(k)
+            if isinstance(v, (bytes, bytearray)) and b"S" * 64 in v: found.append(k)
+            if k in ("padded", "msg", "last") and v: found.append(k)
+    return found
+_fn_e1 = _rp_try(lambda: N.decrypt_rehearsal(_fn_bp, SEED, b"pad"))
+_fn_dd = N.RehearsalDecryptor(SEED, b"pad"); _fn_pre = _fn_dd.update(_fn_bp)
+_fn_e2 = _rp_try(_fn_dd.finalize)
+check("rehearsal-finale I8: bad final padding on a fully tag-verified stream raises AuthError with no decrypted plaintext left in any traceback frame (one-shot pts cleared, streaming padded/msg dropped)",
+      isinstance(_fn_e1, N.AuthError) and _fn_leaks(_fn_e1) == [] and isinstance(_fn_e2, N.AuthError) and _fn_leaks(_fn_e2) == []
+      and _fn_pre == b"S" * 256)
+
+# identifiers: the mix digest and key_sig are untouched by the polish; v8 ciphertext blocks are unchanged (only tags move)
+check("rehearsal-polish / rehearsal-finale: EXPECTED_MIX_SHA256 and key_sig are unchanged (fe939969… / 340dc1e0…); v6/v7 untouched",
+      N.EXPECTED_MIX_SHA256 == "fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6"
+      and N.key_signature(SEED).hex() == "340dc1e062502bb13462a94ba490c3dc")
+
 # published score: regenerate in memory and compare to score/vectors.json
 import json as _json_score
 import score.generate_score as _gen_score
 _score_path = os.path.join(HERE, "score", "vectors.json")
 _committed = _json_score.load(open(_score_path))
 _fresh = _gen_score.build_vectors()
-check("published score regenerates identically (64 vectors: 16 permute, 24 aead, 24 movements)",
-      _fresh == _committed and _committed["counts"] == {"block_cipher": 16, "aead": 24, "movements": 24, "total": 64}
-      and _committed["revision"] == "conductor-polish" and _committed.get("score_version") == 3
+check("published score regenerates identically (72 vectors: 16 permute, 24 aead, 24 movements, 8 rehearsal)",
+      _fresh == _committed and _committed["counts"] == {"block_cipher": 16, "aead": 24, "movements": 24, "rehearsal": 8, "total": 72}
+      and _committed["revision"] == "rehearsal-finale" and _committed.get("score_version") == 7
       and _committed["format"]["etude_fmt_block"] == {"2": 0x82, "4": 0x84, "6": 0x86, "16": 0x90}
       and _committed["EXPECTED_MIX_SHA256"] == N.EXPECTED_MIX_SHA256
       and _committed["key_sig"] == N.key_signature(SEED).hex()
-      and _committed["sneak_n2_sha256"] == hashlib.sha256(open(os.path.join(HERE, "sneak_n2.py"), "rb").read()).hexdigest())
+      and _committed["sneak_n2_sha256"] == hashlib.sha256(open(os.path.join(HERE, "sneak_n2.py"), "rb").read()).hexdigest()
+      and _committed["EXPECTED_REHEARSAL_SHA256"] == N.EXPECTED_REHEARSAL_SHA256
+      and _committed["rehearsal_sig"] == N.rehearsal_signature(SEED).hex())
+_rh_vec_ok = []
+for _v in _committed["rehearsal"]:
+    _b = bytes.fromhex(_v["blob"]) if "blob" in _v else None
+    if _b is None:
+        _b = _gen_score.rehearsal_blob(_v["id"])
+    _pt = N.decrypt_rehearsal(_b, SEED, bytes.fromhex(_v["ad"]))
+    _rh_vec_ok.append(hashlib.sha256(_b).hexdigest() == _v["blob_sha256"] and len(_b) == _v["blob_len"]
+                      and hashlib.sha256(_pt).hexdigest() == _v["msg_sha256"] and len(_pt) == _v["msg_len"]
+                      and _b[0] == 8 and int.from_bytes(_b[68:72], "big") == _v["chunk_size"])
+check("every published rehearsal vector (live v8, demo seed) decrypts to its recorded plaintext hash and length",
+      all(_rh_vec_ok) and len(_rh_vec_ok) == 8)
 
 # ---- picture header stays in sync with the live module and hello-world sample
 # render_n2.py writes sneak-staff-n2.json beside the PNG with the file SHA, key_sig,

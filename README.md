@@ -1,6 +1,420 @@
-<p align="center"><img src="logo.png" alt="Octavo logo" width="160"></p>
+<p align="center"><img src="sneak-staff-n2.png" alt="Octavo dual-octahedra picture" width="720"></p>
+<p align="center"><img src="logo.png" alt="Octavo logo" width="120"></p>
 
-## Current live revision — conductor-polish (2026-11-11)
+## Current live revision — rehearsal-finale (2026-11-11, frozen as octavo011)
+
+Rehearsal-finale applies the fixes suggested by the third rehearsal attack
+(`attacks_octavo_rehearsalpolish/REPORT.md`: 0 High, 0 Medium, 3 Low, 9 Info,
+no cryptographic break of v8). As in rehearsal-polish, every change is in the
+file helpers, the worker plumbing and the streaming API. **v6 and v7 are
+byte-identical to octavo010**, `EXPECTED_MIX_SHA256` and `key_sig` did not
+move, and **v8 headers and ciphertext blocks are byte-identical to
+rehearsal-polish** for the same pickup and nonce. Only the v8 chunk **tags**
+changed, again because the rehearsal digest attests all v8 API code, so
+rehearsal-polish v8 streams do not open here (v8 was never published). Still
+N2 / SN2 (project name: Octavo), still homemade, **not for real secrets**
+(use AES-GCM-SIV, age or libsodium). These fixes have not been attacked
+again. The picture was re-rendered.
+
+- **L1, copy fallback.** When hard links are unavailable, the copy's
+  descriptor now stays **open** through the inode check and until the helper
+  returns, so its inode number cannot be freed and handed to a file someone
+  creates at dst in the gap. A substitute is refused (`RuntimeError`) and
+  removed.
+- **L2, the warning is no longer lost.** `UnfinalizedStreamWarning` is raised
+  outside the destructor's own `try/except`, so under `-W error` it reaches
+  `sys.unraisablehook` ("Exception ignored in … UnfinalizedStreamWarning" on
+  stderr) instead of vanishing. A destructor still cannot fail the program
+  (exit code unchanged). An `always` filter for this category is appended at
+  import, so **every** dropped decryptor warns, not once per call site; your
+  own `-W` / `PYTHONWARNINGS` / `simplefilter` settings come first and still
+  win (`-W ignore` silences it).
+- **L3, no file probe.** `iter_rehearsal` never consults the filesystem for a
+  `bytes` src: bytes are always ciphertext, and a non-stream gets the same
+  `UnsupportedVersion` whether or not it names a file (the rehearsal-polish
+  `TypeError` guard is gone).
+- **I1/I2, overwrite.** `overwrite=True` onto a missing dst now links
+  directly (no hidden name). Onto an existing dst it links to a fresh
+  `.swap` name and swaps it with dst atomically (Linux `renameat2`
+  `RENAME_EXCHANGE`, via ctypes). If dst is then not this call's file, it
+  swaps back, so **a refused race keeps the caller's old dst**. Without
+  `renameat2` (other OS, old libc, unsupported filesystem) it falls back to
+  `os.replace` plus the check, where a refused race can still cost the old dst.
+  **A crash during an `overwrite=True` commit can leave a 0600
+  `.<dst>.XXXXXXXX.swap` file** holding the new plaintext or the old dst. With
+  `O_TMPFILE`, a crash *mid-stream* leaves nothing. Clean up stale `.*.swap`,
+  `.*.tmp` and `.*.partial` dot-files after a crash.
+- **I3, no silent loss.** On the `O_TMPFILE` path, any `/proc` link failure
+  (ENOENT, EACCES: odd `/proc`, hidepid, sandboxes) falls back to the copy,
+  because the verified bytes are still in the descriptor. `keep_partial` falls
+  back to a fresh dot-name on **any** error for `dst.partial` (taken,
+  ENAMETOOLONG for a 248+ byte dst, a refused race). If keeping still fails,
+  the reason is on the exception as `partial_error`. If the whole stream
+  verified but publishing failed (dst appeared with `overwrite=False`), the
+  kept file is `dst.complete`, not `dst.partial`.
+- **I4, same file.** The same-file check is repeated relative to the opened
+  directory fd, and again just before publishing, so a parent-symlink swap
+  can no longer make `overwrite=True` replace the ciphertext source with its
+  own plaintext (`ValueError`).
+- **I5, executed bytecode.** At import the module compiles `_MODULE_SOURCE`
+  and requires every function and method it defined to have exactly that
+  code object. A `.pyc` built from different source (same size and mtime) or
+  a `.py` swapped between Python's read and the snapshot makes the import fail
+  (`RuntimeError`, "executed bytecode … does not match"). Module-level
+  statements are not compared; the data the digests name is hashed from live
+  values.
+- **I6, workers.** Workers start as `python -I -B -S -c …` with an **empty
+  environment** (no `site`, so no `.pth` files; no `LD_PRELOAD`,
+  `LD_LIBRARY_PATH` or locale variables; on Windows only `SYSTEMROOT`). The
+  parent spot-checks **one random block per batch** against its own
+  computation and kills the workers on a mismatch (`RuntimeError`). That is a
+  spot check, not a proof: workers stay in the trusted base, together with
+  `sys.executable`, the interpreter and the stdlib.
+- **I7, `read_size`.** Must be an `int` (not `bool`) ≥ 1 on
+  `decrypt_rehearsal_file`, `iter_rehearsal` and `encrypt_rehearsal_file`
+  (`None` keeps encrypt's default): 0 or −1 raise `ValueError`, `True`,
+  `1.5` or `"8"` raise `TypeError`.
+- **I8, rejects keep nothing.** On a bad final padding (only a seed holder can
+  build such a stream) the decrypted chunk list is cleared, and the streaming
+  `padded`/`msg` dropped, before `AuthError` is raised, so no plaintext is
+  reachable from the traceback.
+- **Not fixed, on purpose: `load_seed()`'s unclosed file handle** (it is
+  mix-attested; touching it would move `EXPECTED_MIX_SHA256`, `key_sig` and
+  every v6/v7 blob). I9 needed nothing; `workers` still raises `ValueError`
+  for a bad type.
+
+- Live `sneak_n2.py` SHA-256: `929bacc1bef5ebd6dee7df817aba6061ca58e871d4a18992d33fc0bc107b772f`.
+- `EXPECTED_MIX_SHA256`: `fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6` (unchanged).
+- key_sig (demo seed): `340dc1e062502bb13462a94ba490c3dc` (unchanged).
+- `EXPECTED_REHEARSAL_SHA256`: `f28badba6dcd70e80f2524d9adb00bc177374d609a0555453256fa10451804a4` (was `dd02f707…`).
+- rehearsal_sig (demo seed): `a3b4c820528562ac17a74eb414a389a3` (was `1f8097d2…`).
+- hello-world and movements-demo blobs: unchanged from octavo010.
+- `rehearsal-demo.txt`: re-sealed with the **same** pickup and nonce as the
+  rehearsal-polish sample; header and both ciphertext chunks identical, only
+  the two tags differ.
+- Score: `score/vectors.json`, score version 7, 72 vectors. The 64 étude
+  vectors are unchanged; the 8 rehearsal vectors were regenerated and only
+  their tags differ from score version 6
+  (`rehearsalfinale_verification/v8_compare.txt`: 8/8).
+- Tests: 459/459 passed (live, 21:46–21:55 ET, `rehearsalfinale_verification/test_run_live.txt`; and inside the frozen octavo011) (`python3 test_sneak_n2.py`, about 10 minutes). The new
+  checks turn the rehearsal-polish attack's witnesses into regression tests.
+- Witness rerun: `/workspace/rehearsalfinale_witness_rerun/` (`SUMMARY.txt`):
+  L1–L3, I3–I8 and I1 on the `renameat2` path no longer reproduce; I1 on the
+  `os.replace` fallback and the I2 `.swap` leftover remain (documented), as
+  does the deliberate `load_seed` handle. v8 core, timing and v6/v7
+  regression checks all hold.
+
+---
+
+## Previous revision — rehearsal-polish (2026-11-11, not frozen; attacked in `attacks_octavo_rehearsalpolish/`)
+
+Rehearsal-polish applies the fixes suggested by the second rehearsal attack
+(`attacks_octavo_rehearsalfix/REPORT.md`: 0 High, 0 Medium, 2 Low, 9 Info, no
+cryptographic break of v8). Every change is in the file helpers, the worker
+plumbing and the streaming API. The cipher and the v8 format are untouched:
+**v6 and v7 are byte-identical to octavo010**, `EXPECTED_MIX_SHA256` and
+`key_sig` did not move, and **v8 headers and ciphertext blocks are
+byte-identical to rehearsal-fix** for the same pickup and nonce. Only the v8
+chunk **tags** changed. That is because the rehearsal digest attests the
+source of *all* v8 API code (file helpers and workers included, by design),
+so editing that code moved `EXPECTED_REHEARSAL_SHA256` and therefore
+`rehearsal_sig`, which every chunk tag binds. Rehearsal-fix v8 streams
+therefore do not open here, and the other way round. v8 was never published.
+Still N2 / SN2 (project name: Octavo), still homemade, **not for real
+secrets** (use AES-GCM-SIV, age or libsodium). These fixes have not been
+attacked again at the time; `attacks_octavo_rehearsalpolish/` later found
+3 Low and 9 Info (no cryptographic break), fixed in rehearsal-finale above.
+
+**Read streams with `iter_rehearsal`.** It always runs `finalize()`. A bare
+`RehearsalDecryptor.update()` loop is the one API that can hand you a
+verified prefix of a cut stream without an exception.
+
+- **L1, commit race.** dst's directory is opened once (a directory fd), from
+  an absolute path fixed when the call starts. Every create, link, rename,
+  stat and unlink is relative to that fd. Output goes to an **anonymous
+  `O_TMPFILE`** in dst's directory (0600). It has no name anyone can swap, and
+  a crash mid-stream leaves nothing behind (rehearsal-finale I2: a crash
+  during an `overwrite=True` commit can leave a `.swap` file). It is published with
+  `linkat(/proc/self/fd/N → dst)`. Where `O_TMPFILE` is unavailable, the
+  helpers use a unique dot-name created `O_CREAT | O_EXCL | O_NOFOLLOW`, linked
+  with `follow_symlinks=False`. After publishing, dst must be the very inode
+  this call wrote (checked with `lstat` against the open descriptor). If it is
+  not, the name this call created is removed and `RuntimeError` is raised, so
+  the helper never vouches for someone else's file and never hard-links dst to
+  a symlink's target. `overwrite=True` links to a fresh name, renames it over
+  dst and checks again. `keep_partial` goes through the same publish-and-check
+  path. dst's directory should still not be writable by others (or should be
+  sticky): such a user can replace dst after the call returns.
+- **L2, plain-loop footgun.** A decryptor dropped after it received data but
+  before `finalize()` now emits `UnfinalizedStreamWarning`, a `UserWarning`
+  that Python's default filters **show**. It replaces the hidden
+  `ResourceWarning`. (Corrected in rehearsal-finale L2: under `-W error` this
+  revision swallowed it completely; it now reaches `sys.unraisablehook`.) It
+  arrives only when the object is collected. So the plain
+  loop still returns a verified prefix by design. It is documented, warned
+  about, and `iter_rehearsal` leads the docs.
+- **I1, worker trust.** The module source is read **once at import**
+  (`_MODULE_SOURCE`) and primed into `linecache`, so both attestations hash
+  those exact bytes. Workers no longer read `sneak_n2.py` from disk: the
+  parent sends that source over the pipe, and the worker executes it under a
+  private name. The worker answers `sha256(received source) || rehearsal
+  digest`, and the parent refuses a mismatch. That hello is now only a
+  pipe/version sanity check. A file replaced on disk after import (appended
+  payload, or a fake that echoes the digest) is never run. Workers are still
+  part of the trusted base (SECURITY.md).
+- **I2, worker timeout.** Every frame to and from a worker has a deadline:
+  `worker_timeout` seconds, default `REHEARSAL_WORKER_TIMEOUT = 600` per hello
+  or per chunk; a 1 MiB chunk takes about a minute here. The new keyword is
+  on every rehearsal API. A worker that misses its deadline is SIGKILLed and
+  reaped, and the call raises `RuntimeError`. A worker failure still leaves
+  the decryptor dead, as a reject does; that is documented.
+- **I3, no-hard-link fallback.** Only `EPERM`, `EOPNOTSUPP`/`ENOTSUP`,
+  `ENOSYS`, `EXDEV` and `EMLINK` count as "no hard links here". Any other link
+  error (`EIO`, `ENOSPC`, `EACCES`, …) is raised. The fallback creates dst with
+  `O_CREAT | O_EXCL | O_NOFOLLOW` and copies the bytes in. It never clobbers a
+  file created in the gap; check-then-`os.replace` is gone.
+- **I4, paths.** src and dst paths are made absolute when the call starts
+  (without normalising `..`). Thanks to the directory fd, a `chdir` or a
+  swapped parent symlink during the call no longer moves the output or
+  leaves an orphaned temp file. With `O_TMPFILE`, a SIGKILL leaves nothing.
+  The named-temp fallback can still leave a 0600 dot-file.
+- **I5, long names.** The temp prefix is cut to 100 **bytes** at a whole UTF-8
+  character, so 240-byte CJK or emoji names work.
+- **I6, helper loose ends.** `overwrite`, `keep_partial` and
+  `stream_verified_prefix` must be real `bool`s (`overwrite="no"` now raises
+  `TypeError`). A kept partial is fsync'd, then its directory. A reject before
+  any chunk verified keeps no empty partial. It is documented that
+  `keep_partial` does nothing for a file-object dst, and that the file-object
+  spool lives in `$TMPDIR`.
+- **I7, `iter_rehearsal(bytes)`.** bytes are always ciphertext. A bytes value
+  that cannot be a stream but names an existing file raises `TypeError` (removed
+  in rehearsal-finale L3: that check was a file-existence oracle)
+  ("pass the path as str or os.PathLike") instead of a confusing
+  `UnsupportedVersion`.
+- **I8, one-shot memory.** Documented: about 4× the blob at peak for a
+  genuine `decrypt_rehearsal` (5× at chunk size 128) and about 2× for
+  `encrypt_rehearsal`. `max_chunk_size` stays opt-in (default `None`).
+- **Not fixed, on purpose: `load_seed()`'s unclosed file handle.**
+  `load_seed` is in `MIX_CODE_FUNCS`, so touching its source would move
+  `EXPECTED_MIX_SHA256`, `key_sig` and every v6/v7 blob. It stays as is (a
+  `ResourceWarning` only under `-W error` / `-X dev`).
+
+- Live `sneak_n2.py` SHA-256: `7ea3dd843b19b6712a00c535d6232da449972737ea54752217a913d8265c111f`.
+- `EXPECTED_MIX_SHA256`: `fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6` (unchanged).
+- key_sig (demo seed): `340dc1e062502bb13462a94ba490c3dc` (unchanged).
+- `EXPECTED_REHEARSAL_SHA256`: `dd02f7078f46f48c14ac6ca09243a72a56c7d378f476d4ec312c960c145f1a50` (was `584758f7…`).
+- rehearsal_sig (demo seed): `1f8097d2d6554347d28b15b412641fcd` (was `4ed3c0f3…`).
+- hello-world and movements-demo blobs: unchanged from octavo010.
+- `rehearsal-demo.txt`: re-sealed with the **same** pickup and nonce as the
+  rehearsal-fix sample. The header and both ciphertext chunks are identical;
+  only the two tags differ.
+- Score: `score/vectors.json`, score version 6, 72 vectors. The 64 étude
+  vectors are unchanged. The 8 rehearsal vectors were regenerated, and only
+  their tags differ from score version 5
+  (`rehearsalpolish_verification/v8_compare.txt`: 8/8).
+- Tests: 448/448 passed (live and a fresh copy; `python3 test_sneak_n2.py`, about 10 minutes). The new
+  checks turn the rehearsal-fix attack's witnesses into regression tests.
+- Witness rerun: `/workspace/rehearsalpolish_witness_rerun/` (L1, L2, I1–I8
+  no longer reproduce).
+
+```python
+import sneak_n2 as N
+for piece in N.iter_rehearsal("msg.oct", seed, ad=b"label", max_chunk_size=65536):
+    sink.write(piece)          # verified; the stream is complete only when the loop ends
+N.encrypt_rehearsal_file("in.bin", "out.oct", seed, workers=8, worker_timeout=120)  # FileExistsError if out.oct exists
+N.decrypt_rehearsal_file("out.oct", "back.bin", seed, workers=8, overwrite=True)
+```
+
+---
+
+## Previous revision — rehearsal-fix (2026-11-11, not frozen; attacked in `attacks_octavo_rehearsalfix/`)
+
+Rehearsal-fix applies the fixes from the rehearsal attack
+(`attacks_octavo_rehearsal/REPORT.md`: 0 High, 1 Medium, 3 Low, 6 Info, no
+cryptographic break of v8). Most of them are in the file helpers and the
+streaming API, not the cipher. The one format change is I1: the AD digest
+now enters the per-chunk keys, tweaks and schedule nonce, so **every v8
+ciphertext changed**. v8 was never published, so there is no legacy v8 path.
+The round function is unchanged, **v6 and v7 are byte-identical to
+octavo010**, and `EXPECTED_MIX_SHA256` and `key_sig` did not move. Still
+N2 / SN2 (project name: Octavo), still homemade, **not for real secrets**
+(use AES-GCM-SIV, age or libsodium). These fixes were attacked in
+`attacks_octavo_rehearsalfix/` (2 Low, 9 Info, no cryptographic break);
+rehearsal-polish applies that attack's fixes.
+The picture was re-rendered.
+
+- **M1 / L1, file helpers.** `encrypt_rehearsal_file` and
+  `decrypt_rehearsal_file` no longer open the fixed names `dst.tmp` /
+  `dst.partial`. Output to a dst path goes through a private temporary file
+  made by `tempfile.mkstemp` in dst's own directory (`O_CREAT | O_EXCL |
+  O_NOFOLLOW`, unique random dot-name, mode 0600). Only the temporary file the
+  call itself created is ever removed, and only after checking that it is
+  still the same inode. A symlink planted at the old names is never written
+  through or removed. A symlink at dst is never followed. When src and dst are
+  one file (same realpath, or the same `(st_dev, st_ino)` through a symlink,
+  hard link or shared descriptor), the call raises `ValueError` before it
+  writes anything. So `encrypt_rehearsal_file("report.tmp", "report")` and
+  `decrypt_rehearsal_file("h.partial", "h")` now work and destroy nothing.
+- **L2, file modes and durability.** Output is created 0600 whatever the
+  source mode or umask. The file is fsync'd before it is moved into place, and
+  the directory after. A new `overwrite=False` default makes an existing dst
+  (including a symlink or a dangling symlink) raise `FileExistsError`; the
+  no-clobber move uses `os.link`, which is atomic. With `overwrite=True`, dst
+  is replaced with `os.replace`, and a symlink at dst is replaced, not
+  followed. A directory dst is refused before any work. With
+  `keep_partial=True`, the verified prefix is kept as `dst.partial` when that
+  name is free (it is linked, never clobbered), otherwise under the call's own
+  temporary name. Either way the path is set as `exc.partial_path`.
+- **L3, the forgot-`finalize()` footgun.** The new `iter_rehearsal(src, seed,
+  ad)` is a generator that always runs `finalize()`, so a stream cut anywhere
+  (including exactly at a chunk boundary) raises `AuthError` from the loop.
+  It takes a path, a file object, bytes, or an iterable of pieces. Leaving a
+  `with RehearsalDecryptor(...)` block normally after data arrived but before
+  `finalize()` raises `AuthError("stream not finalized")`. A decryptor that is
+  garbage-collected in that state emits a `ResourceWarning`. `close()`
+  abandons a stream on purpose. A file-object dst for `decrypt_rehearsal_file`
+  is now buffered in an anonymous 0600 temporary file and receives nothing
+  until the whole stream verifies; `stream_verified_prefix=True` restores the
+  old write-as-you-go behaviour.
+- **I3, one-shot verifies everything first.** `decrypt_rehearsal()` checks
+  every chunk tag, the final chunk's included, before it decrypts any block. A
+  forged final chunk after valid chunks now costs only HMACs (about 0.05 ms
+  for a 9-chunk stream, against about 85 ms before). The streaming
+  decryptor still finds a forged final chunk only at the end, because it keeps
+  memory bounded.
+- **I1, AD in the chunk keys.** `ad_digest = SHA-256(SN2/A || encode_ad(ad))`
+  is appended to both R-sponge inputs:
+  `sched || pickup || nonce || chunk_size32 || ad_digest` and
+  `chunk || pickup || nonce || chunk_size32 || index64 || final8 || ad_digest`.
+  So the same pickup and nonce under two ADs now give unrelated blocks. Nonce
+  reuse under the same AD is still not misuse-resistant (see SECURITY.md).
+- **I2, workers.** `workers` is capped at `min(32, os.cpu_count())`, and
+  workers start lazily, at most one per chunk in the batch. A worker is a
+  fresh interpreter (`python -I -B -c …`, started with `subprocess`), never a
+  fork. It loads the same `sneak_n2.py`, must report the same rehearsal
+  digest, and receives only the stream's `Schedule` round material and
+  tweak-masked blocks. It never gets the seed, the AD, a MAC key, a tweak or
+  plaintext. `multiprocessing` spawn and forkserver were not used, because
+  they re-run the caller's unguarded `__main__` in every worker. Workers exit
+  when the stream finalizes, is rejected or closed, or is garbage-collected.
+- **I4, receiver limit.** `RehearsalDecryptor`, `decrypt_rehearsal`,
+  `iter_rehearsal` and `decrypt_rehearsal_file` take an optional
+  `max_chunk_size`. A header that declares a larger chunk size is rejected at
+  the header (`AuthError("chunk size above max_chunk_size")`), before anything
+  is buffered.
+- **I5 / I6:** nothing required; unchanged.
+
+- Live `sneak_n2.py` SHA-256: `81686d301c6d43746a8e691223d61e53cca7093a9e187c29a014d6d404078539`.
+- `EXPECTED_MIX_SHA256`: `fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6` (unchanged).
+- key_sig (demo seed): `340dc1e062502bb13462a94ba490c3dc` (unchanged).
+- `EXPECTED_REHEARSAL_SHA256`: `584758f7550f51913da0b723e8c90d73bf296aa1ecde1963ab03cfe0b1ef527e` (was `e767ae50…`).
+- rehearsal_sig (demo seed): `4ed3c0f3817acda643a5c44a50c55f57` (was `d33225ce…`).
+- hello-world and movements-demo blobs: unchanged from octavo010.
+- `rehearsal-demo.txt`: regenerated (v8 changed), same plaintext, AD and chunk size.
+- Score: `score/vectors.json`, score version 5, 72 vectors (the 64 étude
+  vectors unchanged, the 8 rehearsal vectors regenerated).
+- Tests: 437/437 on the live tree and on a fresh copy (`python3 test_sneak_n2.py`, about 9 minutes). The new checks turn the rehearsal attack's witnesses into regression tests.
+
+```python
+import sneak_n2 as N
+for piece in N.iter_rehearsal("msg.oct", seed, ad=b"label", max_chunk_size=65536):
+    sink.write(piece)          # verified; the stream is complete only when the loop ends
+N.encrypt_rehearsal_file("in.bin", "out.oct", seed, workers=8)                  # FileExistsError if out.oct exists
+N.decrypt_rehearsal_file("out.oct", "back.bin", seed, workers=8, overwrite=True)
+```
+
+---
+
+## Previous revision — rehearsal (2026-11-11, not frozen; attacked in `attacks_octavo_rehearsal/`)
+
+Rehearsal adds a **streaming mode**, format version 8, that lifts the
+1,040,384-byte movements cap. It is built STREAM-style (in the spirit of
+Hoang–Reyhanitabar–Rogaway–Vizar online AE) on the unchanged 16-round
+staff-core and the existing outer pieces (pickup, domain-U commitment,
+HMAC-SHA256 tags, clef). Still N2 / SN2 (project name: Octavo), still
+homemade, **not for real secrets** (use AES-GCM-SIV, age or libsodium).
+Rehearsal itself had **not been attacked yet** when this section was written (it was then: see the rehearsal-fix section above). The picture was re-rendered.
+
+**v6 and v7 are byte-identical to octavo010.** None of the rehearsal code is
+reachable from `MIX_CODE_ROOTS`, so `EXPECTED_MIX_SHA256` and `key_sig` did
+not move, and the tests compare 18 fixed-pickup v6/v7 blobs against the
+frozen octavo010 module byte for byte (plus the hello-world and
+movements-demo samples and the 64 existing score vectors).
+
+- **Header (72 bytes):** `version(1)=8 || SN2(3) || pickup(16) || nonce(16) || commit(32) || chunk_size(4, uint32be)`.
+  The pickup and the per-stream nonce are fresh for every stream (there is
+  no SIV nonce: a stream cannot be hashed before it is sent).
+- **Commitment:** `HMAC-SHA256(K_commit, U || 8 || SN2 || pickup || nonce || encode_ad(ad) || chunk_size32)`,
+  same seed-only `K_commit` as v6/v7.
+- **Chunks:** fixed size (default 64 KiB; any multiple of 128 from 128 bytes
+  to 1 MiB). A non-final chunk is `ct(chunk_size) || tag(32)` and carries
+  exactly `chunk_size` bytes; the final chunk carries 0 … chunk_size−1
+  bytes, padded `msg || 0x80 || zeros` to a multiple of 128, plus its tag.
+  Every stream has exactly one final chunk (the empty stream is 232 bytes).
+- **Per-chunk keys:** a new sponge domain `R` over
+  `chunk || pickup || nonce || chunk_size32 || index64 || final8` gives the
+  chunk MAC key and one 128-byte tweak per block. Blocks are
+  `E(P ⊕ T) ⊕ T` under one per-stream `Schedule` (its nonce also comes from
+  domain `R`). The chunk tag is HMAC over
+  `clef || rehearsal_sig || 8 || SN2 || pickup || nonce || commit || chunk_size32 || index64 || final8 || SHA-256(SN2/A || encode_ad(ad)) || ct`.
+  So truncation, reordering, duplication, cross-stream splicing and
+  chunk-size changes all fail.
+- **API:** `RehearsalEncryptor` / `RehearsalDecryptor` (`update` /
+  `finalize`, optional `workers=N` process pool, byte-identical output),
+  `encrypt_rehearsal` / `decrypt_rehearsal` (one-shot, all-or-nothing) and
+  `encrypt_rehearsal_file` / `decrypt_rehearsal_file`. The decryptor never
+  releases plaintext from a chunk before its tag (and, for chunk 0, the
+  commitment) verifies. A stream cut early yields only verified,
+  chunk-aligned prefix chunks from `update()`, then `finalize()` raises
+  `AuthError`. The file helper writes to `dst.partial` and renames only on
+  success (replaced in rehearsal-fix by a private mkstemp file; see above).
+- **Rejects:** a version byte other than 8 raises `UnsupportedVersion`, as
+  every other decrypt API does. Everything else is `AuthError`, a
+  `Rejected`. Chunk 0 always computes both the commitment and its tag
+  before one combined reject (commit-fail / tag-fail / ct-fail medians
+  agree within a few percent).
+- **Limits:** chunk size 128 B … 1 MiB, at most 2^24 chunks per stream
+  (final included; 1 TiB at the default size), AD ≤ 65,536 bytes.
+  Throughput is pure-Python slow: about 19 KB/s per core to encrypt and
+  13 KB/s to decrypt; a 5 MB stream took about 37 s to encrypt and 53 s to
+  decrypt with `workers=8`.
+- **Attestation:** rehearsal has its own digest
+  `EXPECTED_REHEARSAL_SHA256` over everything reachable from
+  `REHEARSAL_CODE_ROOTS` plus the live mix digest, and its own seed-keyed
+  `rehearsal_signature` (domain `H`) hidden in every chunk tag.
+- **Études:** no streaming mode (not trivial to key-separate, so left out).
+
+Also fixed in this revision (docs and labels only): ATTACKS.md now covers
+the whole series through octavo010; the module docstring no longer calls
+the whole scheme "unreviewed" (the round function had one independent,
+non-expert review; the outer layer only in-house attacks); the movements
+timings above use the exact recorded values; and the FEATURES nonce entry
+names the real SIV inputs.
+
+- Live `sneak_n2.py` SHA-256: `85a67178ab21399603629c31b55335276c8c792b7770d468dc08eb092047030f`.
+- `EXPECTED_MIX_SHA256`: `fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6` (unchanged).
+- key_sig (demo seed): `340dc1e062502bb13462a94ba490c3dc` (unchanged).
+- `EXPECTED_REHEARSAL_SHA256`: `e767ae50e25cd04681b6565ec78f11a9ee9d235f6d3278f2e3e9ec458c3f682e`.
+- rehearsal_sig (demo seed): `d33225ce751062f359fd0b937f5ba337`.
+- hello-world and movements-demo blobs: unchanged from octavo010.
+- New sample: `rehearsal-demo.txt` (v8, chunk size 128, AD `rehearsal-demo`).
+- Score: `score/vectors.json`, score version 4, 72 vectors (the 64 étude
+  vectors unchanged, plus 8 live rehearsal vectors).
+- Tests: 414/414 on the live tree and on a fresh copy (`python3 test_sneak_n2.py`, about 9 minutes).
+
+```python
+import sneak_n2 as N
+enc = N.RehearsalEncryptor(seed, ad=b"label")          # chunk_size=65536
+stream = enc.update(part1) + enc.update(part2) + enc.finalize()
+dec = N.RehearsalDecryptor(seed, ad=b"label")
+plain = dec.update(stream) + dec.finalize()             # AuthError if cut or forged
+N.encrypt_rehearsal_file("in.bin", "out.oct", seed, workers=8)
+N.decrypt_rehearsal_file("out.oct", "back.bin", seed, workers=8)
+```
+
+---
+
+## Previous revision — conductor-polish (2026-11-11, frozen as octavo010)
 
 This section supersedes the conductor section below. It applies the
 suggested fixes from the conductor attack
@@ -16,9 +430,10 @@ re-rendered.
   `Etude.decrypt_movements()` always compute the commitment and the coda,
   combine them without short-circuit and raise one
   `AuthError("authentication failed")`. Nothing is decrypted before both
-  pass. Commitment-fail vs coda-fail medians: 4.8 µs vs 11.9 µs before,
-  12.3 µs vs 12.3 µs after (3 movements); 5.2 vs 14.8 µs before, 14.3 vs
-  14.3 µs after (10 movements).
+  pass. Commitment-fail vs coda-fail medians (`test_results.txt`, 4,000
+  interleaved trials per class): 4.84 µs vs 11.87 µs before, 12.45 µs vs
+  12.42 µs after (3 movements); 5.22 µs vs 14.75 µs before, 14.70 µs vs
+  14.68 µs after (10 movements).
 - **`LegacyFormatWarning` is a `UserWarning` (L2)**, so it is shown by
   default, including when a library module calls a legacy helper.
 - **Fixed-width mask unpad (L3).** Same results as the old rule on every

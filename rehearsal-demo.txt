@@ -1,0 +1,20 @@
+Sneak staff-core N2 (Octavo) — rehearsal demo (format version 8: STREAM-style chunked stream; per-chunk tag binds index and final flag; commitment binds AD and chunk size; rehearsal-fix: AD digest also in the chunk keys, tweaks and schedule nonce; rehearsal-polish and rehearsal-finale: each re-sealed with the previous sample's pickup/nonce, so header and ciphertext are identical and only the tags changed, with the new rehearsal_sig).
+Homemade; NOT for real secrets. Use AES-GCM-SIV, age, or libsodium.
+seed: sneak1024-seed.txt next to sneak_n2.py
+live sneak_n2.py SHA-256: 929bacc1bef5ebd6dee7df817aba6061ca58e871d4a18992d33fc0bc107b772f
+key_sig (16 bytes): 340dc1e062502bb13462a94ba490c3dc
+rehearsal_sig (16 bytes; StaffSponge(H, seed, EXPECTED_REHEARSAL_SHA256)): a3b4c820528562ac17a74eb414a389a3
+revision: rehearsal-finale / 2026-11-11
+plaintext (195 bytes): Octavo rehearsal: the piece is played in fixed-length passages. Each passage is sealed with its own tag, numbered, and the last one is marked final, so a cut, a swap or a repeat is heard at once.
+plaintext_hex: 4f637461766f2072656865617273616c3a2074686520706965636520697320706c6179656420696e2066697865642d6c656e6774682070617373616765732e20456163682070617373616765206973207365616c6564207769746820697473206f776e207461672c206e756d62657265642c20616e6420746865206c617374206f6e65206973206d61726b65642066696e616c2c20736f2061206375742c20612073776170206f72206120726570656174206973206865617264206174206f6e63652e
+associated data: rehearsal-demo
+pickup (16 bytes; fresh): 86366a6322707e55c76cd5eaf880d12b
+nonce (16 bytes; fresh per-stream nonce, SHA-256(SN2/Q || urandom || time_ns || counter || pid)[:16]): c51b60260d581e0ad8e47a3da9b2b95f
+commit (32 bytes; HMAC-SHA256(K_commit, U || 8 || SN2 || pickup || nonce || encode_ad(ad) || chunk_size32), domain U): 56260ce62654572f65e049633488a1763e3af0fc6590de8214bf299399bd0903
+chunk_size: 128
+chunks: 1 non-final of 128 plaintext bytes + 1 final of 67 bytes (padded msg || 0x80 || zeros to a 128-byte multiple)
+first chunk tag (32 bytes; HMAC under the domain-R chunk key over ...||ad_digest): 86931c566527dc7dffef2af62d322b161881094a8261ea346969dbf01fca4a96
+final chunk tag (32 bytes): 1853b4cb441ed82c010389351e65a9ccaf7058c9da5b4dbd67f8bef425444341
+blob (392 bytes = header(72) || (ct(chunk_size) || tag(32)) * non-final || ct(128k) || tag(32)): 08534e3286366a6322707e55c76cd5eaf880d12bc51b60260d581e0ad8e47a3da9b2b95f56260ce62654572f65e049633488a1763e3af0fc6590de8214bf299399bd0903000000807c92a07332c7bf404999c126ebc428d79b6c2aeb1e1e23e7d9e5f4fe81fbcd5b64ba2acf176a267043d0abab2d73b83d27ef9102be5c432dba29d91716bb700e2f76b1146e6600bacac61bb8bb969290a419f7b8ed5b2ccb08dc9bae509cc57696563599e680cdac76a1731b8d1167315aa1cb98a496d3709d2b848a78e667fe86931c566527dc7dffef2af62d322b161881094a8261ea346969dbf01fca4a9638accb6ce7c701a2ed3070e27fef63b2336a79c2ba322d5a030c5c52e2f98904de9b4c1b324c848cd9d6f62eca970359915d481d0271306d26aa8568400b4fee97c53adc107f5792f765570825feb16fffda8dbb778de6e8e4781e78580e01d04399a8fd7cc121528e3a65343885c608a6b85ccb4b2a9d1e4aa31c99fc3203591853b4cb441ed82c010389351e65a9ccaf7058c9da5b4dbd67f8bef425444341
+recovered plaintext matches.
+decrypt() and decrypt_movements() reject this stream as UnsupportedVersion; decrypt_rehearsal rejects v6/v7 the same way.
