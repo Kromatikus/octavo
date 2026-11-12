@@ -2650,7 +2650,7 @@ _rh_docs = {n: open(os.path.join(HERE, n)).read() for n in ("README.md", "SECURI
 check("README, SECURITY, LINER_NOTES describe rehearsal (v8) and keep the verdict: homemade, use AES-GCM-SIV, age, or libsodium",
       all("rehearsal" in _rh_docs[n].lower() and "AES-GCM-SIV" in _rh_docs[n] and "age" in _rh_docs[n] and "libsodium" in _rh_docs[n]
           for n in ("README.md", "SECURITY.md", "LINER_NOTES.md"))
-      and "no streaming API" not in _rh_docs["SECURITY.md"] and "not yet frozen" in _rh_docs["LINER_NOTES.md"])
+      and "no streaming API" not in _rh_docs["SECURITY.md"] and "octavo013" in _rh_docs["LINER_NOTES.md"] and "is **not yet frozen**" not in _rh_docs["LINER_NOTES.md"])
 check("docs use the recorded movements timings 12.45/12.42 and 14.70/14.68 µs (no rounded 12.3/14.3 figures)",
       all("12.45" in _rh_docs[n] and "12.42" in _rh_docs[n] and "14.70" in _rh_docs[n] and "14.68" in _rh_docs[n] for n in ("README.md", "SECURITY.md"))
       and not any("12.3 µs" in _rh_docs[n] or "14.3 µs" in _rh_docs[n] for n in ("README.md", "SECURITY.md")))
@@ -3438,6 +3438,58 @@ if os.path.isfile(_pic_json) and os.path.isfile(_pic_png):
           and _meta.get("tag")==hw_field("tag").hex())
 else:
     check("sneak-staff-n2.json and sneak-staff-n2.png are present beside the tests", False)
+
+# ---- edge paths from the 2% mutation test (mutation_octavo011: S053, S055, S056/S057, S058, S063)
+import tempfile as _et_tf, errno as _et_errno
+def _et_prefix_ok():
+    P = N._REHEARSAL_PREFIX_BYTES
+    names = ["a" * 300, "é" * 200, "€" * 200, "😀" * 100, "x" + "é" * 150, "xy" + "€" * 120, "xyz" + "😀" * 90]
+    try:
+        return all(os.fsencode(N._rehearsal_temp_prefix(n)) == os.fsencode(n)[:P].decode("utf-8", "ignore").encode() for n in names)
+    except Exception:
+        return False
+check("temp-name prefix keeps the longest whole UTF-8 prefix within the byte limit (1-4 byte characters, every alignment)", _et_prefix_ok())
+def _et_same_inode():
+    with _et_tf.TemporaryDirectory() as d:
+        p = os.path.join(d, "f"); open(p, "wb").write(b"x")
+        with open(p, "rb") as a, open(p, "r+b") as b:
+            try: N._rehearsal_refuse_same(a, a, b)
+            except ValueError: return True
+    return False
+check("two distinct file objects open on the same inode are refused as src and dst (ValueError)", _et_same_inode())
+_et_m = bytes(range(256)) * 5
+_et_c = N.encrypt_rehearsal(_et_m, SEED, b"et", 128)
+_et_out = list(N.iter_rehearsal((bytes([x]) for x in _et_c), SEED, b"et"))
+check("iter_rehearsal never yields an empty chunk when fed one byte at a time, and the pieces join to the plaintext",
+      all(len(x) > 0 for x in _et_out) and b"".join(_et_out) == _et_m and list(N.iter_rehearsal(N.encrypt_rehearsal(b"", SEED), SEED)) == [])
+def _et_rename_err():
+    with _et_tf.TemporaryDirectory() as d:
+        fd = os.open(d, os.O_RDONLY)
+        try:
+            r = N._rehearsal_renameat2(fd, "missing-a", "missing-b", N._RENAME_EXCHANGE)
+            return r is False                       # renameat2 unavailable here: reported as unsupported
+        except OSError as e:
+            return e.errno == _et_errno.ENOENT
+        finally:
+            os.close(fd)
+check("renameat2 helper raises OSError(ENOENT) for a missing name instead of returning silently", _et_rename_err())
+def _et_overwrite():
+    with _et_tf.TemporaryDirectory() as d:
+        src = os.path.join(d, "pt"); dst = os.path.join(d, "ct"); out = os.path.join(d, "back")
+        open(src, "wb").write(b"overwrite me")
+        open(dst, "wb").write(b"old contents")
+        try:
+            N.encrypt_rehearsal_file(src, dst, SEED, overwrite=True)
+        except OSError:
+            return False
+        ok = N.decrypt_rehearsal(open(dst, "rb").read(), SEED) == b"overwrite me"
+        open(out, "wb").write(b"old")
+        try:
+            N.decrypt_rehearsal_file(dst, out, SEED); refused = False
+        except FileExistsError:
+            refused = open(out, "rb").read() == b"old"
+        return ok and refused
+check("overwrite=True replaces an existing dst with the new stream; overwrite=False refuses and keeps the old file", _et_overwrite())
 
 # ---- frozen trees untouched (sha256 baselines taken before N2 was written)
 def sha_ok(listfile):

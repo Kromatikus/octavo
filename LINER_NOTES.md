@@ -1,22 +1,20 @@
 # Liner notes — Octavo (staff-core N2)
 
-These notes explain how Octavo works and why each piece is there. They were written against the frozen snapshot `/workspace/octavo010`, the conductor-polish revision of 2026-11-11 (America/New_York), and have since been updated for the **rehearsal** revision (streaming, format version 8) the **rehearsal-fix** revision, which applied the first rehearsal attack's fixes, and the live **rehearsal-polish** revision, which applies the second rehearsal attack's fixes and is **not yet frozen**. Everything about octavo010 below still holds for the live tree: rehearsal adds a mode and leaves the round function, v6 and v7 byte-identical.
+These notes explain how Octavo works and why each piece is there. They were first written against the frozen snapshot `/workspace/octavo010` (conductor-polish, 2026-11-11, America/New_York) and are now current for **rehearsal-finale**, the revision frozen as `/workspace/octavo011` and again, with extra tests and doc updates, as `/workspace/octavo013` (2026-11-12). Everything about octavo010 below still holds: rehearsal adds a streaming mode and leaves the round function, v6 and v7 byte-identical.
 
-- Module: `sneak_n2.py`, SHA-256 `c07707bfde75ed4b77a4ad4f09797526f9fabe1509914fb3a49fa5288bd39d50`
-- Mix attestation: `EXPECTED_MIX_SHA256` `fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6`
-- Demo-seed key signature: `340dc1e062502bb13462a94ba490c3dc`
-- Tests: 366/366 on the live tree, a fresh copy, and inside octavo010
-- Score: `score/vectors.json`, score version 3, 64 vectors
-- Picture: `sneak-staff-n2.png` (dual octahedra on a hex grid). The header reads conductor-polish, v6, a 228-byte blob, SHA `c07707bf…`, and key_sig `340dc1e0…`
+Current revision (rehearsal-finale, frozen as octavo013):
 
-Live tree (rehearsal-polish, not yet frozen):
+- Module: `sneak_n2.py`, SHA-256 `929bacc1bef5ebd6dee7df817aba6061ca58e871d4a18992d33fc0bc107b772f` (unchanged since octavo011)
+- Mix attestation: `EXPECTED_MIX_SHA256` `fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6`; demo-seed key signature `340dc1e062502bb13462a94ba490c3dc` (both unchanged since octavo010)
+- Rehearsal attestation: `EXPECTED_REHEARSAL_SHA256` `f28badba6dcd70e80f2524d9adb00bc177374d609a0555453256fa10451804a4`; demo-seed rehearsal signature `a3b4c820528562ac17a74eb414a389a3`
+- Tests: 466/466 passed, including checks from the 2% mutation test (`/workspace/mutation_octavo011`)
+- Score: `score/vectors.json`, score version 7, 72 vectors
+- Picture: `sneak-staff-n2.png` (dual octahedra on a hex grid); the header reads rehearsal-finale, v6, a 228-byte blob, SHA `929bacc1…`, key_sig `340dc1e0…`, and the footer shows `rehearsal_sig a3b4c820…`
 
-- Module: `sneak_n2.py`, SHA-256 `7ea3dd843b19b6712a00c535d6232da449972737ea54752217a913d8265c111f`
-- Mix attestation: `EXPECTED_MIX_SHA256` unchanged, `fe939969…`; demo-seed key signature unchanged, `340dc1e0…`
-- Rehearsal attestation: `EXPECTED_REHEARSAL_SHA256` `dd02f7078f46f48c14ac6ca09243a72a56c7d378f476d4ec312c960c145f1a50`; demo-seed rehearsal signature `1f8097d2d6554347d28b15b412641fcd`. Both moved because the rehearsal digest attests all v8 API code and the polish changed the file helpers and workers. v8 headers and ciphertext blocks are unchanged; only chunk tags differ
-- Tests: 448/448 passed (live and a fresh copy; new checks turn the rehearsal-fix attack's witnesses into regression tests)
-- Score: score version 6, 72 vectors (the 64 étude vectors unchanged; the 8 rehearsal vectors differ from score version 5 only in their tags)
-- Picture: re-rendered; the header reads rehearsal-polish, v6, a 228-byte blob, SHA `7ea3dd84…`, key_sig `340dc1e0…`, and the footer shows the v8 stream layout and `rehearsal_sig 1f8097d2…`
+Earlier revisions, oldest last:
+
+- octavo010, conductor-polish: SHA `c07707bf…`, 366/366 tests, score version 3, 64 vectors.
+- rehearsal-polish (never frozen): SHA `7ea3dd84…`, `EXPECTED_REHEARSAL_SHA256` `dd02f707…`, rehearsal_sig `1f8097d2…`, 448/448 tests, score version 6. Attacked in `attacks_octavo_rehearsalpolish/` (3 Low, 9 Info, no cryptographic break); rehearsal-finale applies those fixes.
 
 The previous revision, rehearsal-fix, was attacked in `attacks_octavo_rehearsalfix/` (2 Low, 9 Info, no cryptographic break) and was never frozen:
 
@@ -38,7 +36,7 @@ This is a design document, not a specification. Exact layouts, matrices and APIs
 
 ## 1. What Octavo is
 
-Octavo is OHLO's homemade experimental cipher. The working name is N2, and the files still use `sneak_n2` names: the magic after the format-version byte is `SN2`, and the staff sponge domains are prefixed `SN2/`. It is a 1024-bit block cipher with an HMAC-SHA256 seal. The state is a 16-by-8 grid of 8-bit cells — sixteen faces, eight beats each — drawn as dual octahedra (an inner shell of eight faces and an outer shell of eight) on a hexagonal grid. One 128-byte block is that grid; the grid *is* the ciphertext. Messages longer than 127 bytes go through movements mode, which chains up to 8,192 such blocks under one schedule, or (since the rehearsal revision) through a rehearsal stream of fixed-size, separately tagged chunks with no 1 MB cap.
+Octavo is Kromatikus's homemade experimental cipher. The working name is N2, and the files still use `sneak_n2` names: the magic after the format-version byte is `SN2`, and the staff sponge domains are prefixed `SN2/`. It is a 1024-bit block cipher with an HMAC-SHA256 seal. The state is a 16-by-8 grid of 8-bit cells — sixteen faces, eight beats each — drawn as dual octahedra (an inner shell of eight faces and an outer shell of eight) on a hexagonal grid. One 128-byte block is that grid; the grid *is* the ciphertext. Messages longer than 127 bytes go through movements mode, which chains up to 8,192 such blocks under one schedule, or (since the rehearsal revision) through a rehearsal stream of fixed-size, separately tagged chunks with no 1 MB cap.
 
 The cipher core is homemade: the grid, the keyed S-boxes, the weaves, butterflies, shell bridges, bar mixes, triplets, bow, restack, cross-staff layers and encore. Three pieces are not: SHA-256 is the one-way staff sponge that expands a seed and a nonce into the schedule; HMAC-SHA256 is the integrity tag, the commitment, the cadence and the coda; and the base 8-bit S-box is the published SM4/SMS4 S-box (GB/T 32907-2016). There is no AES, no AES S-box, no MixColumns and no GCM.
 
