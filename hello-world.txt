@@ -1,7 +1,7 @@
 Sneak staff-core N2 (Octavo) — conductor-polish: equal-time single-block and movements rejects; fixed-width unpad; Rejected base class; legacy helpers gated end to end.
 Homemade; NOT for real secrets. Use AES-GCM-SIV, age, or libsodium. Picture redrawn from this sample.
 seed: sneak1024-seed.txt next to sneak_n2.py (same bytes as /workspace/sneak1024-seed.txt)
-live sneak_n2.py SHA-256: 85a67178ab21399603629c31b55335276c8c792b7770d468dc08eb092047030f
+live sneak_n2.py SHA-256: 929bacc1bef5ebd6dee7df817aba6061ca58e871d4a18992d33fc0bc107b772f
 key_sig (16 bytes): 340dc1e062502bb13462a94ba490c3dc
 pickup (16 bytes; sha256(SN2/P || urandom || time_ns || counter || pid)[:16]): 2b87dc4e184cd78e6c77b829273b17a3
 nonce (16 bytes; SHA-256(clef || pickup || encode_block(msg) || encode_ad(ad))[:16], empty AD): d4a86fc3847623035bbe3a19ceda33b1
@@ -34,4 +34,4 @@ Re-encrypting differs (fresh pickup and blob); this is one recorded sample with 
 Previous published sample (pickup c9a332594dfc60c3f16795a3cba3b16b, etudes / v2) opens only through decrypt_legacy(..., allow_noncommitting=True) (LegacyFormatWarning); default decrypt() rejects it. Unpublished tuning v4 blobs are rejected.
 The picture (sneak-staff-n2.png) was regenerated from this sample.
 demo-nonce.txt is unchanged: an older fixed schedule-test nonce, not this sample's nonce.
-rehearsal revision: this blob is byte-identical to octavo010's and still opens on the live sneak_n2.py SHA-256 85a67178ab21399603629c31b55335276c8c792b7770d468dc08eb092047030f (v6/v7 unchanged; key_sig unchanged).
+rehearsal-finale revision: this blob is byte-identical to octavo010's and still opens on the live sneak_n2.py SHA-256 929bacc1bef5ebd6dee7df817aba6061ca58e871d4a18992d33fc0bc107b772f (v6/v7 unchanged; key_sig unchanged).

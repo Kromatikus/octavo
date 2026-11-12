@@ -334,6 +334,13 @@ check("every round r = 0..15 inverts (20 grids each)", all(N.round_dec(N.round_e
 check("full 16-round block cipher encrypt/decrypt inverse (300 grids)", all(N.decrypt_grid(N.encrypt_grid(g, sch0), sch0) == g for g in (rgrid() for _ in range(300))))
 check("block cipher is a permutation sample: 2000 random blocks -> 2000 distinct outputs", len({N.grid_to_bytes(N.encrypt_grid(N.bytes_to_grid(rb(128)), sch0)) for _ in range(2000)}) == 2000)
 check("byte<->grid encoding inverse (128 bytes <-> 16x8 byte cells)", all(N.grid_to_bytes(N.bytes_to_grid(b)) == b for b in (rb(128) for _ in range(100))))
+def _val_err(f):
+    try: f()
+    except ValueError: return True
+    except Exception: return False
+    return False
+check("bytes_to_grid rejects blocks that are not 128 bytes (0, 5, 127, 129, 256)", all(_val_err(lambda n=n: N.bytes_to_grid(bytes(n))) for n in (0, 5, 127, 129, 256)))
+check("siv_nonce rejects pickups that are not 16 bytes (0, 15, 17, 32) and accepts 16", all(_val_err(lambda n=n: N.siv_nonce(b"hi", bytes(n), SEED)) for n in (0, 15, 17, 32)) and len(N.siv_nonce(b"hi", bytes(16), SEED)) == 16)
 
 # Explicit order / compatibility regression checks against both backups.
 import importlib.util, hmac as _h
