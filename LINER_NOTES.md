@@ -456,3 +456,11 @@ Older frozen trees (`test1`, `test3`, `test13`, `testn1`, `testn3`, `testn4`, `t
 **Weave** — the keyed rotation of beats along each staff and of faces along each beat-column.
 
 **Whitening** — a final 128-byte key XOR after the 16th round.
+
+## Origin (lore)
+
+*This section is myth, not math. Nothing in it describes how the cipher works.*
+
+Before the octahedra, there was the Point: no width, no edge, only time. The Point dreamed. Its first dream was a seed, and the seed unfolded into a schedule, the schedule into sixteen faces, and the faces into staffs of eight beats each. Every message sealed in Octavo is a phrase hummed back into the dream; only someone who holds the seed can hear it as music, and to everyone else it is noise.
+
+Outside the myth, Octavo is still homemade and not for real secrets: use AES-GCM-SIV, age, or libsodium.
