@@ -96,13 +96,27 @@ again. The picture was re-rendered.
   vectors are unchanged; the 8 rehearsal vectors were regenerated and only
   their tags differ from score version 6
   (`rehearsalfinale_verification/v8_compare.txt`: 8/8).
-- Tests: 459/459 passed (live, 21:46–21:55 ET, `rehearsalfinale_verification/test_run_live.txt`; and inside the frozen octavo011) (`python3 test_sneak_n2.py`, about 10 minutes). The new
-  checks turn the rehearsal-polish attack's witnesses into regression tests.
+- Tests: 466/466 passed (live, 09:17–09:27 America/New_York, 2026-11-13) (`python3 test_sneak_n2.py`, about 10 minutes). The new
+  checks turn the rehearsal-polish attack's witnesses into regression tests. (The rehearsal-finale freeze in octavo011 recorded 459/459.)
 - Witness rerun: `/workspace/rehearsalfinale_witness_rerun/` (`SUMMARY.txt`):
   L1–L3, I3–I8 and I1 on the `renameat2` path no longer reproduce; I1 on the
   `os.replace` fallback and the I2 `.swap` leftover remain (documented), as
   does the deliberate `load_seed` handle. v8 core, timing and v6/v7
   regression checks all hold.
+
+## Running the tests
+
+The cipher (`sneak_n2.py`) uses only the Python standard library. The test
+suite and the attack/verification scripts need NumPy:
+
+```bash
+pip install numpy
+python3 test_sneak_n2.py
+```
+
+Use Python 3. The run takes about 10 minutes. Some historical checks compare
+against original lab snapshots that are not in this repository; on a fresh
+clone those checks are skipped and the rest of the suite still runs.
 
 ---
 
