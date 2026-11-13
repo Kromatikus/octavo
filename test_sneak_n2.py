@@ -404,9 +404,9 @@ def trace_order():
     return calls == (["bar_mix", "triplet_mix"] + ["bow_pressure"]*16 + ["odd_restack"]*16 + ["cross_staff_mix"])*2 + (["cross_staff_unmix"] + ["unodd_restack"]*16 + ["unbow_pressure"]*16 + ["triplet_unmix", "bar_unmix"])*2
 check("instrumented sequence: each bow -> rehair -> cross, inverse uncross -> unrehair -> unbow", trace_order())
 if PRET is None:
-    skip("historical pair slots, S-boxes, schedule, clef, encoding, weave and butterfly/bridge routing unchanged from pre-triplet")
+    skip("historical pair slots, S-boxes, schedule, clef, encoding, weave and butterfly/bridge routing unchanged from pre-triplet (B0 implementation intentionally changed)")
 else:
-  check("historical pair slots, S-boxes, schedule, clef, encoding, weave and butterfly/bridge routing unchanged from pre-triplet (B0 implementation intentionally changed)",
+    check("historical pair slots, S-boxes, schedule, clef, encoding, weave and butterfly/bridge routing unchanged from pre-triplet (B0 implementation intentionally changed)",
       [b[:3] for b in N.BARS] == [b[:3] for b in PRET.BARS]
       and [b[3] for b in N.BARS[1:]] == [b[3] for b in PRET.BARS[1:]]
       and N.BARS[0][3] is None
@@ -889,7 +889,7 @@ check("beat-0 readers rarely share one (r1,r2); usually all three distinct (shar
 # from attacks_octavo_beat6 (beat 6 ~2^-5.6, beat 7 ~2^-4.9, beat 0 ~2^-8.1).
 _rngd=np.random.default_rng(909); Bd=_rngd.integers(0,256,(1<<12,8),dtype=np.int64); Ad=np_bow(Bd)
 def _best_diff(t):
-    pack=lambda z:(z.astype(np.int64)*(256**np.arange(8))).sum(1); best=0
+    pack=lambda z:(z.astype(np.int64)*(256**np.arange(8, dtype=np.int64))).sum(1); best=0
     for d in range(1,256):
         H=Bd.copy(); H[:,t]^=d; best=max(best,int(np.unique(pack(Ad^np_bow(H)),return_counts=True)[1].max()))
     return round(float(np.log2(best/len(Bd))),2)
