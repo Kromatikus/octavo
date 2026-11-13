@@ -9,7 +9,7 @@ rng = np.random.default_rng(4546)
 NBASE = 1 << 13
 B = rng.integers(0, 256, (NBASE, 8), dtype=np.int32)
 a = u8bow(B)
-pack = lambda z: (z.astype(np.int64) * (256 ** np.arange(8))).sum(1)
+pack = lambda z: (z.astype(np.int64) * (256 ** np.arange(8, dtype=np.int64))).sum(1)
 
 def best_diff(t):
     best = 0; best_d = None; best_out = None
