@@ -63,7 +63,7 @@ def u1(X):pp=X[:,2];return (X[:,0]+rotl(X[:,1],1+pp%7))&255
 rot=lambda v:(1+v%7)*8+1+(v>>3)%7
 RR={'by_delta':{}}
 same_tot=0;cases=0;best=(0,None);bestr=(0,None)
-pack=lambda z:(z*(256**np.arange(8))).sum(1)
+pack=lambda z:(z*(256**np.arange(8, dtype=np.int64))).sum(1)
 for d in range(1,256):
  H=B.copy();H[:,0]^=d;same=rot(u1(H))==rot(u1(B));same_tot+=int(same.sum());cases+=len(B)
  z=pack(a^bow_staff(H)[:]);zs=z[same]

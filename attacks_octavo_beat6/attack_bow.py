@@ -59,7 +59,7 @@ print('two-beat singleton max rate new',max(tw['new'].values()),'old',max(tw['ol
 # --- 4. best single-beat differential through bow alone (most frequent full 8-byte output XOR), 2^14 bases per delta
 def best_diff(strokes,nb=1<<14,deltas=range(1,256)):
  B=rng.integers(0,256,(nb,8));a=bow_staff(B,strokes);best=[]
- pack=lambda z:(z*(256**np.arange(8))).sum(1)
+ pack=lambda z:(z*(256**np.arange(8, dtype=np.int64))).sum(1)
  for t in range(8):
   bt=(0,0,None)
   for d in deltas:
@@ -110,7 +110,7 @@ for lab,st in (('new',N.BOW_STROKES),('old',OLD_STROKES)):
  for d in (0x01,0x80,0x40):
   H=B.copy();H[:,7]^=d;z=a^bow_staff(H,st);act=(z!=0)
   row[f'beat7^{d:#04x}']={'active_cells_hist':np.bincount(act.sum(1),minlength=9).tolist(),'beats_0_4_unchanged_frac':float((~act[:,:5]).all(1).mean()),
-   'most_common_out_diff_prob':float(np.unique((z*(256**np.arange(8))).sum(1),return_counts=True)[1].max()/len(B))}
+   'most_common_out_diff_prob':float(np.unique((z*(256**np.arange(8, dtype=np.int64))).sum(1),return_counts=True)[1].max()/len(B))}
  cond[lab]=row
 res['beat7_conditional']=cond;print('beat7 cond',json.dumps(cond)[:400],flush=True)
 res['seconds']=round(time.time()-t0,1);res['finished']=now();save('attack_bow',res)
