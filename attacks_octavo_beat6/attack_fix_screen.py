@@ -38,7 +38,7 @@ for lab,var in VAR.items():
   alw[t]=np.nonzero(m)[0].tolist()
  r['forced_changes']=alw
  # best single-beat bow differential, beats 4..7 (2^13 bases, all deltas)
- B=rng.integers(0,256,(1<<13,8));a=gbow(B,var);pack=lambda z:(z*(256**np.arange(8))).sum(1);bd={}
+ B=rng.integers(0,256,(1<<13,8));a=gbow(B,var);pack=lambda z:(z*(256**np.arange(8, dtype=np.int64))).sum(1);bd={}
  for t in (0,4,5,6,7):
   best=0
   for d in range(1,256):

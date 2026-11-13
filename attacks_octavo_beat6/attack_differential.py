@@ -60,7 +60,7 @@ res['trail_bound']=dict(ddt_max_sampled_tables=ddt,per_sbox_prob='4/256 = 2^-6',
  note='Same relaxed model as attacks_linear_algebraic: triplets+bow treated as an arbitrary staff-local bijection, so the bow change cannot weaken this bound. Single-trail bound; differentials (clustering) not bounded.')
 # 5. best differential through bow+rehair for each input beat (S-box tables of round 0), new vs old
 k0=SCH.rounds[0];S0=np.array(k0['S']);S20=np.array(k0['S2'])
-pack=lambda z:(z*(256**np.arange(8))).sum(1)
+pack=lambda z:(z*(256**np.arange(8, dtype=np.int64))).sum(1)
 bd={}
 for lab,st in (('new',N.BOW_STROKES),('old',OLD_STROKES)):
  X=rng.integers(0,256,(1<<14,8));a=rehair_staff(bow_staff(X,st),S0,S20);row=[]
