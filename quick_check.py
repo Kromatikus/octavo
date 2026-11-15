@@ -4,10 +4,10 @@ Run: python3 quick_check.py"""
 import os
 from sneak_n2 import encrypt, decrypt, load_seed, AuthError, UnsupportedVersion, FMT_VERSION
 
-assert FMT_VERSION == 2
+assert FMT_VERSION == 6
 seed = load_seed(os.path.join(os.path.dirname(os.path.abspath(__file__)), "sneak1024-seed.txt"))
 blob = bytes.fromhex(next(l for l in open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "hello-world.txt")) if l.startswith("blob")).split()[-1])
-assert blob[0] == 2 and decrypt(blob, seed) == b"hello world"
+assert blob[0] == 6 and decrypt(blob, seed) == b"hello world"
 key = os.urandom(128)
 msg = b"meet at noon"
 b2 = encrypt(msg, key)
@@ -23,9 +23,9 @@ try:
     decrypt(bytes(bad), key); raise SystemExit("FAIL: tampered blob accepted")
 except AuthError:
     pass
-old_v1 = bytes([1]) + blob[1:]
-try:
-    decrypt(old_v1, seed); raise SystemExit("FAIL: version-1 blob accepted")
-except UnsupportedVersion:
-    pass
-print("OK: hello-world decrypts, random-key round trip works, AD binds, tampering and version 1 are rejected")
+for old in (1, 2, 4):
+    try:
+        decrypt(bytes([old]) + blob[1:], seed); raise SystemExit(f"FAIL: version-{old} blob accepted")
+    except UnsupportedVersion:
+        pass
+print("OK: hello-world decrypts, random-key round trip works, AD binds, tampering and versions 1, 2 and 4 are rejected")
