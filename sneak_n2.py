@@ -4,8 +4,9 @@ WARNING: homemade scheme. NOT for real secrets. The 16-round function has had in
 attacks and one independent, non-expert review (GitHub issue #1, around octavo003: no
 distinguisher, forgery or key recovery reported). The outer construction (key commitment,
 movements, études, equal-time rejects, rehearsal streaming) has had in-house attacks only
-(rehearsal: two in-house attacks; rehearsal-fix and rehearsal-polish address their file-helper,
-worker and API findings), and nothing here is expert cryptanalysis or a proof.
+(rehearsal: four in-house attacks, on rehearsal, rehearsal-fix, rehearsal-polish and rehearsal-finale;
+rehearsal-fix, rehearsal-polish, rehearsal-finale and rehearsal-curtain address their file-helper, worker,
+API and import-check findings in turn), and nothing here is expert cryptanalysis or a proof.
 For anything that matters use AES-GCM-SIV (RFC 8452), age, or libsodium.
 
 What is homemade: the whole 1024-bit block cipher (16 faces x 8 beats on dual octahedra, one BYTE per beat,
@@ -106,12 +107,12 @@ EXPECTED_MIX_SHA256 = "fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014
 # sha256(rehearsal_description()) hex (rehearsal, format version 8); sponge nonce for rehearsal_signature.
 # Excluded from both attestations for the same chicken-and-egg reason. The live mix digest above is
 # unchanged by rehearsal, so key_sig and every v6/v7 blob stay byte-identical.
-EXPECTED_REHEARSAL_SHA256 = "f28badba6dcd70e80f2524d9adb00bc177374d609a0555453256fa10451804a4"
+EXPECTED_REHEARSAL_SHA256 = "50c077f3b2105b36e027bf0c94770dcad64f7242974c4b7e67d3f0226810a4a8"
 
 # Picture / documentation metadata. Not part of the mix or tag; excluded from
 # attestation so a label or feature-list edit does not change key_sig or ciphertext.
-REVISION = "rehearsal-finale"
-REVISION_DATE = "2026-11-11"
+REVISION = "rehearsal-curtain"
+REVISION_DATE = "2026-11-14"
 FEATURES = (
     "keyed SM4 S-boxes",
     "latin B0 + field bar pairs",
@@ -1327,6 +1328,7 @@ REHEARSAL_CHUNK_MAX = 1 << 20      # 1 MiB (8192 blocks, the same block count as
 MAX_REHEARSAL_CHUNKS = 1 << 24     # chunks per stream, final included: 1 TiB at the default chunk size
 REHEARSAL_MAX_WORKERS = 32         # rehearsal-fix I2: worker processes are capped at min(32, os.cpu_count())
 REHEARSAL_WORKER_TIMEOUT = 600.0   # rehearsal-polish I2: default seconds a worker may take per frame (hello or one chunk)
+REHEARSAL_SPOT_BLOCKS = 8          # rehearsal-curtain I2: blocks the parent recomputes in EVERY worker chunk (all if fewer)
 RH_CS0 = CM1                       # chunk_size field = header[68:72]
 REHEARSAL_HDR_LEN = RH_CS0 + 4     # 72
 REHEARSAL_PAD = b"\x80"
@@ -1579,8 +1581,14 @@ class _RehearsalWorkers:
                     p = self.procs[k]
                     deadline = time.monotonic() + self.timeout
                     h = self._recv(p, 8, deadline)
-                    body = self._recv(p, int.from_bytes(h, "big"), deadline) if len(h) == 8 else b""
-                    if len(h) != 8 or len(body) != len(datas[i]):
+                    if len(h) != 8:
+                        raise RuntimeError("rehearsal worker exited")
+                    if int.from_bytes(h, "big") != len(datas[i]):
+                        # rehearsal-curtain I3: the announced length must be the chunk's own length; refused
+                        # BEFORE any body is read, so a bad worker cannot make the parent buffer a huge frame
+                        raise RuntimeError("rehearsal worker announced a wrong reply length; workers killed")
+                    body = self._recv(p, len(datas[i]), deadline)
+                    if len(body) != len(datas[i]):
                         raise RuntimeError("rehearsal worker exited")
                     out[i] = body
                 self._spot_check(datas, out, batch, decrypt)
@@ -1596,16 +1604,26 @@ class _RehearsalWorkers:
         return out
 
     def _spot_check(self, datas, out, batch, decrypt):
-        """rehearsal-finale I6: recompute ONE randomly chosen block of the batch in this process and
-        compare it with the worker's answer (about 1/(blocks in the batch) extra work). A worker that
-        returns wrong blocks is caught with probability (wrong blocks)/(blocks) per batch; this is a
-        spot check, not a proof (workers stay in the trusted base)."""
-        r = int.from_bytes(os.urandom(8), "big")
-        i = batch[r % len(batch)]
-        k = (r >> 32) % (len(datas[i]) // BLOCK_LEN)
-        blk = slice(k * BLOCK_LEN, (k + 1) * BLOCK_LEN)
-        if not hmac.compare_digest(_rehearsal_blocks(self._sch, datas[i][blk], decrypt), out[i][blk]):
-            raise RuntimeError("rehearsal worker returned a wrong block (spot check); workers killed")
+        """rehearsal-finale I6 / rehearsal-curtain I2: in EVERY chunk of the batch, recompute up to
+        REHEARSAL_SPOT_BLOCKS distinct randomly chosen blocks in this process and compare them with the
+        worker's answer (all blocks when a chunk has that many or fewer). Extra work: about
+        REHEARSAL_SPOT_BLOCKS/(blocks per chunk), 8/512 = 1/64 at the default 64 KiB chunk. Real odds:
+        a chunk in which a worker falsified w of its n blocks is caught with probability
+        1 - C(n-w, s)/C(n, s) for s = min(8, n) (1 if n <= 8; 8/n when w = 1; above 99.9% once w >= n/2);
+        a worker that falsifies ONE block per chunk escapes all c chunks with probability (1 - 8/n)^c,
+        about 37% over 64 default chunks. A spot check, not a proof: workers stay in the trusted base."""
+        for i in batch:
+            n = len(datas[i]) // BLOCK_LEN
+            ks = list(range(n))
+            pick = []
+            for _ in range(min(REHEARSAL_SPOT_BLOCKS, n)):
+                j = int.from_bytes(os.urandom(8), "big") % len(ks)
+                ks[j], ks[-1] = ks[-1], ks[j]
+                pick.append(ks.pop())
+            for k in pick:
+                blk = slice(k * BLOCK_LEN, (k + 1) * BLOCK_LEN)
+                if not hmac.compare_digest(_rehearsal_blocks(self._sch, datas[i][blk], decrypt), out[i][blk]):
+                    raise RuntimeError("rehearsal worker returned a wrong block (spot check); workers killed")
 
     @staticmethod
     def _stop(p, kill=False):
@@ -2019,8 +2037,13 @@ class RehearsalDecryptor(_RehearsalBase):
         if unfinished:
             # rehearsal-finale L2: outside any try/except, so a warning turned into an exception
             # (-W error) is reported through sys.unraisablehook instead of being swallowed here.
-            warnings.warn("RehearsalDecryptor dropped after receiving data without finalize(): the end of the "
-                          "stream was never verified (use iter_rehearsal or call finalize())", UnfinalizedStreamWarning, stacklevel=2)
+            # rehearsal-curtain I4: warn_explicit with registry=None keeps no per-call-site "already
+            # warned" record, so -X dev / -W default warn for EVERY dropped decryptor, not just the first.
+            f = sys._getframe(1) if hasattr(sys, "_getframe") else None
+            warnings.warn_explicit("RehearsalDecryptor dropped after receiving data without finalize(): the end of the "
+                                   "stream was never verified (use iter_rehearsal or call finalize())", UnfinalizedStreamWarning,
+                                   f.f_code.co_filename if f else "<octavo>", f.f_lineno if f else 0,
+                                   module=(f.f_globals.get("__name__") if f else None) or type(self).__module__, registry=None)
 
 def encrypt_rehearsal(msg: bytes, seed=None, ad: bytes = b"", chunk_size: int = REHEARSAL_CHUNK_DEFAULT, *, workers: int = 1,
                       worker_timeout: float = None) -> bytes:
@@ -2202,24 +2225,15 @@ def _rehearsal_renameat2(dirfd, old, new, flags) -> bool:
         return False
     raise OSError(err, os.strerror(err), new)
 
-def _rehearsal_fsync_dir(d):
-    """fsync a directory given as a path or an open directory descriptor (int)."""
-    if isinstance(d, int):
-        try:
-            os.fsync(d)
-        except OSError:
-            pass
-        return
+def _rehearsal_fsync_dir(dirfd: int):
+    """fsync an already open directory descriptor (rehearsal-curtain I5: the unused path branch, which
+    opened by name without O_CLOEXEC / O_NOFOLLOW, is gone; a non-int is refused)."""
+    if not isinstance(dirfd, int) or isinstance(dirfd, bool):
+        raise TypeError("_rehearsal_fsync_dir takes an open directory descriptor")
     try:
-        fd = os.open(d, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
-    except OSError:
-        return
-    try:
-        os.fsync(fd)
+        os.fsync(dirfd)
     except OSError:
         pass
-    finally:
-        os.close(fd)
 
 class _RehearsalOutput:
     """A private temporary output file in dst's directory (see the comment above)."""
@@ -2296,14 +2310,17 @@ class _RehearsalOutput:
         raise FileExistsError(errno.EEXIST, "no free temporary name", self.dir)
 
     def _check(self, name, want, created):
-        """name must now be the inode `want` (lstat, never following a symlink). If not, remove the
-        name this call created (it points at someone else's inode) and raise."""
+        """name must now be the inode `want` (lstat, never following a symlink); else raise.
+        rehearsal-curtain I1: `created` is the stat of the directory entry THIS call made at name (or
+        None). On a mismatch the name is unlinked only while it is still that very entry (e.g. a link
+        we made to a temp file someone swapped); a file someone else put at name afterwards is never
+        unlinked, only refused."""
         try:
             st = self._lstat(name)
         except OSError:
             st = None
         if not _rehearsal_same_inode(st, want):
-            if created and st is not None:
+            if created is not None and created is not True and st is not None and _rehearsal_same_inode(st, created):
                 try: os.unlink(name, dir_fd=self.dirfd)
                 except OSError: pass
             raise RuntimeError("output file was replaced while it was being moved into place (not published)")
@@ -2324,7 +2341,11 @@ class _RehearsalOutput:
             if self.tmp is None or e.errno in _REHEARSAL_NO_LINK_ERRNOS:
                 return self._copy_to(name)
             raise
-        self._check(name, self.st, True)
+        try:
+            made = self._lstat(name)                # the entry this link created (a swapped temp shows here)
+        except OSError:
+            made = None
+        self._check(name, self.st, made)
         return self.st
 
     def _copy_to(self, name):
@@ -2354,7 +2375,7 @@ class _RehearsalOutput:
             os.close(fd2)
             raise
         self.pub_fds.append(fd2)
-        self._check(name, st2, True)
+        self._check(name, st2, st2)
         return st2
 
     def _publish_free(self, suffix):
@@ -2411,49 +2432,80 @@ class _RehearsalOutput:
         self._close_fds()
 
     def _replace(self):
-        """overwrite=True publish (rehearsal-finale I1/I2). dst absent: the no-clobber link (no hidden
-        name at all). dst present: link our file to a fresh .swap name, then on Linux swap it with dst
-        atomically (renameat2 RENAME_EXCHANGE). If dst is then not our inode (someone renamed over the
-        .swap name in between), exchange back, so the caller's old dst survives a failed call, remove
-        the stray name and raise. Otherwise unlink the old dst, now at the .swap name. Without
-        renameat2 (other OS, old libc, unsupported filesystem) it falls back to os.replace + check,
-        where a refused race can cost the old dst (documented). A crash between the .swap link and
-        the end of commit can leave that 0600 .swap file holding the new plaintext or the old dst."""
-        if self._lstat(self.base) is None:
+        """overwrite=True publish (rehearsal-finale I1/I2, rehearsal-curtain I1). dst absent: the
+        no-clobber link (no hidden name at all). dst a directory: refused (IsADirectoryError), also if
+        it turns into one at the last moment. dst present: record the old dst's inode, link our file
+        to a fresh .swap name, then on Linux swap it with dst atomically (renameat2 RENAME_EXCHANGE).
+        If dst is then not our inode (someone renamed over the .swap name in between), exchange back
+        and CHECK that dst is the recorded old inode again: the error says honestly whether the old
+        dst was put back or could not be restored. Otherwise whatever dst held at the exchange (the
+        file overwrite=True replaces; never a directory, see above) is now under this call's own
+        .swap name and that name is unlinked. dst itself is unlinked only while it holds what this
+        call put there; a file someone else put at dst is refused, never deleted.
+        Without renameat2 (other OS, old libc, unsupported filesystem) it falls back to os.replace +
+        check, where a refused race can cost the old dst (documented). A crash between the .swap link
+        and the end of commit can leave that 0600 .swap file holding the new plaintext or the old dst."""
+        old = self._lstat(self.base)
+        if old is None:
             try:
                 self._publish(self.base)
                 return
             except FileExistsError:
-                pass                                # dst appeared meanwhile: replace it below
+                old = self._lstat(self.base)        # dst appeared meanwhile: replace it below
+        if old is not None and stat.S_ISDIR(old.st_mode):
+            raise IsADirectoryError(errno.EISDIR, "dst is a directory", self.path)
         name, want = self._publish_free(".swap")
+
+        def drop_swap():
+            # our .swap name: remove it unless it now holds the caller's old dst
+            try:
+                st = self._lstat(name)
+                if st is not None and not (old is not None and _rehearsal_same_inode(st, old)):
+                    os.unlink(name, dir_fd=self.dirfd)
+            except OSError:
+                pass
         try:
             self._refuse_src()
             swapped = _rehearsal_renameat2(self.dirfd, name, self.base, _RENAME_EXCHANGE)
         except FileNotFoundError:
             swapped = False                         # dst vanished: a plain rename below is safe
         except BaseException:
-            try: os.unlink(name, dir_fd=self.dirfd)
-            except OSError: pass
+            drop_swap()
             raise
         if swapped:
-            if not _rehearsal_same_inode(self._lstat(self.base), want):
+            moved = self._lstat(name)               # what was at dst at the moment of the exchange
+            is_dir = moved is not None and stat.S_ISDIR(moved.st_mode)
+            if is_dir or not _rehearsal_same_inode(self._lstat(self.base), want):
+                restored = False
                 try:
                     _rehearsal_renameat2(self.dirfd, name, self.base, _RENAME_EXCHANGE)   # old dst back
-                    os.unlink(name, dir_fd=self.dirfd)                                    # the stray file
+                    now = self._lstat(self.base)
+                    restored = (_rehearsal_same_inode(now, moved) if is_dir else
+                                old is not None and _rehearsal_same_inode(now, old))
                 except OSError:
                     pass
-                raise RuntimeError("output file was replaced while it was being moved into place "
-                                   "(not published; the old dst was put back)")
-            try: os.unlink(name, dir_fd=self.dirfd)  # the old dst, now under our .swap name
-            except OSError: pass
+                if restored:
+                    drop_swap()                     # the stray file someone renamed onto OUR .swap name
+                if is_dir and restored:
+                    raise IsADirectoryError(errno.EISDIR, "dst became a directory (not published; it was put back)", self.path)
+                if restored:
+                    raise RuntimeError("output file was replaced while it was being moved into place "
+                                       "(not published; the old dst was put back)")
+                raise RuntimeError("output file was replaced while it was being moved into place (not published; "
+                                   "the old dst could NOT be restored: dst now holds a file this call did not "
+                                   "write and the old dst may be lost; the temporary name %s was left as found)"
+                                   % os.path.join(self.dir, name))
+            try:
+                os.unlink(name, dir_fd=self.dirfd)  # what dst held at the exchange, now under OUR .swap name
+            except OSError:
+                pass
         else:
             try:
                 os.replace(name, self.base, src_dir_fd=self.dirfd, dst_dir_fd=self.dirfd)
             except BaseException:
-                try: os.unlink(name, dir_fd=self.dirfd)
-                except OSError: pass
+                drop_swap()
                 raise
-        self._check(self.base, want, True)
+        self._check(self.base, want, want)
 
     def discard(self, keep=False, suffix=None):
         """On failure: drop our file, or (keep=True, and only if it holds at least one verified byte)
@@ -2705,32 +2757,84 @@ def _init_rehearsal_attestation():
 
 _init_rehearsal_attestation()
 
+def _executed_pyc_code():
+    """rehearsal-curtain L1: the code object of the cached .pyc Python would have executed for this
+    import (None if there is none or Python would have recompiled from the .py instead). Mirrors
+    importlib's own validation: magic number, flags, then source mtime+size (timestamp pyc) or source
+    hash (checked hash-based pyc; an unchecked one is used whatever the source says)."""
+    cached, path = globals().get("__cached__"), globals().get("__file__")
+    if not cached or not path or _MODULE_SOURCE is None:
+        return None
+    try:
+        import importlib.util, marshal, _imp
+        with open(cached, "rb") as f:
+            data = f.read()
+        if len(data) < 16 or data[:4] != importlib.util.MAGIC_NUMBER:
+            return None
+        flags = int.from_bytes(data[4:8], "little")
+        if flags & ~3:
+            return None
+        if flags & 1:                                    # hash-based pyc
+            mode = getattr(_imp, "check_hash_based_pycs", "default")
+            checked = mode == "always" or (mode != "never" and flags & 2)
+            if checked and data[8:16] != importlib.util.source_hash(_MODULE_SOURCE):
+                return None                              # Python rejected it and compiled the source
+        else:
+            st = os.stat(path)
+            if (int.from_bytes(data[8:12], "little") != (int(st.st_mtime) & 0xFFFFFFFF)
+                    or int.from_bytes(data[12:16], "little") != (st.st_size & 0xFFFFFFFF)):
+                return None                              # stale: Python compiled the source instead
+        return marshal.loads(data[16:])
+    except Exception:
+        return None
+
 def _verify_executed_code():
-    """rehearsal-finale I5: the attestations hash _MODULE_SOURCE (the .py bytes read at import), but
-    Python may have executed a cached .pyc instead (it trusts the .pyc when its recorded source mtime
-    and size match). Compile _MODULE_SOURCE here and require that every function and method this
-    module actually defined has exactly the code object compiled from it (bytecode, constants, names,
-    line table). A .pyc built from different source, or a .py swapped between Python's read and the
-    snapshot, makes the import fail. Module-level statements are not compared; the data the digests
-    name is hashed from the live values anyway. Skipped when there is no source (.pyc-only install)."""
+    """rehearsal-finale I5 / rehearsal-curtain L1: the attestations hash _MODULE_SOURCE (the .py bytes
+    read at import), but Python may have executed a cached .pyc instead (it trusts a timestamp .pyc
+    when its recorded source mtime and size match). Compile _MODULE_SOURCE here and
+    (1) if a cached .pyc that Python would have used is present, require its WHOLE module code object
+        to equal the one compiled from _MODULE_SOURCE (code objects compare recursively: module-level
+        statements, every function, class body, constant and line table). So an extra statement
+        appended after this check, or a module-level rebinding done before it, makes the import fail;
+    (2) require that every function, method, bound method or partial bound to a module global and
+        defined by this module has exactly the code object compiled from it.
+    Limits: it re-reads the .pyc after Python did, so an attacker who can write __pycache__ AND swap
+    the file back within the import window is not caught; checked-hash pycs
+    (py_compile --invalidation-mode checked-hash) or PYTHONDONTWRITEBYTECODE with a read-only
+    __pycache__ avoid trusting timestamps at all. Skipped when there is no source (.pyc-only install)."""
     if _MODULE_SOURCE is None:
         return
+    top = compile(_MODULE_SOURCE, globals().get("__file__") or "<octavo>", "exec", dont_inherit=True)
+    pyc = _executed_pyc_code()
+    if pyc is not None and pyc != top:
+        raise RuntimeError("executed bytecode for <module> does not match sneak_n2.py source "
+                           "(stale or tampered .pyc?); remove __pycache__ and re-import")
     want = {}
-    todo = [compile(_MODULE_SOURCE, globals().get("__file__") or "<octavo>", "exec", dont_inherit=True)]
+    todo = [top]
     while todo:
         for k in todo.pop().co_consts:
             if isinstance(k, types.CodeType):
                 want.setdefault((k.co_qualname, k.co_firstlineno), k); todo.append(k)
+    import functools
+    def unwrap(m):
+        for _ in range(8):
+            if isinstance(m, (staticmethod, classmethod, types.MethodType)):
+                m = m.__func__
+            elif isinstance(m, property):
+                m = m.fget
+            elif isinstance(m, functools.partial):
+                m = m.func
+            else:
+                break
+        return m
     seen = 0
     for obj in list(globals().values()):
+        obj = unwrap(obj)
         if getattr(obj, "__module__", None) != __name__ or not isinstance(obj, (types.FunctionType, type)):
             continue
         members = [obj] if isinstance(obj, types.FunctionType) else list(vars(obj).values())
         for m in members:
-            if isinstance(m, (staticmethod, classmethod)):
-                m = m.__func__
-            if isinstance(m, property):
-                m = m.fget
+            m = unwrap(m)
             if not isinstance(m, types.FunctionType):
                 continue
             c = m.__code__

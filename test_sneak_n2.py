@@ -957,7 +957,7 @@ mod_defs={n for n,o in vars(N).items() if (inspect.isfunction(o) or inspect.iscl
 print("module functions/classes NOT in coverage:",sorted(mod_defs-set(N.MIX_CODE_FUNCS)))
 _rh_only = N.mix_code_closure(N.REHEARSAL_CODE_ROOTS)[0]-set(N.MIX_CODE_FUNCS)
 check("only non-cipher helpers are outside mix coverage (ddt_max, lat_max, grid_rows, encrypt_hello, import attestations incl. the import-time source snapshot) plus rehearsal code, which the rehearsal digest covers",
-      mod_defs-set(N.MIX_CODE_FUNCS)=={"ddt_max","lat_max","grid_rows","encrypt_hello","_init_attestation","_init_rehearsal_attestation","_module_source_snapshot","_verify_executed_code"}|_rh_only
+      mod_defs-set(N.MIX_CODE_FUNCS)=={"ddt_max","lat_max","grid_rows","encrypt_hello","_init_attestation","_init_rehearsal_attestation","_module_source_snapshot","_verify_executed_code","_executed_pyc_code"}|_rh_only
       and all("rehearsal" in n.lower() or n in ("_fresh_stream_nonce","UnfinalizedStreamWarning") for n in _rh_only)
       and "UnfinalizedStreamWarning" in _rh_only and "_module_source_snapshot" not in _rh_only)
 check("closure includes staff_mix/staff_unmix/shell_mix/shell_unmix/weave/unweave/xor_grid/Schedule/keyed_sbox/encode_block/encrypt_grid/decrypt_grid",
@@ -1302,7 +1302,7 @@ check("FEATURES mention the version byte and AD in the HMAC description, and AD 
       and any("conductor" in f and "equal-time" in f for f in N.FEATURES)
       and any("conductor-polish" in f and "equal-time" in f for f in N.FEATURES)
       and any("rehearsal" in f and "v8" in f for f in N.FEATURES)
-      and N.REVISION == "rehearsal-finale" and N.REVISION_DATE == "2026-11-11")
+      and N.REVISION == "rehearsal-curtain" and N.REVISION_DATE == "2026-11-14")
 
 # ---- movements mode (format version 7; legacy version 3 only via decrypt_movements_legacy)
 check("FMT_MOVEMENTS is 7, distinct from single-block version 6, and the header/stride sizes match the layout",
@@ -3214,9 +3214,9 @@ try:
     finally:
         N._RehearsalOutput._check = _fn_chk
     _fn_l1ok = _rp_with_link(_rp_raise(_rp_errno.EPERM), lambda: N.decrypt_rehearsal_file(_fn_P("in.oct"), _fn_P("l1ok.txt"), SEED, b"race"), tmpfile=False)
-    check("rehearsal-finale L1: the no-hard-link copy keeps its fd open through the check (inode cannot be recycled): a file swapped in at dst is refused with RuntimeError and removed, never vouched for; the clean fallback still publishes 0600",
+    check("rehearsal-finale L1 (as changed by rehearsal-curtain I1): the no-hard-link copy keeps its fd open through the check (inode cannot be recycled): a file swapped in at dst is refused with RuntimeError, never vouched for, and (curtain) left alone since this call did not create it; the clean fallback still publishes 0600",
           isinstance(_fn_l1r, RuntimeError) and _fn_l1.get("open") == [_fn_l1["want"]] and _fn_l1["new_ino"] != _fn_l1["want"]
-          and not os.path.lexists(_fn_P("l1.txt")) and _fn_l1ok == len(_rp_msg) and _fn_rd(_fn_P("l1ok.txt")) == _rp_msg
+          and _fn_rd(_fn_P("l1.txt")) == b"ATTACKER CONTENT\n" and _fn_l1ok == len(_rp_msg) and _fn_rd(_fn_P("l1ok.txt")) == _rp_msg
           and _rf_stat.S_IMODE(os.stat(_fn_P("l1ok.txt")).st_mode) == 0o600 and _fn_dots() == [])
 
     # I1: overwrite=True race refused -> the OLD dst survives (RENAME_EXCHANGE + exchange back); clean overwrite works on
@@ -3330,10 +3330,10 @@ with _rh_tmp.TemporaryDirectory(prefix="octavo_fn_i5_") as _fn_td:
     _fn_pyc.compile(_fn_py, cfile=_rp_iu.cache_from_source(_fn_py), doraise=True)
     open(_fn_py, "wb").write(_fn_honest); os.utime(_fn_py, ns=(10**18, 10**18))
     _fn_bad = subprocess.run(_fn_imp, capture_output=True, text=True, timeout=120)
-check("rehearsal-finale I5: the module verifies that the bytecode it executed was compiled from _MODULE_SOURCE: an honest .pyc imports, a .pyc built from a same-size modified source (unpad accepting zero blocks) with the honest .py restored at the same mtime fails the import",
+check("rehearsal-finale I5 (as changed by rehearsal-curtain L1): the module verifies that the bytecode it executed was compiled from _MODULE_SOURCE: an honest .pyc imports, a .pyc built from a same-size modified source (unpad accepting zero blocks) with the honest .py restored at the same mtime fails the import (now caught by the whole-module comparison, reported as <module>)",
       len(_fn_evil) == len(_fn_honest) and _fn_evil != _fn_honest
       and _fn_good.returncode == 0 and _fn_good2.returncode == 0 and _fn_good2.stdout.strip() == N.REVISION
-      and _fn_bad.returncode != 0 and "executed bytecode for _rehearsal_unpad does not match" in _fn_bad.stderr)
+      and _fn_bad.returncode != 0 and "executed bytecode for <module> does not match" in _fn_bad.stderr)
 
 # I6: workers start as python -I -B -S with an empty environment; the parent spot-checks one block per batch
 _fn_popen = N.subprocess.Popen; _fn_calls = []
@@ -3392,6 +3392,230 @@ check("rehearsal-finale I8: bad final padding on a fully tag-verified stream rai
       isinstance(_fn_e1, N.AuthError) and _fn_leaks(_fn_e1) == [] and isinstance(_fn_e2, N.AuthError) and _fn_leaks(_fn_e2) == []
       and _fn_pre == b"S" * 256)
 
+# ---- rehearsal-curtain: regression tests for the rehearsal-finale attack (attacks_octavo_rehearsalfinale/REPORT.md)
+import importlib._bootstrap_external as _cu_BE
+# L1: a .pyc whose header carries the honest .py's mtime+size but whose code has statements APPENDED after the
+# executed-code check (w05 B), or a module-level MethodType rebinding before it (w05 C), now fails the import:
+# the whole module code object of the .pyc Python would use is compared with the one compiled from _MODULE_SOURCE
+with _rh_tmp.TemporaryDirectory(prefix="octavo_cu_l1_") as _cu_td:
+    for _f in ("sneak_n2.py", "sneak1024-seed.txt"):
+        _rh_sh.copyfile(os.path.join(HERE, _f), os.path.join(_cu_td, _f))
+    _cu_py = os.path.join(_cu_td, "sneak_n2.py"); _cu_honest = open(_cu_py, "rb").read(); _cu_st = os.stat(_cu_py)
+    _cu_cache = _rp_iu.cache_from_source(_cu_py)
+    def _cu_plant(src, kind="ts"):
+        os.makedirs(os.path.dirname(_cu_cache), exist_ok=True)
+        code = compile(src, _cu_py, "exec", dont_inherit=True)
+        if kind == "ts":
+            data = _cu_BE._code_to_timestamp_pyc(code, int(_cu_st.st_mtime), _cu_st.st_size)
+        else:                                              # unchecked hash-based: Python uses it whatever the source
+            data = _cu_BE._code_to_hash_pyc(code, _rp_iu.source_hash(_cu_honest), checked=False)
+        open(_cu_cache, "wb").write(data); os.utime(_cu_py, ns=(_cu_st.st_atime_ns, _cu_st.st_mtime_ns))
+    _cu_imp = [sys.executable, "-B", "-c", "import sys; sys.path.insert(0, %r); import sneak_n2 as N; print(N.REVISION, N.EVIL if hasattr(N, 'EVIL') else '-')" % _cu_td]
+    _cu_run = lambda: subprocess.run(_cu_imp, capture_output=True, text=True, timeout=120)
+    _cu_tail = b"\nEVIL = 'appended'\nhmac = types.SimpleNamespace(new=hmac.new, HMAC=hmac.HMAC, compare_digest=lambda a, b: True)\n"
+    _cu_plant(_cu_honest); _cu_l1_ok = _cu_run()
+    _cu_plant(_cu_honest + _cu_tail); _cu_l1_app = _cu_run()
+    _cu_plant(_cu_honest + _cu_tail, "hash"); _cu_l1_hash = _cu_run()
+    _cu_pos = _cu_honest.rindex(b"\n_verify_executed_code()")
+    _cu_plant(_cu_honest[:_cu_pos] + b"\n_rehearsal_unpad = types.MethodType(lambda self, p: (True, p[:len(p) - 1]), object())\n" + _cu_honest[_cu_pos:])
+    _cu_l1_meth = _cu_run()
+    os.unlink(_cu_cache); _cu_l1_none = _cu_run()
+# bound methods / partials whose function was made in this module's namespace are unwrapped and compared (in-process)
+_cu_l1_src = {}
+_cu_fake = _types.FunctionType(compile("lambda self, p: (True, p)", "<injected>", "eval").co_consts[0], vars(N))
+_cu_real_unpad = N._rehearsal_unpad
+for _cu_k, _cu_v in (("meth", _types.MethodType(_cu_fake, object())), ("partial", __import__("functools").partial(_cu_fake, None))):
+    N._rehearsal_unpad = _cu_v
+    try:
+        _cu_l1_src[_cu_k] = _rp_try(N._verify_executed_code)
+    finally:
+        N._rehearsal_unpad = _cu_real_unpad
+_cu_l1_src["clean"] = _rp_try(N._verify_executed_code)
+check("rehearsal-curtain L1: an honest .pyc imports; a timestamp .pyc with code APPENDED after the executed-code check, the same as an unchecked hash-based .pyc, and a .pyc with a module-level MethodType rebinding before the check all fail the import (whole module code object compared)",
+      _cu_l1_ok.returncode == 0 and _cu_l1_ok.stdout.split() == [N.REVISION, "-"]
+      and _cu_l1_app.returncode != 0 and "executed bytecode for <module> does not match" in _cu_l1_app.stderr and "appended" not in _cu_l1_app.stdout
+      and _cu_l1_hash.returncode != 0 and "executed bytecode for <module> does not match" in _cu_l1_hash.stderr
+      and _cu_l1_meth.returncode != 0 and "executed bytecode for" in _cu_l1_meth.stderr
+      and _cu_l1_none.returncode == 0 and _cu_l1_none.stdout.split() == [N.REVISION, "-"])
+check("rehearsal-curtain L1: bound methods and functools.partial globals are unwrapped and compared too (a source-path MethodType or partial rebinding is refused); the check and README/SECURITY describe the whole-module comparison and its limit",
+      all(isinstance(_cu_l1_src[k], RuntimeError) and "executed bytecode for <lambda> does not match" in str(_cu_l1_src[k]) for k in ("meth", "partial"))
+      and _cu_l1_src["clean"] is None
+      and "WHOLE module code object" in N._verify_executed_code.__doc__ and "checked-hash" in N._verify_executed_code.__doc__
+      and all("whole module code object" in open(os.path.join(HERE, f), encoding="utf-8").read() for f in ("README.md", "SECURITY.md"))
+      and "Module-level statements are not compared" not in open(os.path.join(HERE, "README.md"), encoding="utf-8").read())
+
+# I1: overwrite=True races (w02 S1/S2/S3)
+_cu_d = os.path.realpath(_rh_tmp.mkdtemp(prefix="octavo_cu_i1_"))
+_cu_P = lambda *a: os.path.join(_cu_d, *a)
+def _cu_dots(): return sorted(n for n in os.listdir(_cu_d) if n.startswith("."))
+def _cu_rd(p): return open(p, "rb").read() if os.path.isfile(p) and not os.path.islink(p) else None
+open(_cu_P("in.oct"), "wb").write(_rp_blob)
+_cu_r2 = N._rehearsal_renameat2
+try:
+    # S1: an attacker renames over the .swap name before the exchange AND again before the swap-back
+    open(_cu_P("s1.txt"), "wb").write(b"OLD S1\n"); _cu_n = []
+    def _cu_s1(dirfd, old, new, flags):
+        if flags == N._RENAME_EXCHANGE and len(_cu_n) < 2:
+            open(_cu_P("evil.x"), "wb").write(b"EVIL %d\n" % len(_cu_n)); os.rename(_cu_P("evil.x"), _cu_P(old)); _cu_n.append(old)
+        return _cu_r2(dirfd, old, new, flags)
+    N._rehearsal_renameat2 = _cu_s1
+    try:
+        _cu_s1r = _rp_try(lambda: N.decrypt_rehearsal_file(_cu_P("in.oct"), _cu_P("s1.txt"), SEED, b"race", overwrite=True))
+    finally:
+        N._rehearsal_renameat2 = _cu_r2
+    _cu_s1_left = _cu_dots()
+    for _n in _cu_s1_left: os.unlink(_cu_P(_n))
+    # S1 single race (regression): old dst put back, stray at our .swap name removed
+    open(_cu_P("s1b.txt"), "wb").write(b"OLD S1B\n"); _cu_n = []
+    def _cu_s1b(dirfd, old, new, flags):
+        if flags == N._RENAME_EXCHANGE and not _cu_n:
+            open(_cu_P("evil.x"), "wb").write(b"EVIL\n"); os.rename(_cu_P("evil.x"), _cu_P(old)); _cu_n.append(old)
+        return _cu_r2(dirfd, old, new, flags)
+    N._rehearsal_renameat2 = _cu_s1b
+    try:
+        _cu_s1br = _rp_try(lambda: N.decrypt_rehearsal_file(_cu_P("in.oct"), _cu_P("s1b.txt"), SEED, b"race", overwrite=True))
+    finally:
+        N._rehearsal_renameat2 = _cu_r2
+    _cu_s1b_ino = os.lstat(_cu_P("s1b.txt")).st_ino
+    # S2: a file renamed over dst after a good exchange (just before the final check) is refused but NOT unlinked
+    open(_cu_P("s2.txt"), "wb").write(b"OLD S2\n")
+    _cu_chk = N._RehearsalOutput._check; _cu_s2 = []
+    def _cu_s2chk(self, name, want, created):
+        if name == "s2.txt" and not _cu_s2:
+            open(_cu_P("evil2.x"), "wb").write(b"SOMEONE ELSE\n"); os.rename(_cu_P("evil2.x"), _cu_P("s2.txt")); _cu_s2.append(1)
+        return _cu_chk(self, name, want, created)
+    N._RehearsalOutput._check = _cu_s2chk
+    try:
+        _cu_s2r = _rp_try(lambda: N.decrypt_rehearsal_file(_cu_P("in.oct"), _cu_P("s2.txt"), SEED, b"race", overwrite=True))
+    finally:
+        N._RehearsalOutput._check = _cu_chk
+    # S3 a: dst turns into a directory just before the exchange -> exchanged back, IsADirectoryError, nothing left
+    open(_cu_P("s3.txt"), "wb").write(b"OLD S3\n"); _cu_n = []
+    def _cu_s3(dirfd, old, new, flags):
+        if flags == N._RENAME_EXCHANGE and not _cu_n:
+            os.unlink(_cu_P(new)); os.mkdir(_cu_P(new)); open(_cu_P(new, "keep"), "wb").write(b"k"); _cu_n.append(1)
+        return _cu_r2(dirfd, old, new, flags)
+    N._rehearsal_renameat2 = _cu_s3
+    try:
+        _cu_s3r = _rp_try(lambda: N.decrypt_rehearsal_file(_cu_P("in.oct"), _cu_P("s3.txt"), SEED, b"race", overwrite=True))
+    finally:
+        N._rehearsal_renameat2 = _cu_r2
+    # S3 b: dst replaced by a directory after the open-time check (during the stream) -> refused before any .swap
+    open(_cu_P("s3b.txt"), "wb").write(b"OLD S3B\n")
+    class _CuSrc:
+        def __init__(self): self.f = open(_cu_P("in.oct"), "rb")
+        def read(self, n):
+            b = self.f.read(n)
+            if not b and os.path.isfile(_cu_P("s3b.txt")): os.unlink(_cu_P("s3b.txt")); os.mkdir(_cu_P("s3b.txt"))
+            return b
+    _cu_src = _CuSrc(); _cu_s3br = _rp_try(lambda: N.decrypt_rehearsal_file(_cu_src, _cu_P("s3b.txt"), SEED, b"race", overwrite=True)); _cu_src.f.close()
+    # S5 (held): dst swapped for a HARD LINK to the source just before the exchange -> published, the link (now under
+    # this call's own .swap name) is unlinked, the source keeps nlink 1 and its bytes
+    open(_cu_P("s5.txt"), "wb").write(b"OLD S5\n"); _cu_n = []
+    def _cu_s5(dirfd, old, new, flags):
+        if flags == N._RENAME_EXCHANGE and not _cu_n:
+            os.unlink(_cu_P(new)); os.link(_cu_P("in.oct"), _cu_P(new)); _cu_n.append(1)
+        return _cu_r2(dirfd, old, new, flags)
+    N._rehearsal_renameat2 = _cu_s5
+    try:
+        _cu_s5r = _rp_try(lambda: N.decrypt_rehearsal_file(_cu_P("in.oct"), _cu_P("s5.txt"), SEED, b"race", overwrite=True))
+    finally:
+        N._rehearsal_renameat2 = _cu_r2
+    _cu_s5_ok = (_cu_s5r == len(_rp_msg) and _cu_rd(_cu_P("s5.txt")) == _rp_msg and os.stat(_cu_P("in.oct")).st_nlink == 1
+                 and _cu_rd(_cu_P("in.oct")) == _rp_blob)
+    _cu_dots_end = _cu_dots()
+    _cu_s2_left = _cu_rd(_cu_P("s2.txt")); _cu_s3_dir = _cu_rd(_cu_P("s3.txt", "keep")) == b"k"; _cu_s3b_dir = os.path.isdir(_cu_P("s3b.txt"))
+finally:
+    N._rehearsal_renameat2 = _cu_r2
+    _rh_sh.rmtree(_cu_d, ignore_errors=True)
+check("rehearsal-curtain I1 S1: a double race (over .swap before the exchange and again before the swap-back) is reported honestly as 'could NOT be restored' and the .swap name is left as found; a single race still puts the old dst back and removes only the stray",
+      isinstance(_cu_s1r, RuntimeError) and "could NOT be restored" in str(_cu_s1r) and "put back" not in str(_cu_s1r)
+      and len(_cu_s1_left) == 1 and _cu_s1_left[0].endswith(".swap")
+      and isinstance(_cu_s1br, RuntimeError) and "old dst was put back" in str(_cu_s1br))
+check("rehearsal-curtain I1 S2/S3/S5: a file renamed over dst after the exchange is refused (RuntimeError) but left in place (never unlinked: this call did not create it); a dst that becomes a directory is refused with IsADirectoryError, before the exchange or by exchanging back, with the directory and its contents intact; a dst swapped for a hard link to the source is replaced and the link removed (source nlink 1, intact); no stray .swap",
+      isinstance(_cu_s2r, RuntimeError) and "not published" in str(_cu_s2r) and _cu_s2_left == b"SOMEONE ELSE\n"
+      and isinstance(_cu_s3r, IsADirectoryError) and "put back" in str(_cu_s3r)
+      and _cu_s3_dir and isinstance(_cu_s3br, IsADirectoryError) and _cu_s3b_dir and _cu_s5_ok and _cu_dots_end == [])
+
+# I2: the parent spot-checks up to REHEARSAL_SPOT_BLOCKS blocks in EVERY chunk: a worker that falsifies ONE block
+# per 1 KiB chunk (8 blocks, so all are checked) is caught every time (w03 saw 8/120 with one block per batch)
+_cu_m2 = os.urandom(6 * 1024 + 100); _cu_b2 = N.encrypt_rehearsal(_cu_m2, SEED, b"i2", 1024)
+_cu_rv = N._RehearsalWorkers._recv
+def _cu_one_block(self, p, n, deadline):
+    b = _cu_rv(self, p, n, deadline)
+    if n == 1024:
+        k = 3 * N.BLOCK_LEN + 7; b = b[:k] + bytes([b[k] ^ 1]) + b[k + 1:]     # one byte of ONE block per chunk
+    return b
+N._RehearsalWorkers._recv = _cu_one_block
+try:
+    _cu_i2 = [_rp_try(lambda: N.decrypt_rehearsal(_cu_b2, SEED, b"i2", workers=2)) for _ in range(12)]
+    _cu_i2e = [_rp_try(lambda: N.encrypt_rehearsal(_cu_m2, SEED, b"i2", 1024, workers=2)) for _ in range(6)]
+finally:
+    N._RehearsalWorkers._recv = _cu_rv
+check("rehearsal-curtain I2: every chunk gets min(8, blocks) distinct spot-checked blocks: a worker that falsifies one block in each 8-block chunk is caught on 12/12 decrypts and 6/6 encrypts; the real odds are documented (helper, README, SECURITY); honest workers still round-trip",
+      N.REHEARSAL_SPOT_BLOCKS == 8 and all(isinstance(e, RuntimeError) and "spot check" in str(e) for e in _cu_i2 + _cu_i2e)
+      and "1 - C(n-w, s)/C(n, s)" in N._RehearsalWorkers._spot_check.__doc__ and "37%" in N._RehearsalWorkers._spot_check.__doc__
+      and all("37%" in open(os.path.join(HERE, f), encoding="utf-8").read() for f in ("README.md", "SECURITY.md"))
+      and N.decrypt_rehearsal(_cu_b2, SEED, b"i2", workers=2) == _cu_m2)
+
+# I3: a worker reply announcing a length other than the chunk's is refused BEFORE any body byte is read
+_cu_asked = []
+def _cu_big_hdr(self, p, n, deadline):
+    _cu_asked.append(n)
+    b = _cu_rv(self, p, n, deadline)
+    return (63 << 20).to_bytes(8, "big") if n == 8 else b
+N._RehearsalWorkers._recv = _cu_big_hdr
+try:
+    _cu_i3 = _rp_try(lambda: N.decrypt_rehearsal(_cu_b2, SEED, b"i2", workers=2))
+finally:
+    N._RehearsalWorkers._recv = _cu_rv
+check("rehearsal-curtain I3: a worker announcing a 63 MiB reply for a 1 KiB chunk is refused (RuntimeError 'wrong reply length', workers killed) without the parent ever asking to read more than the chunk size",
+      isinstance(_cu_i3, RuntimeError) and "wrong reply length" in str(_cu_i3) and _cu_asked and max(_cu_asked) <= 1024
+      and "wrong reply length" in inspect.getsource(N._RehearsalWorkers.run))
+
+# I4: -X dev and -W default no longer de-duplicate the warning per call site: 5 dropped decryptors -> 5 warnings
+_cu_l4x = subprocess.run([sys.executable, "-B", "-X", "dev", "-c", _fn_l2code], capture_output=True, text=True, timeout=120)
+_cu_l4d = subprocess.run([sys.executable, "-B", "-W", "default", "-c", _fn_l2code], capture_output=True, text=True, timeout=120)
+_cu_l4o = subprocess.run([sys.executable, "-B", "-W", "once", "-c", _fn_l2code], capture_output=True, text=True, timeout=120)
+check("rehearsal-curtain I4: under -X dev and -W default every dropped decryptor warns (5/5, was 1/5); -W once still means once; -W error / -W ignore unchanged (see rehearsal-finale L2)",
+      _cu_l4x.returncode == 0 and _cu_l4x.stderr.count("UnfinalizedStreamWarning:") == 5
+      and _cu_l4d.returncode == 0 and _cu_l4d.stderr.count("UnfinalizedStreamWarning:") == 5
+      and _cu_l4o.returncode == 0 and _cu_l4o.stderr.count("UnfinalizedStreamWarning:") == 1
+      and "warn_explicit" in inspect.getsource(N.RehearsalDecryptor.__del__) and "registry=None" in inspect.getsource(N.RehearsalDecryptor.__del__))
+
+# I5: _rehearsal_fsync_dir only takes an open directory descriptor (no path branch left)
+_cu_fd5 = os.open(_rh_tmp.gettempdir(), os.O_RDONLY | os.O_DIRECTORY)
+try:
+    _cu_i5 = (_rp_try(lambda: N._rehearsal_fsync_dir(_cu_fd5)), _rp_try(lambda: N._rehearsal_fsync_dir(_rh_tmp.gettempdir())),
+              _rp_try(lambda: N._rehearsal_fsync_dir(True)))
+finally:
+    os.close(_cu_fd5)
+check("rehearsal-curtain I5: _rehearsal_fsync_dir fsyncs a directory fd and refuses a path or bool (TypeError); its source opens nothing by name",
+      _cu_i5[0] is None and isinstance(_cu_i5[1], TypeError) and isinstance(_cu_i5[2], TypeError)
+      and "os.open" not in inspect.getsource(N._rehearsal_fsync_dir))
+
+# I6: the module docstring counts the in-house attacks correctly
+check("rehearsal-curtain I6: the module docstring says four in-house rehearsal attacks (rehearsal, -fix, -polish, -finale) and names rehearsal-curtain; the stale 'two in-house attacks' text is gone",
+      "four in-house attacks" in N.__doc__ and "rehearsal-finale" in N.__doc__ and "rehearsal-curtain" in N.__doc__
+      and "two in-house attacks" not in N.__doc__)
+
+# I7 (no break, held): truncations, chunk drop/dup/swap and header edits are still rejected by all three readers
+_cu_m7 = os.urandom(5 * 128 + 40); _cu_b7 = N.encrypt_rehearsal(_cu_m7, SEED, b"i7", 128)
+_cu_hd, _cu_ch = _cu_b7[:72], [_cu_b7[72 + i * 160:72 + (i + 1) * 160] for i in range((len(_cu_b7) - 72) // 160)]
+_cu_bad7 = [_cu_b7[:n] for n in (0, 71, 72, 72 + 160, len(_cu_b7) - 1)] + [
+    _cu_hd + b"".join(_cu_ch[:2] + _cu_ch[3:]), _cu_hd + b"".join(_cu_ch[:2] + _cu_ch[1:]),
+    _cu_hd + b"".join([_cu_ch[1], _cu_ch[0]] + _cu_ch[2:]), _cu_b7[:40] + bytes([_cu_b7[40] ^ 1]) + _cu_b7[41:]]
+def _cu_rej(b):
+    r1 = _rp_try(lambda: N.decrypt_rehearsal(b, SEED, b"i7"))
+    r2 = _rp_try(lambda: b"".join(N.iter_rehearsal(b, SEED, b"i7")))
+    def r3f():
+        d = N.RehearsalDecryptor(SEED, b"i7"); d.update(b); return d.finalize()
+    r3 = _rp_try(r3f)
+    return all(isinstance(r, (N.AuthError, N.UnsupportedVersion, ValueError)) for r in (r1, r2, r3))
+check("rehearsal-curtain I7 (held, no code change): truncations, a dropped / duplicated / swapped chunk and a header edit are rejected by decrypt_rehearsal, iter_rehearsal and RehearsalDecryptor; the genuine stream opens (also with workers=2)",
+      all(_cu_rej(b) for b in _cu_bad7) and N.decrypt_rehearsal(_cu_b7, SEED, b"i7") == _cu_m7
+      and N.decrypt_rehearsal(_cu_b7, SEED, b"i7", workers=2) == _cu_m7 and len(_cu_ch) == 6)
+
 # identifiers: the mix digest and key_sig are untouched by the polish; v8 ciphertext blocks are unchanged (only tags move)
 check("rehearsal-polish / rehearsal-finale: EXPECTED_MIX_SHA256 and key_sig are unchanged (fe939969… / 340dc1e0…); v6/v7 untouched",
       N.EXPECTED_MIX_SHA256 == "fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6"
@@ -3405,7 +3629,7 @@ _committed = _json_score.load(open(_score_path))
 _fresh = _gen_score.build_vectors()
 check("published score regenerates identically (72 vectors: 16 permute, 24 aead, 24 movements, 8 rehearsal)",
       _fresh == _committed and _committed["counts"] == {"block_cipher": 16, "aead": 24, "movements": 24, "rehearsal": 8, "total": 72}
-      and _committed["revision"] == "rehearsal-finale" and _committed.get("score_version") == 7
+      and _committed["revision"] == "rehearsal-curtain" and _committed.get("score_version") == 8
       and _committed["format"]["etude_fmt_block"] == {"2": 0x82, "4": 0x84, "6": 0x86, "16": 0x90}
       and _committed["EXPECTED_MIX_SHA256"] == N.EXPECTED_MIX_SHA256
       and _committed["key_sig"] == N.key_signature(SEED).hex()

@@ -20,6 +20,10 @@ digest, hence rehearsal_sig); headers and ciphertext blocks match score version 
 Score version 7 (rehearsal-finale) regenerates them again for the same reason (the
 rehearsal-polish attack fixes moved the rehearsal digest); headers and ciphertext
 blocks match score version 6, only the tags differ.
+Score version 8 (rehearsal-curtain) regenerates them again for the same reason (the
+rehearsal-finale attack fixes moved the rehearsal digest); headers and ciphertext
+blocks match score version 7, only the tags differ, so the score version 7
+rehearsal vectors (published with rehearsal-finale) do not open on this revision.
 The tuning-fix score (0xA*/0xB*, shared live keys) was
 never published; the octavo009 score (0xE*/0xF*) is frozen in octavo009.
 
@@ -277,9 +281,15 @@ def build_vectors() -> dict:
             "once more for the same reason (the rehearsal-polish attack fixes moved "
             "the rehearsal digest, hence rehearsal_sig and every chunk TAG); headers "
             "and ciphertext blocks are byte-identical to score version 6, and the 64 "
-            "étude vectors are unchanged."
+            "étude vectors are unchanged. "
+            "Score version 8 (rehearsal-curtain) regenerates the 8 rehearsal vectors "
+            "once more for the same reason (the rehearsal-finale attack fixes moved "
+            "the rehearsal digest, hence rehearsal_sig and every chunk TAG); headers "
+            "and ciphertext blocks are byte-identical to score version 7, the score "
+            "version 7 rehearsal vectors no longer open, and the 64 étude vectors are "
+            "unchanged."
         ),
-        "score_version": 7,
+        "score_version": 8,
         "revision": N.REVISION,
         "revision_date": N.REVISION_DATE,
         "sneak_n2_sha256": file_sha,

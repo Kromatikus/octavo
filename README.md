@@ -1,7 +1,103 @@
 <p align="center"><img src="sneak-staff-n2.png" alt="Octavo dual-octahedra picture" width="720"></p>
 <p align="center"><img src="logo.png" alt="Octavo logo" width="120"></p>
 
-## Current live revision — rehearsal-finale (2026-11-11, frozen as octavo011)
+## Current live revision — rehearsal-curtain (2026-11-14, not frozen)
+
+Rehearsal-curtain applies the fixes suggested by the fourth rehearsal attack
+(`attacks_octavo_rehearsalfinale/REPORT.md`: 0 High, 0 Medium, 1 Low, 7 Info,
+no cryptographic break of v8). The round function, key schedule, constants
+and all wire formats are unchanged. **v6 and v7 are byte-identical to
+octavo010**, `EXPECTED_MIX_SHA256` and `key_sig` did not move, and **v8
+headers and ciphertext blocks are byte-identical to rehearsal-finale** for the
+same pickup and nonce. Only the v8 chunk **tags** changed, because the
+rehearsal digest attests all v8 API code (file helpers and workers included).
+**Unlike earlier rounds, rehearsal-finale v8 was published** (score version 7
+and `rehearsal-demo.txt` in the GitHub repo), and those v8 streams **do not
+open here**; there is no legacy v8 reader. Still N2 / SN2 (project name:
+Octavo), still homemade, **not for real secrets** (use AES-GCM-SIV, age or
+libsodium). These fixes have not been attacked again. The picture was
+re-rendered.
+
+- **L1, the whole module code object is checked.** The rehearsal-finale
+  executed-bytecode check compared only plain functions and classes, so a
+  `.pyc` with statements appended after the check (or a module-level
+  rebinding to a bound method before it) imported cleanly. Now, when a cached
+  `.pyc` that Python would have used is present (timestamp `.pyc` whose
+  recorded mtime and size match the `.py`, an unchecked hash-based `.pyc`, or
+  a checked one whose source hash matches), the import compares its **whole
+  module code object** with the one compiled from `_MODULE_SOURCE`. Code
+  objects compare recursively, so module-level statements, class bodies,
+  every function, constant and line table are covered, and any difference
+  fails the import ("executed bytecode for <module> does not match").
+  Bound methods, `functools.partial` objects, static/class methods and
+  properties bound to module globals are also unwrapped and compared.
+  Limit: the check re-reads the `.pyc` after Python did, so someone who can
+  write `__pycache__` and put the honest file back within the import window
+  is not caught. Checked-hash pycs (`python -m py_compile
+  --invalidation-mode checked-hash`) or a read-only install avoid trusting
+  timestamps at all; anyone who can write the install can still change what
+  runs.
+- **I1, overwrite races.** Before the `RENAME_EXCHANGE` commit the old dst's
+  inode is recorded. After a swap-back the code checks that dst really holds
+  that inode again. If it does, the error says "the old dst was put back";
+  if not (a second race), it says "the old dst could NOT be restored" and
+  leaves the `.swap` name as found instead of claiming success. A name is
+  unlinked only while it still holds what this call put there: a file someone
+  renames over dst after the exchange is refused (`RuntimeError`) but **no
+  longer deleted**. After a good exchange, whatever dst held at that instant
+  (the file `overwrite=True` replaces, now under this call's own `.swap` name)
+  is unlinked as before. A dst that is a directory is refused with
+  `IsADirectoryError` at commit too, and if it turns into a directory just
+  before the exchange, the exchange is undone and `IsADirectoryError` is
+  raised. The `os.replace` fallback (no `renameat2`) keeps its documented
+  limit.
+- **I2, spot check in every chunk.** The parent now recomputes up to
+  `REHEARSAL_SPOT_BLOCKS = 8` distinct random blocks in **every** chunk of a
+  worker batch (all blocks when a chunk has 8 or fewer), instead of one block
+  per batch. Extra work is about 8/512 = 1/64 of the chunk at the default
+  64 KiB chunk size. Real odds: a chunk in which a worker falsified `w` of its
+  `n` blocks is caught with probability 1 − C(n−w, 8)/C(n, 8): 100 % when the
+  chunk has at most 8 blocks, 8/n when `w = 1` (1/64 at the default size),
+  above 99.9 % once half the blocks are wrong. A worker that falsifies one
+  block in every chunk escapes all 64 chunks of a 4 MiB stream with
+  probability (1 − 8/512)^64 ≈ 37%. It is still a spot check, not a proof:
+  workers stay in the trusted base.
+- **I3, worker frame length.** A worker reply must announce exactly the
+  chunk's length. Any other announced length is refused (`RuntimeError`,
+  workers killed) **before** any body byte is read, so a bad worker can no
+  longer make the parent buffer an arbitrarily large frame.
+- **I4, the warning under `-X dev` / `-W default`.** `UnfinalizedStreamWarning`
+  is now issued with `warnings.warn_explicit(..., registry=None)`, so the
+  `default` action (used by `-X dev`, `-W default` and
+  `PYTHONWARNINGS=default`) no longer de-duplicates it per call site: 5
+  dropped decryptors give 5 warnings. `-W once` still means once, `-W error`
+  still reaches `sys.unraisablehook` and `-W ignore` still silences it.
+- **I5, directory fsync.** `_rehearsal_fsync_dir` takes only an open
+  directory descriptor; the unused path branch (which opened by name without
+  `O_CLOEXEC` / `O_NOFOLLOW`) is gone, and a path raises `TypeError`.
+- **I6, module docstring.** It now counts four in-house rehearsal attacks
+  and names the revisions that fixed them.
+- **I7** (no break, no regression) needed no change; regression tests keep it
+  that way.
+
+- Live `sneak_n2.py` SHA-256: `329c0647989a35019a06b00ef2ae660494a8e8ad0c1523787b37436562cd78a4`.
+- `EXPECTED_MIX_SHA256`: `fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6` (unchanged).
+- key_sig (demo seed): `340dc1e062502bb13462a94ba490c3dc` (unchanged).
+- `EXPECTED_REHEARSAL_SHA256`: `50c077f3b2105b36e027bf0c94770dcad64f7242974c4b7e67d3f0226810a4a8` (was `f28badba…`).
+- rehearsal_sig (demo seed): `7ea74c1edbfe3c7eee503d04c2ff6391` (was `a3b4c820…`).
+- hello-world and movements-demo blobs: unchanged from octavo010.
+- `rehearsal-demo.txt`: re-sealed with the **same** pickup and nonce as the
+  rehearsal-finale sample; header and both ciphertext chunks identical, only
+  the two tags differ.
+- Score: `score/vectors.json`, score version 8, 72 vectors. The 64 étude
+  vectors are unchanged; the 8 rehearsal vectors were regenerated and only
+  their tags differ from score version 7
+  (`rehearsalcurtain_verification/v8_compare.txt`: 8/8).
+- Tests: 476/476 passed (live, 18:46–18:55 America/New_York, 2026-11-14) (`python3 test_sneak_n2.py`, about 10 minutes; `rehearsalcurtain_verification/test_run_live.txt`). The new
+  checks turn the rehearsal-finale attack's witnesses into regression tests.
+- Witness rerun: `/workspace/rehearsalcurtain_witness_rerun/` (`SUMMARY.txt`).
+
+## Previous revision — rehearsal-finale (2026-11-11, frozen as octavo011 and octavo013; attacked in `attacks_octavo_rehearsalfinale/`)
 
 Rehearsal-finale applies the fixes suggested by the third rehearsal attack
 (`attacks_octavo_rehearsalpolish/REPORT.md`: 0 High, 0 Medium, 3 Low, 9 Info,
@@ -20,7 +116,8 @@ again. The picture was re-rendered.
   descriptor now stays **open** through the inode check and until the helper
   returns, so its inode number cannot be freed and handed to a file someone
   creates at dst in the gap. A substitute is refused (`RuntimeError`) and
-  removed.
+  removed (since rehearsal-curtain I1 it is refused but left in place, because
+  this call did not create it).
 - **L2, the warning is no longer lost.** `UnfinalizedStreamWarning` is raised
   outside the destructor's own `try/except`, so under `-W error` it reaches
   `sys.unraisablehook` ("Exception ignored in … UnfinalizedStreamWarning" on
@@ -61,12 +158,13 @@ again. The picture was re-rendered.
   code object. A `.pyc` built from different source (same size and mtime) or
   a `.py` swapped between Python's read and the snapshot makes the import fail
   (`RuntimeError`, "executed bytecode … does not match"). Module-level
-  statements are not compared; the data the digests name is hashed from live
-  values.
+  statements were not compared in this revision (the rehearsal-finale attack's
+  L1); rehearsal-curtain compares the whole module code object of the `.pyc`.
 - **I6, workers.** Workers start as `python -I -B -S -c …` with an **empty
   environment** (no `site`, so no `.pth` files; no `LD_PRELOAD`,
   `LD_LIBRARY_PATH` or locale variables; on Windows only `SYSTEMROOT`). The
-  parent spot-checks **one random block per batch** against its own
+  parent spot-checks **one random block per batch** (rehearsal-curtain: up to
+  8 blocks in every chunk) against its own
   computation and kills the workers on a mismatch (`RuntimeError`). That is a
   spot check, not a proof: workers stay in the trusted base, together with
   `sys.executable`, the interpreter and the stdlib.

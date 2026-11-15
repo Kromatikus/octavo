@@ -83,7 +83,7 @@ Full-round live blobs (`hello-world.txt`, `movements-demo.txt`) are the
 samples for the ordinary version-6 and version-7 APIs, and also carry
 an AD-bound (and, for movements, nmov-bound) tuning commitment.
 
-## Live rehearsal vectors (score versions 4, 5, 6 and 7)
+## Live rehearsal vectors (score versions 4, 5, 6, 7 and 8)
 
 Since the rehearsal revision the score also holds **8 live format-version-8
 rehearsal stream vectors** (full 16 rounds, demo seed, pinned pickup and
@@ -99,4 +99,11 @@ changed. Headers and ciphertext blocks are byte-identical to score version 5
 regenerated them once more for the same reason: the rehearsal-polish attack
 fixes changed attested v8 API code, so `rehearsal_sig` and every chunk tag
 moved, while headers and ciphertext blocks are byte-identical to score
-version 6. The 64 étude vectors above are unchanged.
+version 6. Score version 8 (rehearsal-curtain) regenerated them again: the
+rehearsal-finale attack fixes (overwrite commit, worker spot check and frame
+length, warning, directory fsync) changed attested v8 API code, so
+`rehearsal_sig` and every chunk tag moved once more. Headers and ciphertext
+blocks are byte-identical to score version 7, but **the score version 7
+rehearsal vectors, published with rehearsal-finale, no longer open on this
+revision** (there is no legacy v8 reader). The 64 étude vectors above are
+unchanged.

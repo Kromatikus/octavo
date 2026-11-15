@@ -1,3 +1,15 @@
+rehearsal-curtain revision test results (2026-11-14, America/New_York; live, not frozen)
+live /workspace/sneak_n2: 476/476 passed, 0 failed, 0 skipped (about 9 min, 18:46-18:55; rehearsalcurtain_verification/test_run_live.txt)
+sneak_n2.py SHA-256: 329c0647989a35019a06b00ef2ae660494a8e8ad0c1523787b37436562cd78a4
+EXPECTED_MIX_SHA256: fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6 (unchanged from octavo010)
+key_sig: 340dc1e062502bb13462a94ba490c3dc (unchanged from octavo010)
+EXPECTED_REHEARSAL_SHA256: 50c077f3b2105b36e027bf0c94770dcad64f7242974c4b7e67d3f0226810a4a8 (was f28badba...; the rehearsal-finale attack fixes changed attested v8 API code)
+rehearsal_sig (demo seed): 7ea74c1edbfe3c7eee503d04c2ff6391 (was a3b4c820...)
+score: score_version 8; 64 etude vectors unchanged, 8 rehearsal (v8) vectors regenerated: header and ciphertext blocks identical to score 7, only tags differ (rehearsalcurtain_verification/v8_compare.txt: 8/8)
+v6/v7 vs octavo010: 28/28 in rehearsalcurtain_verification/v6v7_compare.txt
+new tests: 10 rehearsal-curtain checks (L1 x2, I1 x2, I2, I3, I4, I5, I6, I7); 5 older checks updated for the intended changes (REVISION name/date, mix-coverage helper set gains _executed_pyc_code, finale L1 substitute now left in place, finale I5 message is now <module>, score version 8 / revision)
+witnesses: copies in /workspace/rehearsalcurtain_witness_rerun (see SUMMARY.txt)
+
 rehearsal-finale revision test results (2026-11-11, America/New_York; frozen as /workspace/octavo011)
 live /workspace/sneak_n2: 459/459 passed, 0 failed, 0 skipped (about 9 min, 21:46-21:55; rehearsalfinale_verification/test_run_live.txt)
 frozen copy /workspace/octavo011: see octavo011/SNAPSHOT_FREEZE.md (full run inside the frozen tree)

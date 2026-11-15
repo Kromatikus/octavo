@@ -1,4 +1,25 @@
-# Live tree note — rehearsal-finale (frozen as /workspace/octavo011)
+# Live tree note — rehearsal-curtain (2026-11-14, live, not frozen)
+
+Live `/workspace/sneak_n2` is the rehearsal-curtain revision (2026-11-14): the
+rehearsal-finale tree (frozen as octavo011 / octavo013) plus the fixes for the
+fourth in-house rehearsal attack (`attacks_octavo_rehearsalfinale`: L1, I1–I6;
+I7 needed none). The round function, key schedule, constants and the v6/v7/v8
+formats are unchanged; v6/v7 are byte-identical to octavo010, and v8 headers
+and ciphertext blocks are byte-identical to rehearsal-finale. Only v8 tags
+moved (the rehearsal digest attests the v8 API code), so published
+rehearsal-finale v8 streams do not open here.
+
+- sneak_n2.py SHA-256: 329c0647989a35019a06b00ef2ae660494a8e8ad0c1523787b37436562cd78a4
+- EXPECTED_MIX_SHA256: fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6 (unchanged)
+- key_sig (demo seed): 340dc1e062502bb13462a94ba490c3dc (unchanged)
+- EXPECTED_REHEARSAL_SHA256: 50c077f3b2105b36e027bf0c94770dcad64f7242974c4b7e67d3f0226810a4a8; rehearsal_sig 7ea74c1edbfe3c7eee503d04c2ff6391 (was f28badba… / a3b4c820…)
+- hello-world and movements-demo: blobs unchanged from octavo010 (SHA labels updated); rehearsal-demo.txt re-sealed (same pickup/nonce, new tags); score version 8
+- Pre-change backup: /tmp/sneak_n2_pre_finale_fixes. Verification: rehearsalcurtain_verification/.
+- Changes: see README "Current live revision — rehearsal-curtain".
+
+Still homemade, NOT for real secrets. Use AES-GCM-SIV, age, or libsodium.
+
+# Previous live tree note — rehearsal-finale (frozen as /workspace/octavo011)
 
 Live `/workspace/sneak_n2` is the rehearsal-finale revision (2026-11-11). Since
 octavo010 (conductor-polish) it went through rehearsal (new v8 streaming mode),
