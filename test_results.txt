@@ -1,3 +1,15 @@
+rehearsal-honest2 revision test results (2026-11-15, America/New_York; live, not frozen; pre-change backup /workspace/sneak_n2_backups_rebuilt/pre_honest2/)
+live /workspace/sneak_n2: 544/544 passed, 0 failed, 27 skipped (about 13 min, 11:17-11:30; honest2_verification/test_run_final.txt)
+  the first full run was 542/544: two test-only failures (seedguard I3 SIGKILL/O_TMPFILE check, and honest2 I6 zip/.pyc worker check had a SyntaxError in the test); both fixed in the tests, no cipher change (honest2_verification/test_run_2fail.txt)
+  the 27 skips are the same historical /tmp checks lost in the Nov 14 21:17 reboot
+sneak_n2.py SHA-256: 19181bc1623115c075dc5dee25edec388f5413466777d47b7f19fa66d1e71eee (was 476f8a8b...)
+EXPECTED_MIX_SHA256: 1fafb4adc1cae574a1158fc19695b5a7c354e405666278ab5f66444122f8f34a (was 2bc45b77...); core / KEY_SIG_PIN[0] 9b8ac067676c92f2150d897c7ea9fa1021952ee6c728269ba9bdecf6a4b1efb1 (was e48c6878...)
+EXPECTED_REHEARSAL_SHA256: 44ad0a4a2eb86b7b98ff147ecf0374552e16bd9fe031fbe32b6b7ed0b1f67737 (was 8987bf9f...); core / REHEARSAL_SIG_PIN[0] 636d48eea97eb29449fbd0270d41d75826d6b9cab6a743e19e5cbb3a8319da72 (was 0d6d9122...)
+EXPECTED_SEED_POLICY_SHA256: 0fc482e65533814588ade098f6c8d5e68693aca76e6a1232f76466b5e609cd5e (unchanged)
+key_sig 340dc1e062502bb13462a94ba490c3dc and rehearsal_sig 07172e74d02a04a42ea0a51b8e69cbf1 unchanged; signature halves of both pins unchanged
+score: score_version 11; all 79 vectors byte-identical; header adds etudes_sha256 and generate_score_sha256; generate_score.py --check-sha exits 0
+reminder: the import self-checks are not a tamper guard; compare the file SHA-256 with the score and a trusted copy
+
 rehearsal-honest revision test results (2026-11-15, America/New_York; live, not frozen; pre-change backup /workspace/sneak_n2_backups_rebuilt/pre_seedguard2/)
 live /workspace/sneak_n2: 533/533 passed, 0 failed, 27 skipped (about 12 min, 09:38-09:50; honest_verification/test_run_final.txt)
   the 27 skips are the same historical /tmp checks lost in the Nov 14 21:17 reboot
