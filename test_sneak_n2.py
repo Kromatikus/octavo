@@ -961,16 +961,15 @@ def indep_closure():
         n=todo.pop()
         if n in skip or n in seen or n in data or not hasattr(N,n): continue
         o=getattr(N,n)
-        if isinstance(o,_types.ModuleType): continue
-        if inspect.isfunction(o) or inspect.isclass(o):
+        if inspect.isfunction(o) or inspect.isclass(o):     # rehearsal-honest L1: modules are data now
             seen.add(n); todo += [x.id for x in _ast.walk(_ast.parse(_textwrap.dedent(inspect.getsource(o)))) if isinstance(x,_ast.Name)]
         else: data.add(n)
     return seen,data
 reach,reach_data=indep_closure()
 IMPORT_TIME_BUILDERS={"_gf_mul_raw","bar_det","bar_inv","triplet_det","triplet_inv"}
 print("reachable functions/classes:",len(reach),"; reachable module data:",sorted(reach_data))
-check("MIX_CODE_FUNCS covers the whole closure (chainfix: _weak_seed_reason is listed); listed extras are the import-time table builders and the attestation-only names that no root reaches (load_seed, key tools, pin logic, helpers)",
-      reach-set(N.MIX_CODE_FUNCS)==set() and set(N.MIX_CODE_FUNCS)-reach==IMPORT_TIME_BUILDERS|{"_DerivedKey"}|(N.ATTEST_ONLY_NAMES-{"_seed_policy_check","_weak_seed_reason"})
+check("MIX_CODE_FUNCS covers the whole closure (chainfix: _weak_seed_reason is listed); listed extras are the import-time table builders, the core key tools no root reaches (seedguard: load_seed, keygen, save_seed, _fsync_dir, SeedWarning) and the attestation-only names (pin logic, helpers)",
+      reach-set(N.MIX_CODE_FUNCS)==set() and set(N.MIX_CODE_FUNCS)-reach==IMPORT_TIME_BUILDERS|{"_DerivedKey","load_seed","keygen","save_seed","_fsync_dir","SeedWarning","_seed_folder_problems"}|(N.ATTEST_ONLY_NAMES-{"_seed_policy_check","_weak_seed_reason"})
       and (reach,reach_data)==N.mix_code_closure() and len(N.MIX_CODE_FUNCS)==len(set(N.MIX_CODE_FUNCS)))
 mod_defs={n for n,o in vars(N).items() if (inspect.isfunction(o) or inspect.isclass(o)) and getattr(o,"__module__",None)==N.__name__}
 print("module functions/classes NOT in coverage:",sorted(mod_defs-set(N.MIX_CODE_FUNCS)))
@@ -986,7 +985,7 @@ check("module data hashed includes BARS, BARS_INV, TRIPLETS(_INV), CROSS_*, BOW_
       {"BARS","BARS_INV","TRIPLETS","TRIPLETS_INV","CROSS_OPPOSITE","CROSS_RADIAL","CROSS_ADJACENT","CROSS_BRIDGE","CROSS_LAYERS",
        "BOW_STROKES","BOW_PRESSURE_ROT","BOW_ROT_BASE","BOW_ROT_MOD","BOW_R2_SHIFT","LAYERS","SM4_SBOX","_GF_MUL","MIX2_MATRIX","MIX2_INV","FIELD_POLY",
        "NF","NB","NR","BLOCK_LEN","VERSION","MAX_AD_LEN"} <= reach_data and json.loads(N.mix_description())["mix_data"]["names"]==sorted(reach_data)
-      and len(reach_data)==64)   # conductor-polish: + _UNPAD_TOP, _UNPAD_MASKS; key-fix: + SEED_* thresholds (7) and KNOWN_CONSTANT_SEEDS_SHA256
+      and len(reach_data)==87)   # conductor-polish: + _UNPAD_TOP, _UNPAD_MASKS; key-fix: + SEED_* thresholds (7) and KNOWN_CONSTANT_SEEDS_SHA256; seedguard: + _POLICY_* (5) and SEED_POLICY_NAMES (policy lint); honest: + 12 modules, _EXPECTED_MODULES, _BUILTIN_PRIMITIVES, _STDLIB_FUNCTIONS, _WEAK_REASON_SHAPES; honest2: + platform
 def frame(h,parts):
     for part in parts: b=part.encode(); h.update(len(b).to_bytes(8,"big")); h.update(b)
 desc5=json.loads(N.mix_description())
@@ -1325,17 +1324,24 @@ check("bad tag is rejected without building Schedule; a valid blob still builds 
       isinstance(_e_bad, N.AuthError) and type(_e_bad) is N.AuthError and str(_e_bad) == "authentication failed"
       and _n_bad == [] and _n_good == ["Schedule"] and _ok == b"hello world")
 
+_feat = (
+    any("HMAC" in f and "version" in f and "AD" in f for f in N.FEATURES),
+    any("SIV" in f and "AD" in f for f in N.FEATURES),
+    any("movements" in f and "theme" in f and "cadence" in f and "coda" in f and "cadences" in f and "AD" in f for f in N.FEATURES),
+    any("études" in f and "lab only" in f for f in N.FEATURES),
+    any("tuning" in f and "HMAC-U" in f and "commitment" in f for f in N.FEATURES),
+)
+if not all(_feat):
+    print("FEATURES debug parts", _feat)
+    print("FEATURES debug values", N.FEATURES)
+    print("FEATURES debug etudes probe", [f for f in N.FEATURES if "lab" in f or "etude" in f.lower() or "étude" in f])
 check("FEATURES mention the version byte and AD in the HMAC description, and AD in the SIV nonce",
-      any("HMAC" in f and "version" in f and "AD" in f for f in N.FEATURES)
-      and any("SIV" in f and "AD" in f for f in N.FEATURES)
-      and any("movements" in f and "theme" in f and "cadence" in f and "coda" in f and "cadences" in f and "AD" in f for f in N.FEATURES)
-      and any("études" in f and "lab only" in f for f in N.FEATURES)
-      and any("tuning" in f and "HMAC-U" in f and "commitment" in f for f in N.FEATURES)
+      all(_feat)
       and any("tuning" in f and "HMAC" in f for f in N.FEATURES)
       and any("conductor" in f and "equal-time" in f for f in N.FEATURES)
       and any("conductor-polish" in f and "equal-time" in f for f in N.FEATURES)
       and any("rehearsal" in f and "v9" in f and "chained" in f for f in N.FEATURES)
-      and N.REVISION == "rehearsal-chainfix" and N.REVISION_DATE == "2026-11-14")
+      and N.REVISION == "rehearsal-honest2" and N.REVISION_DATE == "2026-11-15")
 
 # ---- movements mode (format version 7; legacy version 3 only via decrypt_movements_legacy)
 check("FMT_MOVEMENTS is 7, distinct from single-block version 6, and the header/stride sizes match the layout",
@@ -3659,14 +3665,16 @@ import score.generate_score as _gen_score
 _score_path = os.path.join(HERE, "score", "vectors.json")
 _committed = _json_score.load(open(_score_path))
 _fresh = _gen_score.build_vectors()
-check("published score regenerates identically (79 vectors: 16 permute, 24 aead, 24 movements, 8 rehearsal, 7 non-demo; score version 10)",
+check("published score regenerates identically (79 vectors: 16 permute, 24 aead, 24 movements, 8 rehearsal, 7 non-demo; score version 11)",
       _fresh == _committed and _committed["counts"] == {"block_cipher": 16, "aead": 24, "movements": 24, "rehearsal": 8, "nondemo": 7, "total": 79}
-      and _committed["revision"] == N.REVISION and _committed.get("score_version") == 10
+      and _committed["revision"] == N.REVISION and _committed.get("score_version") == 11
       and _committed["EXPECTED_SEED_POLICY_SHA256"] == N.EXPECTED_SEED_POLICY_SHA256
       and _committed["format"]["etude_fmt_block"] == {"2": 0x82, "4": 0x84, "6": 0x86, "16": 0x90}
       and _committed["EXPECTED_MIX_SHA256"] == N.EXPECTED_MIX_SHA256
       and _committed["key_sig"] == N.key_signature(SEED).hex()
       and _committed["sneak_n2_sha256"] == hashlib.sha256(open(os.path.join(HERE, "sneak_n2.py"), "rb").read()).hexdigest()
+      and _committed["etudes_sha256"] == hashlib.sha256(open(os.path.join(HERE, "etudes.py"), "rb").read()).hexdigest()
+      and _committed["generate_score_sha256"] == hashlib.sha256(open(os.path.join(HERE, "score", "generate_score.py"), "rb").read()).hexdigest()
       and _committed["EXPECTED_REHEARSAL_SHA256"] == N.EXPECTED_REHEARSAL_SHA256
       and _committed["rehearsal_sig"] == N.rehearsal_signature(SEED).hex())
 _rh_vec_ok = []
@@ -3786,13 +3794,29 @@ check("key-fix: keygen() returns fresh 128-byte seeds that pass the rule, never 
       and N.decrypt_movements(N.encrypt_movements(bytes(300), _kf_keys[1]), _kf_keys[1]) == bytes(300)
       and N.decrypt_rehearsal(N.encrypt_rehearsal(bytes(300), _kf_keys[2], b"a", 128), _kf_keys[2], b"a") == bytes(300)
       and isinstance(catch(lambda: N.decrypt(N.encrypt(b"kg", _kf_keys[0]), _kf_keys[3])), N.AuthError))
+# honest2 I1: keygen re-runs the binding check, so a patched os.urandom is refused.
 with patch.object(N.os, "urandom", lambda n: bytes(n)):
-    _kf_bad_rng = catch(N.keygen)
-_kf_draws = iter([bytes(range(128)), bytes(128)] + [_kf_keys[5]])
-with patch.object(N.os, "urandom", lambda n: next(_kf_draws)):
-    _kf_redraw = N.keygen()
-check("key-fix: keygen() redraws a weak draw and raises RuntimeError if the RNG only gives weak seeds",
-      _kf_redraw == _kf_keys[5] and isinstance(_kf_bad_rng, RuntimeError) and "RNG" in str(_kf_bad_rng))
+    _kf_patched = catch(N.keygen)
+# the one-draw / no-redraw rule is tested with the binding check briefly disabled so we can feed
+# controlled draws (honest I4 also tests it by rejecting the policy without touching urandom).
+_real_bind = N._check_module_bindings
+N._check_module_bindings = lambda: None
+try:
+    with patch.object(N.os, "urandom", lambda n: bytes(n)):
+        _kf_bad_rng = catch(N.keygen)
+    _kf_draws = iter([bytes(range(128)), _kf_keys[5]])
+    with patch.object(N.os, "urandom", lambda n: next(_kf_draws)):
+        _kf_redraw = catch(N.keygen)
+    _kf_draws = iter([_kf_keys[5]])
+    with patch.object(N.os, "urandom", lambda n: next(_kf_draws)):
+        _kf_good = N.keygen()
+finally:
+    N._check_module_bindings = _real_bind
+check("honest2 I1: keygen refuses a patched os.urandom (the binding check re-run on each call)",
+      isinstance(_kf_patched, RuntimeError) and "urandom" in str(_kf_patched))
+check("key-fix / honest I4: keygen() makes ONE draw and never redraws: a weak draw raises RuntimeError (the RNG or policy is broken), a good draw is returned as is",
+      isinstance(_kf_redraw, RuntimeError) and "does not redraw" in str(_kf_redraw) and _kf_good == _kf_keys[5]
+      and isinstance(_kf_bad_rng, RuntimeError) and "RNG" in str(_kf_bad_rng))
 with tempfile.TemporaryDirectory(prefix="n2_kf_save_") as _kf_td:
     _kf_p = os.path.join(_kf_td, "my.seed"); N.save_seed(_kf_p, _kf_keys[6])
     _kf_mode = _kf_stat.S_IMODE(os.stat(_kf_p).st_mode)
@@ -4108,17 +4132,17 @@ _cf_seen = []
 _cf_orig_pol = N._seed_policy_check
 N._seed_policy_check = lambda s: (_cf_seen.append(type(s)), os.urandom(128))[1]     # a policy that tries to hand back another key
 try:
-    with _cf_pickup(_cf_pk): _cf_alt = N.encrypt(b"hello world", _cf_k)
+    with _cf_pickup(_cf_pk): _cf_alt = catch(lambda: N.encrypt(b"hello world", _cf_k))
 finally:
     N._seed_policy_check = _cf_orig_pol
-check("chainfix L1: the excluded seed policy is a pure predicate: a policy that returns another key changes nothing (core ignores the return value; the policy sees an immutable bytes copy)",
-      _cf_alt == _cf_ref and _cf_seen == [bytes] and "_seed_policy_check(bytes(s))" in inspect.getsource(N._seed_bytes)
+check("chainfix L1 / seedguard L1: the excluded seed policy is a strict predicate: a policy that returns another key is refused (RuntimeError, nothing encrypted; the policy saw an immutable bytes copy) and the honest policy still gives the reference blob",
+      isinstance(_cf_alt, RuntimeError) and "return None" in str(_cf_alt) and _cf_seen == [bytes] and "_ask_policy(bytes(s))" in inspect.getsource(N._seed_bytes) and "_seed_policy_check(copy)" in inspect.getsource(N._ask_policy)
       and "_seed_bytes" not in N.SEED_POLICY_NAMES and "_DerivedKey" not in N.ATTEST_ONLY_NAMES and "_CheckedSeed" not in N.ATTEST_ONLY_NAMES)
 # The w07 T1 tamper, now in the CORE: keep 2 bytes of every non-demo key. Re-pinning only the EXPECTED_* digests
 # (what every revision changes) no longer keeps key_sig: the core moved, so KEY_SIG_PIN no longer matches.
 _cf_src = open(os.path.join(HERE, "sneak_n2.py"), encoding="utf-8").read()
-_cf_t1 = _cf_src.replace("    return _CheckedSeed(s)\n",
-    "    if hashlib.sha256(s).hexdigest() != DEMO_SEED_SHA256: s = s[:2] + hashlib.shake_256(s[:2]).digest(126)\n    return _CheckedSeed(s)\n", 1)
+_cf_t1 = _cf_src.replace("    return _policy_verdict(_CheckedSeed(s), _ask_policy(bytes(s)))\n",
+    "    if hashlib.sha256(s).hexdigest() != DEMO_SEED_SHA256: s = s[:2] + hashlib.shake_256(s[:2]).digest(126)\n    return _policy_verdict(_CheckedSeed(s), _ask_policy(bytes(s)))\n", 1)
 assert _cf_t1 != _cf_src
 with _cf_tmp.TemporaryDirectory(prefix="n2_cf_t1_") as _cf_td:
     _cf_p = os.path.join(_cf_td, "sneak_n2_cf_t1.py"); open(_cf_p, "w").write(_loosen_all(_cf_t1))
@@ -4153,9 +4177,10 @@ _cf_core_code = N.mix_code_closure(tuple(N.MIX_CODE_ROOTS) + tuple(N.REHEARSAL_C
 _cf_bad = {(n, r) for n in N.SEED_POLICY_NAMES for r in _cf_refs(n)
            if r in vars(N) and (inspect.isfunction(getattr(N, r)) or inspect.isclass(getattr(N, r)))
            and getattr(getattr(N, r), "__module__", None) == N.__name__ and r not in N.SEED_POLICY_NAMES and r not in _cf_core_code}
-check("chainfix L1/L2: EXPECTED_SEED_POLICY_SHA256 equals a fresh _seed_policy_digest(); keygen/save_seed/load_seed are in SEED_POLICY_NAMES and MIX_CODE_FUNCS; every function the policy calls is policy or core",
+check("chainfix L1/L2 / seedguard L1: EXPECTED_SEED_POLICY_SHA256 equals a fresh _seed_policy_digest(); SEED_POLICY_NAMES is only the accept/reject rule; keygen/save_seed/load_seed are CORE (in MIX_CODE_FUNCS, not excluded); every function the policy calls is policy or core",
       N.EXPECTED_SEED_POLICY_SHA256 == N._SEED_POLICY_SHA256 == N._seed_policy_digest() and not _cf_bad
-      and {"keygen", "save_seed", "load_seed", "_seed_policy_check", "_weak_seed_reason"} <= N.SEED_POLICY_NAMES
+      and N.SEED_POLICY_NAMES == {"_seed_policy_check", "_weak_seed_reason"}
+      and not ({"keygen", "save_seed", "load_seed", "_fsync_dir", "SeedWarning"} & N.ATTEST_ONLY_NAMES)
       and {"keygen", "save_seed", "load_seed", "_fsync_dir"} <= set(N.MIX_CODE_FUNCS)
       and N.KEY_SIG_PIN == (N.EXPECTED_MIX_CORE_SHA256, "fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6")
       and N._MIX_SHA256 == N.KEY_SIG_PIN[1] and N.key_signature(SEED).hex() == "340dc1e062502bb13462a94ba490c3dc")
@@ -4266,6 +4291,505 @@ check("chainfix I7: an uncaught exception reports FAIL plus totals (sys.exceptho
 check("chainfix docs: README, SPEC, SECURITY, SNAPSHOT and LINER_NOTES describe rehearsal-chainfix and EXPECTED_SEED_POLICY_SHA256",
       all("rehearsal-chainfix" in open(os.path.join(HERE, f), encoding="utf-8").read() and N.EXPECTED_SEED_POLICY_SHA256[:8] in open(os.path.join(HERE, f), encoding="utf-8").read()
           for f in ("README.md", "SPEC.md", "SECURITY.md", "SNAPSHOT.md", "LINER_NOTES.md")))
+
+# ---- rehearsal-seedguard: fixes for attacks_octavo_chainfix (L1, I1-I6); no ciphertext or signature changes
+import tempfile as _sg_tmp, textwrap as _sg_tw, threading as _sg_thr
+_sg_src = open(os.path.join(HERE, "sneak_n2.py"), encoding="utf-8").read()
+_sg_pol = "    reason = _weak_seed_reason(seed)\n    if reason is not None:\n        raise ValueError(\"weak seed: \" + reason)\n"
+assert _sg_src.count(_sg_pol) == 1
+_sg_nd = _committed["nondemo"]; _sg_ns = bytes.fromhex(_sg_nd["seed"]["hex"])
+def _sg_try_load(tag, text):
+    with _sg_tmp.TemporaryDirectory(prefix="n2_sg_") as td:
+        p = os.path.join(td, tag + ".py"); open(p, "w", encoding="utf-8").write(text)
+        try:
+            return load(tag, p)
+        except RuntimeError as e:
+            return e
+        finally:
+            sys.modules.pop(tag, None)
+# L1 / T1: the chainfix attack's frame write-through tamper (verbatim) and a __import__ variant are refused at import
+_sg_t1 = _sg_src.replace(_sg_pol, _sg_pol + "    if hashlib.sha256(seed).hexdigest() != DEMO_SEED_SHA256 and type(sys._getframe(1).f_locals[\"seed\"]) is not _DerivedKey:\n"
+                         "        sys._getframe(1).f_locals[\"s\"] = bytes([seed[0], seed[1] & 0xF0]) + hashlib.shake_256(bytes([seed[0], seed[1] & 0xF0])).digest(126)\n", 1)
+_sg_t1b = _sg_src.replace(_sg_pol, _sg_pol + "    __import__(\"sys\")._getframe(1).f_locals[\"s\"] = bytes(128)\n", 1)
+_sg_t1c = _sg_src.replace(_sg_pol, _sg_pol + "    for k in range(1): globals()\n", 1)
+_sg_r = [_sg_try_load("n2_sg_t1", _loosen_all(_sg_t1)), _sg_try_load("n2_sg_t1b", _loosen_all(_sg_t1b)), _sg_try_load("n2_sg_t1c", _loosen_all(_sg_t1c))]
+check("seedguard L1: the chainfix T1 tamper (policy writes the caller's s via sys._getframe().f_locals), a __import__('sys') variant and a globals() call are all refused AT IMPORT by the core policy lint, even with every EXPECTED_* pin re-pinned",
+      all(isinstance(e, RuntimeError) and "seed policy" in str(e) for e in _sg_r)
+      and "_check_policy_purity()" in inspect.getsource(N.mix_description))
+# L1: a lint-clean policy that returns a value never becomes the key
+_sg_t1d = _sg_src.replace(_sg_pol, _sg_pol + "    return bytes([seed[0]]) * 128\n", 1)
+with _sg_tmp.TemporaryDirectory(prefix="n2_sg_") as _sg_td:
+    _sg_p = os.path.join(_sg_td, "n2_sg_t1d.py"); open(_sg_p, "w", encoding="utf-8").write(_loosen_all(_sg_t1d))
+    _sg_T = load("n2_sg_t1d", _sg_p)
+    _sg_e = [catch(lambda: _sg_T.encrypt(b"x", _cf_k)), catch(lambda: _sg_T.key_signature(SEED)), catch(lambda: _sg_T.encrypt_rehearsal(b"x", _cf_k))]
+    sys.modules.pop("n2_sg_t1d", None)
+check("seedguard L1: a lint-clean policy that returns a key (not None) is refused on every call (RuntimeError), never used as the key",
+      all(isinstance(e, RuntimeError) and "return None" in str(e) for e in _sg_e))
+# L1 / T2: the chainfix load_seed tamper (verbatim) now edits CORE code
+_sg_t2 = _sg_src.replace("    seed = bytes.fromhex(h)\n    if problems",
+    "    seed = bytes.fromhex(h)\n    if explicit and hashlib.sha256(seed).hexdigest() not in (DEMO_SEED_SHA256, %r):\n"
+    "        seed = bytes([seed[0], seed[1] & 0xF0]) + hashlib.shake_256(bytes([seed[0], seed[1] & 0xF0])).digest(126)\n    if problems" % hashlib.sha256(_sg_ns).hexdigest(), 1)
+assert _sg_t2 != _sg_src
+_sg_t2_3 = _sg_t2
+for _n in ("EXPECTED_MIX_SHA256", "EXPECTED_REHEARSAL_SHA256", "EXPECTED_SEED_POLICY_SHA256"):
+    _sg_t2_3 = _sg_t2_3.replace('%s = "%s"' % (_n, getattr(N, _n)), '%s = "TO_BE_FILLED"' % _n, 1)
+_sg_r3 = _sg_try_load("n2_sg_t2_3", _sg_t2_3)
+with _sg_tmp.TemporaryDirectory(prefix="n2_sg_") as _sg_td:
+    _sg_p = os.path.join(_sg_td, "n2_sg_t2.py"); open(_sg_p, "w", encoding="utf-8").write(_loosen_all(_sg_t2))
+    _sg_T2 = load("n2_sg_t2", _sg_p)
+    _sg_t2ok = (_sg_T2._MIX_CORE_SHA256 != N._MIX_CORE_SHA256 and _sg_T2.key_signature(SEED) != N.key_signature(SEED)
+                and _sg_T2.key_signature(_sg_ns).hex() != _sg_nd["key_sig"] and _sg_T2.rehearsal_signature(SEED) != N.rehearsal_signature(SEED))
+    sys.modules.pop("n2_sg_t2", None)
+check("seedguard L1: the chainfix T2 tamper (load_seed weakens explicit-path keys) is refused at import when only the three non-core pins are re-pinned (core attestation mismatch); re-pinning the core pins too moves key_sig and rehearsal_sig for every seed (published non-demo key_sig no longer matches)",
+      isinstance(_sg_r3, RuntimeError) and "core attestation mismatch" in str(_sg_r3) and _sg_t2ok)
+check("seedguard L1: the strict gate and the lint are CORE (listed, not excluded); load_seed, keygen, save_seed, _fsync_dir and SeedWarning are core; the docs say a change to EXPECTED_SEED_POLICY_SHA256 needs the same review as a core change",
+      {"_policy_verdict", "_check_policy_purity"} <= set(N.MIX_CODE_FUNCS) and not ({"_policy_verdict", "_check_policy_purity"} & N.ATTEST_ONLY_NAMES)
+      and "_policy_verdict" in N.mix_code_closure()[0] and "_check_policy_purity" in N.mix_code_closure()[0]
+      and "same review" in " ".join(N._seed_policy_check.__doc__.split()) and "same review" in " ".join(open(os.path.join(HERE, "SECURITY.md"), encoding="utf-8").read().split())
+      and "cannot change a key" not in _sg_src and "cannot change a key" not in open(os.path.join(HERE, "SECURITY.md"), encoding="utf-8").read())
+check("seedguard L1: key_sig 340dc1e0..., rehearsal_sig 07172e74... and the signature halves of both pins are unchanged; only the core halves were re-pinned",
+      N.key_signature(SEED).hex() == "340dc1e062502bb13462a94ba490c3dc" and N.rehearsal_signature(SEED).hex() == "07172e74d02a04a42ea0a51b8e69cbf1"
+      and N.KEY_SIG_PIN[0] == N.EXPECTED_MIX_CORE_SHA256 and N.REHEARSAL_SIG_PIN[0] == N.EXPECTED_REHEARSAL_CORE_SHA256
+      and N.REHEARSAL_SIG_PIN[1] == "a21cf6e768a88cc21b4698b54426cf2d1527936f101f783862a609efa8bbad45")
+# I1: the marker shortcut needs the length too
+_sg_i1 = [catch(lambda v=v: N._seed_bytes(N._CheckedSeed(v))) for v in (b"abc", b"", bytes(127), os.urandom(129))]
+_sg_i1b = [catch(lambda: N.encrypt(b"x", N._CheckedSeed(b"abc"))), catch(lambda: N.encrypt_movements(b"x", N._CheckedSeed(b""))),
+           catch(lambda: N.encrypt_rehearsal(b"x", N._CheckedSeed(b"abc"))), catch(lambda: N.key_signature(N._CheckedSeed(b"")))]
+check("seedguard I1: a hand-built _CheckedSeed of 3, 0, 127 or 129 bytes is refused (ValueError) by _seed_bytes and by v6, v7, v9 and key_signature",
+      all(isinstance(e, ValueError) and "128 bytes" in str(e) for e in _sg_i1 + _sg_i1b)
+      and "len(seed) == 128" in inspect.getsource(N._seed_bytes))
+# I2: documented, not presented as a runtime guard
+_sg_sec = " ".join(open(os.path.join(HERE, "SECURITY.md"), encoding="utf-8").read().split())
+check("seedguard I2: SECURITY.md says the import checks are not a runtime guard (monkeypatching after import is not re-checked)",
+      "not a runtime guard" in _sg_sec and "monkeypatch" in _sg_sec.lower() and "seedguard I2" in N._check_policy_purity.__doc__)
+# I3: O_TMPFILE + linkat; a SIGKILL mid-save leaves nothing (fallback documented)
+_sg_i3_code = _sg_tw.dedent("""
+    import sys, os, signal
+    sys.path.insert(0, %r); import sneak_n2 as N
+    N._SEED_USE_O_TMPFILE = (sys.argv[2] == "1"); k = N.keygen()
+    real = os.fsync
+    def boom(fd):
+        if not os.path.isdir("/proc/self/fd/%%d" %% fd) and os.fstat(fd).st_size > 0: os.kill(os.getpid(), signal.SIGKILL)
+        return real(fd)
+    # honest2: save_seed re-runs the binding check at entry, which would refuse a
+    # patched os.fsync. Run the check once, then install the crash hook.
+    N._check_module_bindings()
+    N._check_module_bindings = lambda: None
+    os.fsync = boom
+    N.save_seed(os.path.join(sys.argv[1], "k.txt"), k)
+    """ % HERE)
+_sg_i3 = {}
+for _flag in ("1", "0"):
+    _d = _sg_tmp.mkdtemp(prefix="n2_sg_i3_")
+    _r = subprocess.run([sys.executable, "-B", "-c", _sg_i3_code, _d, _flag], capture_output=True, text=True, timeout=120)
+    _sg_i3[_flag] = (_r.returncode, sorted(os.listdir(_d)))
+    for _f in os.listdir(_d): os.unlink(os.path.join(_d, _f))
+    os.rmdir(_d)
+_sg_i3_flags = []
+_sg_real_open = os.open
+def _sg_rec_open(p, fl, *a, **kw):
+    _sg_i3_flags.append(fl); return _sg_real_open(p, fl, *a, **kw)
+with _sg_tmp.TemporaryDirectory(prefix="n2_sg_i3n_") as _sg_td:
+    _sg_bind = N._check_module_bindings
+    os.open = _sg_rec_open
+    N._check_module_bindings = lambda: None   # honest2: save_seed re-runs the binding check; this probe only records open flags
+    try:
+        N.save_seed(os.path.join(_sg_td, "k.txt"), _cf_k)
+    finally:
+        os.open = _sg_real_open
+        N._check_module_bindings = _sg_bind
+    _sg_i3_ok = (N.load_seed(os.path.join(_sg_td, "k.txt")) == _cf_k and os.listdir(_sg_td) == ["k.txt"]
+                 and oct(os.stat(os.path.join(_sg_td, "k.txt")).st_mode & 0o777) == "0o600")
+_sg_tmpfile = hasattr(os, "O_TMPFILE")
+check("seedguard I3: save_seed writes an anonymous O_TMPFILE (0600) and publishes it with linkat; a SIGKILL just before publish leaves NOTHING; with O_TMPFILE off the documented fallback leaves one 0600 .k.txt.*.tmp",
+      _sg_i3_ok and (not _sg_tmpfile or any(f & os.O_TMPFILE == os.O_TMPFILE for f in _sg_i3_flags))
+      and _sg_i3["1"] == (-9, []) and _sg_i3["0"][0] == -9 and len(_sg_i3["0"][1]) == 1 and _sg_i3["0"][1][0].startswith(".k.txt.")
+      and "HOLDING THE FULL KEY" in N.save_seed.__doc__)
+# I4: SeedWarning on every call under the default filters
+_sg_i4 = subprocess.run([sys.executable, "-B", "-c", _sg_tw.dedent("""
+    import sys, os, tempfile
+    sys.path.insert(0, %r); import sneak_n2 as N
+    d = tempfile.mkdtemp(); p = os.path.join(d, "k.txt"); N.save_seed(p, N.keygen()); os.chmod(p, 0o644)
+    for _ in range(5): N.load_seed(p)
+    """ % HERE)], capture_output=True, text=True, timeout=120)
+check("seedguard I4: under Python's default filters SeedWarning shows on EVERY call (5 of 5 load_seed calls from one line)",
+      _sg_i4.returncode == 0 and _sg_i4.stderr.count("SeedWarning") == 5)
+# I5: O_NOFOLLOW + fstat; non-regular files; folder warnings; no silent symlinked read under a swap race
+with _sg_tmp.TemporaryDirectory(prefix="n2_sg_i5_") as _sg_td:
+    _ka, _kb = N.keygen(), N.keygen()
+    _pa, _pb = os.path.join(_sg_td, "a.txt"), os.path.join(_sg_td, "b.txt"); N.save_seed(_pa, _ka); N.save_seed(_pb, _kb)
+    _fifo = os.path.join(_sg_td, "fifo"); os.mkfifo(_fifo)
+    _sg_fifo = catch(lambda: N.load_seed(_fifo))
+    _sg_dir = catch(lambda: N.load_seed(_sg_td))
+    _sub = os.path.join(_sg_td, "real"); os.mkdir(_sub, 0o700); _pk = os.path.join(_sub, "k.txt"); N.save_seed(_pk, _ka)
+    os.symlink(_sub, os.path.join(_sg_td, "via")); _sg_r_link = _cf_warns(lambda: N.load_seed(os.path.join(_sg_td, "via", "k.txt")))
+    os.chmod(_sub, 0o777); _sg_r_ww = _cf_warns(lambda: N.load_seed(_pk)); os.chmod(_sub, 0o700)
+    _sg_r_ok = _cf_warns(lambda: N.load_seed(_pk))
+    # race: the path flips between a regular file (key A) and a symlink to b.txt (key B)
+    _race = os.path.join(_sg_td, "race.txt"); _reg = os.path.join(_sg_td, "reg.tmp"); _lnk = os.path.join(_sg_td, "lnk.tmp")
+    _stop = []; _silent = [0]; _seen_b = [0]; _seen_a = [0]
+    def _flipper():
+        while not _stop:
+            os.link(_pa, _reg); os.replace(_reg, _race)
+            os.symlink(_pb, _lnk); os.replace(_lnk, _race)
+    os.symlink(_pb, _race); _th = _sg_thr.Thread(target=_flipper); _th.start()
+    try:
+        for _ in range(3000):
+            with warnings.catch_warnings(record=True) as _w:
+                warnings.simplefilter("always")
+                try: _got = N.load_seed(_race)
+                except OSError: continue
+            if _got == _ka: _seen_a[0] += 1
+            if _got == _kb:
+                _seen_b[0] += 1
+                if not any("symlink" in str(x.message) for x in _w if issubclass(x.category, N.SeedWarning)): _silent[0] += 1
+    finally:
+        _stop.append(1); _th.join()
+print("seedguard I5 race: regular reads %d, symlinked reads %d, silent symlinked reads %d" % (_seen_a[0], _seen_b[0], _silent[0]))
+_sg_ls = inspect.getsource(N.load_seed)
+check("seedguard I5: load_seed opens explicit paths with O_NOFOLLOW and checks the opened fd (fstat); a FIFO or directory is refused (ValueError, no hang); a symlinked folder and a world-writable folder warn; a clean 0700 folder does not; a racing symlink swap is never read silently",
+      "O_NOFOLLOW" in _sg_ls and "os.fstat(f.fileno())" in _sg_ls and "islink" not in _sg_ls
+      and isinstance(_sg_fifo, ValueError) and isinstance(_sg_dir, (ValueError, IsADirectoryError))
+      and _sg_r_link[0] == _ka and len(_sg_r_link[1]) == 1 and "folder reached through a symlink" in _sg_r_link[1][0]
+      and _sg_r_ww[0] == _ka and len(_sg_r_ww[1]) == 1 and "writable by group/others" in _sg_r_ww[1][0]
+      and _sg_r_ok == (_ka, []) and _silent[0] == 0 and _seen_a[0] > 0 and _seen_b[0] > 0)
+# I6 + docs
+check("seedguard I6: SECURITY.md no longer lists _seed_bytes or _DerivedKey as excluded seed-policy code",
+      "(`_seed_bytes`, `load_seed`, `_DerivedKey`)" not in open(os.path.join(HERE, "SECURITY.md"), encoding="utf-8").read())
+check("seedguard docs: README, SPEC, SECURITY, SNAPSHOT and LINER_NOTES describe rehearsal-seedguard and the new EXPECTED_SEED_POLICY_SHA256 / core pins",
+      all("rehearsal-seedguard" in open(os.path.join(HERE, f), encoding="utf-8").read() and N.EXPECTED_MIX_CORE_SHA256[:8] in open(os.path.join(HERE, f), encoding="utf-8").read()
+          for f in ("README.md", "SPEC.md", "SECURITY.md", "SNAPSHOT.md", "LINER_NOTES.md")))
+
+
+# ---- rehearsal-honest: fixes for attacks_octavo_seedguard (L1, L2, I1-I6) + "the import checks are not a tamper guard"
+import tempfile as _ho_tmp, textwrap as _ho_tw, json as _ho_json
+_ho_src = open(os.path.join(HERE, "sneak_n2.py"), encoding="utf-8").read()
+def _ho_try(tag, text):
+    with _ho_tmp.TemporaryDirectory(prefix="n2_ho_") as td:
+        p = os.path.join(td, tag + ".py"); open(p, "w", encoding="utf-8").write(text)
+        try:
+            return load(tag, p)
+        except (RuntimeError, TypeError) as e:
+            return e
+        finally:
+            sys.modules.pop(tag, None)
+_ho_imp = "import io, linecache, selectors, stat\n"
+assert _ho_src.count(_ho_imp) == 1
+_ho_l1 = {
+    "w01_os_rebind": _ho_imp + "import random as _r_\n_os_ = os\nos = types.ModuleType(\"os\"); os.__dict__.update(_os_.__dict__); os.urandom = _r_.Random(20261115).randbytes\n",
+    "w01_os_rebind_del": _ho_imp + "import random as _r_\n_os_ = os\nos = types.ModuleType(\"os\"); os.__dict__.update(_os_.__dict__); os.urandom = _r_.Random(1).randbytes\ndel _r_, _os_\n",
+    "urandom_patch": _ho_imp + "os.urandom = __import__(\"random\").Random(1).randbytes\n",
+    "sha256_wrap": _ho_imp + "hashlib.sha256 = lambda *a, _h_=hashlib.sha256, **k: _h_(*a, **k)\n",
+    "hmac_new_wrap": _ho_imp + "_hn_ = hmac.new\nhmac.new = lambda *a, **k: _hn_(*a, **k)\ndel _hn_\n",
+}
+def _ho_sub(text):
+    """Import a tampered copy in a FRESH interpreter (its module-level patches would hit this process's real os/hashlib)."""
+    with _ho_tmp.TemporaryDirectory(prefix="n2_ho_sub_") as td:
+        p = os.path.join(td, "sneak_n2.py"); open(p, "w", encoding="utf-8").write(text)
+        r = subprocess.run([sys.executable, "-B", "-c", "import sys; sys.path.insert(0, %r); import sneak_n2" % td], capture_output=True, text=True, timeout=120)
+        return r.returncode, (r.stderr.strip().splitlines() or [""])[-1]
+_ho_r1 = {k: _ho_sub(_ho_src.replace(_ho_imp, v, 1)) for k, v in _ho_l1.items()}
+print("honest L1 copies:", _ho_r1)
+check("honest L1: the seedguard w01 tamper (os rebound to a look-alike with a predictable urandom, ZERO re-pins) and variants (names deleted, os.urandom / hashlib.sha256 / hmac.new replaced in-file) are refused at import by _check_module_bindings",
+      all(rc != 0 and last.startswith("RuntimeError") for rc, last in _ho_r1.values()) and "_check_module_bindings()" in inspect.getsource(N.mix_description)
+      and N._EXPECTED_MODULES == N._names_bound_by_imports()
+      and N._EXPECTED_MODULES <= {n for n, v in vars(N).items() if isinstance(v, _types.ModuleType)}
+      and "platform" in N._EXPECTED_MODULES
+      and {"os", "hashlib", "hmac", "platform"} <= N.mix_code_closure()[1] and N._canon_data(N.os) == "module:os"
+      and catch(N._check_module_bindings) is None)
+check("honest L1: the score publishes the file SHA and generate_score.py --check-sha compares it (exit 0 here)",
+      _gen_score.check_file_sha() and subprocess.run([sys.executable, "-B", os.path.join(HERE, "score", "generate_score.py"), "--check-sha"],
+                                                     capture_output=True, cwd=HERE).returncode == 0)
+# L2: subclass constants
+class _HoI(int): pass
+_HoI.__name__ = _HoI.__qualname__ = "int"
+_ho_l2 = _ho_src.replace("SEED_MAX_BYTE_COUNT = 11 ", "class _I(int):\n    def __lt__(self, other): return int(self) < other\n_I.__name__ = _I.__qualname__ = \"int\"\nSEED_MAX_BYTE_COUNT = _I(11) ", 1)
+_ho_l2b = _ho_src.replace("SEED_DIFF_LAGS = (1, 2, 3, 4, 8, 16, 32, 64)", "class _J(int): pass\nSEED_DIFF_LAGS = (1, 2, 3, 4, 8, 16, 32, _J(64))", 1)
+assert _ho_l2 != _ho_src and _ho_l2b != _ho_src
+_ho_e2, _ho_e2b = _ho_try("n2_ho_l2", _ho_l2), _ho_try("n2_ho_l2b", _ho_l2b)
+check("honest L2: an int-subclass policy constant renamed 'int' (the seedguard w02 tamper, zero re-pins) and a subclass hidden inside a tuple constant are refused at import; _canon_data refuses subclasses for any constant",
+      isinstance(_ho_e2, (RuntimeError, TypeError)) and isinstance(_ho_e2b, (RuntimeError, TypeError))
+      and isinstance(catch(lambda: N._canon_data(_HoI(16))), TypeError) and isinstance(catch(lambda: N._canon_data((_HoI(1), 2))), TypeError)
+      and isinstance(catch(lambda: N._canon_data(True)), type(None)) and N._canon_data(16) == "int:16" and N._canon_data((1, "a")) == "tuple[int:1,str:'a']"
+      and N._exact_constant((1, frozenset({"a"}))) and not N._exact_constant(True) and not N._exact_constant((1, _HoI(2))))
+# I1: policy exceptions never carry seed bytes
+_ho_orig = N._seed_policy_check
+_ho_k = N.keygen()
+_ho_cases = {}
+for _lab, _f in (("leak", lambda s: (_ for _ in ()).throw(ValueError(s))), ("leakhex", lambda s: (_ for _ in ()).throw(ValueError("weak seed: " + s.hex()))),
+                 ("other", lambda s: (_ for _ in ()).throw(KeyError(s))), ("honest", lambda s: (_ for _ in ()).throw(ValueError("weak seed: repeated pattern (period 7)")))):
+    N._seed_policy_check = _f
+    try:
+        _ho_cases[_lab] = catch(lambda: N._seed_bytes(_ho_k))
+    finally:
+        N._seed_policy_check = _ho_orig
+check("honest I1: any exception from the policy becomes a fresh ValueError with no seed bytes and no __cause__/__context__ (fixed 'weak seed', or a known reason shape)",
+      all(type(e) is ValueError and e.__cause__ is None and e.__context__ is None and _ho_k.hex() not in str(e) and repr(_ho_k) not in str(e) for e in _ho_cases.values())
+      and str(_ho_cases["leak"]) == "weak seed" and str(_ho_cases["leakhex"]) == "weak seed" and str(_ho_cases["other"]) == "weak seed"
+      and str(_ho_cases["honest"]) == "weak seed: repeated pattern (period 7)"
+      and str(catch(lambda: N._seed_bytes(bytes(range(1, 32)) + bytes(97)))) == "weak seed: need at least 32 distinct nonzero bytes")
+# I2 / I3: lint bans
+_ho_pol = "    reason = _weak_seed_reason(seed)\n    if reason is not None:\n        raise ValueError(\"weak seed: \" + reason)\n"
+assert _ho_src.count(_ho_pol) == 1
+_ho_lints = {
+    "while": _ho_pol + "    while reason is None:\n        reason = 1\n",
+    "pow": _ho_pol + "    reason = bytes(10 ** 13)\n",
+    "lshift": _ho_pol + "    reason = 1 << 40\n",
+    "annassign": _ho_pol + "    k: int = 1\n",
+    "match": _ho_pol + "    match seed:\n        case bytes(hex=H):\n            reason = H\n",
+}
+_ho_r3 = {k: _ho_try("n2_ho_lint_" + k, _loosen_all(_ho_src.replace(_ho_pol, v, 1))) for k, v in _ho_lints.items()}
+_ho_r3["ret_annotation"] = _ho_try("n2_ho_lint_ann", _loosen_all(_ho_src.replace("def _seed_policy_check(seed):\n", "def _seed_policy_check(seed) -> None:\n", 1)))
+_ho_r3["arg_annotation"] = _ho_try("n2_ho_lint_ann2", _loosen_all(_ho_src.replace("def _weak_seed_reason(seed):\n", "def _weak_seed_reason(seed: bytes):\n", 1)))
+check("honest I2/I3: the policy lint refuses while loops, **, <<, annotated assignments, argument and return annotations, and match statements (even with every pin re-pinned)",
+      all(isinstance(e, RuntimeError) and "seed policy" in str(e) for e in _ho_r3.values()) and len(_ho_r3) == 7)
+# I4: keygen never redraws on the policy's say-so
+N._seed_policy_check = lambda s: (_ for _ in ()).throw(ValueError("weak seed: long monotone run"))
+try:
+    _ho_kg = catch(N.keygen)
+finally:
+    N._seed_policy_check = _ho_orig
+check("honest I4: a policy that rejects keygen's draw makes keygen raise RuntimeError (one draw, no redraw loop in the source)",
+      isinstance(_ho_kg, RuntimeError) and "does not redraw" in str(_ho_kg) and "for _ in range" not in inspect.getsource(N.keygen))
+# I5: load_seed size cap, UTF-8, ancestors
+with _ho_tmp.TemporaryDirectory(prefix="n2_ho_i5_") as _ho_td:
+    _p = os.path.join(_ho_td, "big.txt"); open(_p, "w").write(_ho_k.hex() + " " * 20000); os.chmod(_p, 0o600)
+    _ho_big = catch(lambda: N.load_seed(_p))
+    _p2 = os.path.join(_ho_td, "bin.txt"); open(_p2, "wb").write(_ho_k.hex().encode() + b"\xff\xfe"); os.chmod(_p2, 0o600)
+    _ho_bin = catch(lambda: N.load_seed(_p2))
+    _ww = os.path.join(_ho_td, "ww"); os.mkdir(_ww); os.chmod(_ww, 0o777)          # world-writable, NO sticky bit
+    _inner = os.path.join(_ww, "mine"); os.mkdir(_inner, 0o700); _pk = os.path.join(_inner, "k.txt"); N.save_seed(_pk, _ho_k)
+    _ho_anc = _cf_warns(lambda: N.load_seed(_pk))
+    os.chmod(_ww, 0o1777)                                                              # sticky: documented as safe
+    _ho_sticky = _cf_warns(lambda: N.load_seed(_pk))
+    os.chmod(_ww, 0o700)
+    _ho_clean = _cf_warns(lambda: N.load_seed(_pk))
+check("honest I5: load_seed refuses a file over 16384 bytes and non-UTF-8 content with plain ValueError; a world-writable non-sticky grandparent warns; a sticky (1777) one and a clean tree do not",
+      type(_ho_big) is ValueError and "larger than 16384" in str(_ho_big) and type(_ho_bin) is ValueError and "UTF-8" in str(_ho_bin)
+      and _ho_bin.__context__ is None
+      and _ho_anc[0] == _ho_k and len(_ho_anc[1]) == 1 and "without the sticky bit" in _ho_anc[1][0]
+      and _ho_sticky == (_ho_k, []) and _ho_clean == (_ho_k, []) and N._SEED_FILE_MAX == 16384)
+# I6: bytes paths
+with _ho_tmp.TemporaryDirectory(prefix="n2_ho_i6_") as _ho_td:
+    _bp = os.fsencode(os.path.join(_ho_td, "b.txt")); _bp2 = os.fsencode(os.path.join(_ho_td, "c.txt"))
+    N.save_seed(_bp, _ho_k)
+    _old = N._SEED_USE_O_TMPFILE; N._SEED_USE_O_TMPFILE = False
+    try:
+        N.save_seed(_bp2, _ho_k)
+    finally:
+        N._SEED_USE_O_TMPFILE = _old
+    _ho_i6 = (N.load_seed(_bp) == _ho_k and N.load_seed(_bp2) == _ho_k and sorted(os.listdir(_ho_td)) == ["b.txt", "c.txt"])
+check("honest I6: save_seed accepts bytes paths on both the O_TMPFILE and the fallback path, like load_seed",
+      _ho_i6)
+# docs
+_ho_sec = " ".join(open(os.path.join(HERE, "SECURITY.md"), encoding="utf-8").read().split())
+check("honest docs: SECURITY.md says plainly the import self-checks are not a tamper guard and that the real tamper check is the file SHA-256 against the published score and a trusted source; README and SPEC say it too",
+      "not a tamper guard" in _ho_sec and "--check-sha" in _ho_sec and "trusted" in _ho_sec
+      and all("not a tamper guard" in " ".join(open(os.path.join(HERE, f), encoding="utf-8").read().split()) for f in ("README.md", "SPEC.md"))
+      and "not a tamper guard" in " ".join(N._check_module_bindings.__doc__.split()))
+check("honest: key_sig 340dc1e0... and rehearsal_sig 07172e74... unchanged; both signature halves unchanged; docs name rehearsal-honest and the new core pin",
+      N.key_signature(SEED).hex() == "340dc1e062502bb13462a94ba490c3dc" and N.rehearsal_signature(SEED).hex() == "07172e74d02a04a42ea0a51b8e69cbf1"
+      and N.KEY_SIG_PIN == (N.EXPECTED_MIX_CORE_SHA256, "fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6")
+      and N.REHEARSAL_SIG_PIN == (N.EXPECTED_REHEARSAL_CORE_SHA256, "a21cf6e768a88cc21b4698b54426cf2d1527936f101f783862a609efa8bbad45")
+      and all("rehearsal-honest" in open(os.path.join(HERE, f), encoding="utf-8").read() and N.EXPECTED_MIX_CORE_SHA256[:8] in open(os.path.join(HERE, f), encoding="utf-8").read()
+              for f in ("README.md", "SPEC.md", "SECURITY.md", "SNAPSHOT.md", "LINER_NOTES.md")))
+
+
+
+# ---- rehearsal-honest2: fixes for attacks_octavo_honest (L1, L2, I1-I6)
+import runpy as _h2_runpy, zipfile as _h2_zip, compileall as _h2_compileall
+_h2_gs = os.path.join(HERE, "score", "generate_score.py")
+def _h2_gs_run(*args, cwd=None):
+    return subprocess.run([sys.executable, "-B", _h2_gs, *args], capture_output=True, text=True,
+                          cwd=cwd or HERE, env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"), timeout=180)
+# L1: import-bound names, CPython-only C-builtin checks, __main__ / -m / runpy, PyPy if present
+_h2_script = subprocess.run([sys.executable, "-B", os.path.join(HERE, "sneak_n2.py")], capture_output=True, text=True,
+                            cwd=HERE, env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"), timeout=120)
+_h2_dashm = subprocess.run([sys.executable, "-B", "-m", "sneak_n2"], capture_output=True, text=True,
+                           cwd=HERE, env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"), timeout=120)
+_h2_runpy_ok = False
+try:
+    _h2_runpy.run_path(os.path.join(HERE, "sneak_n2.py"), run_name="__h2_runpy_path__")
+    _h2_runpy_ok = True
+except Exception as _h2_e:
+    _h2_runpy_ok = _h2_e
+check("honest2 L1: _check_module_bindings checks only names bound by import statements (not __builtins__); python3 sneak_n2.py, python3 -m sneak_n2 and runpy all run; C-builtin identity checks are CPython-only",
+      N._EXPECTED_MODULES == N._names_bound_by_imports() and "__builtins__" not in N._EXPECTED_MODULES
+      and _h2_script.returncode == 0 and _h2_dashm.returncode == 0 and _h2_runpy_ok is True
+      and "platform.python_implementation()" in inspect.getsource(N._check_module_bindings)
+      and "CPython" in inspect.getsource(N._check_module_bindings)
+      and "not a tamper guard" in " ".join(N._check_module_bindings.__doc__.split()))
+_h2_pypy = "/home/box/.local/bin/pypy3.11"
+if os.path.isfile(_h2_pypy):
+    _h2_pr = subprocess.run([_h2_pypy, "-B", "-c",
+                             "import sys; sys.path.insert(0, %r); import sneak_n2 as N; s=N.load_seed(); "
+                             "print(N.key_signature(s).hex()); print(N.decrypt(N.encrypt(b'hi', s), s).decode())" % HERE],
+                            capture_output=True, text=True, env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"), timeout=180)
+    check("honest2 L1: PyPy 3.11 imports, matches key_sig and round-trips a v6 blob",
+          _h2_pr.returncode == 0 and _h2_pr.stdout.splitlines()[:2] == [N.key_signature(SEED).hex(), "hi"])
+else:
+    skip("honest2 L1: PyPy 3.11 imports, matches key_sig and round-trips a v6 blob")
+# L2: argparse; --write required; typo flags exit 2 and do not write; --check-sha never writes
+with _ho_tmp.TemporaryDirectory(prefix="n2_h2_l2_") as _h2_td:
+    for _name in ("sneak_n2.py", "etudes.py"):
+        open(os.path.join(_h2_td, _name), "wb").write(open(os.path.join(HERE, _name), "rb").read())
+    os.makedirs(os.path.join(_h2_td, "score"))
+    open(os.path.join(_h2_td, "score", "generate_score.py"), "wb").write(open(_h2_gs, "rb").read())
+    import shutil as _h2_shutil
+    _h2_shutil.copy(os.path.join(HERE, "score", "vectors.json"), os.path.join(_h2_td, "score", "vectors.json"))
+    _h2_shutil.copy(os.path.join(HERE, "score", "nondemo-test-seed.txt"), os.path.join(_h2_td, "score", "nondemo-test-seed.txt"))
+    _h2_shutil.copy(os.path.join(HERE, "sneak1024-seed.txt"), os.path.join(_h2_td, "sneak1024-seed.txt"))
+    _h2_before = open(os.path.join(_h2_td, "score", "vectors.json"), "rb").read()
+    _h2_none = subprocess.run([sys.executable, "-B", os.path.join(_h2_td, "score", "generate_score.py")],
+                              capture_output=True, text=True, cwd=_h2_td, env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"), timeout=120)
+    _h2_typos = {}
+    for _args in (("--check-sha", "-v"), ("--check_sha",), ("--checksha",), ("check-sha",)):
+        _r = subprocess.run([sys.executable, "-B", os.path.join(_h2_td, "score", "generate_score.py"), *_args],
+                            capture_output=True, text=True, cwd=_h2_td, env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"), timeout=120)
+        _h2_typos[" ".join(_args)] = (_r.returncode, open(os.path.join(_h2_td, "score", "vectors.json"), "rb").read() == _h2_before)
+    _h2_chk = subprocess.run([sys.executable, "-B", os.path.join(_h2_td, "score", "generate_score.py"), "--check-sha"],
+                             capture_output=True, text=True, cwd=_h2_td, env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"), timeout=120)
+    # typo a module and confirm --check-sha does not rewrite, then still fails
+    open(os.path.join(_h2_td, "etudes.py"), "a", encoding="utf-8").write("\n# tampered\n")
+    _h2_et = subprocess.run([sys.executable, "-B", os.path.join(_h2_td, "score", "generate_score.py"), "--check-sha"],
+                            capture_output=True, text=True, cwd=_h2_td, env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"), timeout=120)
+    _h2_et_after = open(os.path.join(_h2_td, "score", "vectors.json"), "rb").read()
+check("honest2 L2: generate_score.py uses argparse; no args and typo flags exit 2 without writing; --check-sha never writes and catches a tampered etudes.py",
+      _h2_none.returncode == 2 and all(rc == 2 and same for rc, same in _h2_typos.values()) and len(_h2_typos) == 4
+      and _h2_chk.returncode == 0 and _h2_et.returncode == 1 and _h2_et_after == _h2_before
+      and "refusing to write" in (_h2_none.stderr + _h2_none.stdout))
+# I1: docstring is honest; keygen and save_seed re-run the binding check
+_h2_src = open(os.path.join(HERE, "sneak_n2.py"), encoding="utf-8").read()
+assert _h2_src.rstrip().endswith("_init_attestation()\n_init_rehearsal_attestation()\n_init_seed_policy_attestation()\n_verify_executed_code()")
+# The original w04 append included `import random as _r_`. The import-statement scan now
+# refuses that at import. A rebinding with no new import still imports, and keygen/save_seed refuse it.
+_h2_append_imp = _h2_src + "\nimport random as _r_\n_os_ = os\nos = types.ModuleType('os'); os.__dict__.update(_os_.__dict__); os.urandom = _r_.Random(20261115).randbytes\n"
+_h2_append = _h2_src + "\n_os_ = os\nos = types.ModuleType('os'); os.__dict__.update(_os_.__dict__); os.urandom = __import__('random').Random(20261115).randbytes\n"
+def _h2_probe(text, tag):
+    with _ho_tmp.TemporaryDirectory(prefix="n2_h2_i1_") as td:
+        open(os.path.join(td, "sneak_n2.py"), "w", encoding="utf-8").write(text)
+        open(os.path.join(td, "sneak1024-seed.txt"), "wb").write(open(os.path.join(HERE, "sneak1024-seed.txt"), "rb").read())
+        code = ("import sys\n"
+                "sys.path.insert(0, %r)\n"
+                "try:\n"
+                "    import sneak_n2 as M\n"
+                "    print('imported')\n"
+                "    print(M.key_signature(M.load_seed()).hex())\n"
+                "except Exception as e:\n"
+                "    print(type(e).__name__ + ':import')\n"
+                "    raise SystemExit(0)\n"
+                "try:\n"
+                "    M.keygen()\n"
+                "    print('keygen-ok')\n"
+                "except Exception as e:\n"
+                "    print(type(e).__name__ + ':keygen')\n"
+                "try:\n"
+                "    M.save_seed(%r, M.load_seed())\n"
+                "    print('save-ok')\n"
+                "except Exception as e:\n"
+                "    print(type(e).__name__ + ':save')\n") % (td, os.path.join(td, "k.txt"))
+        r = subprocess.run([sys.executable, "-B", "-c", code], capture_output=True, text=True,
+                           env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"), timeout=180)
+        return r.returncode, r.stdout, r.stderr
+_h2_i1_imp = _h2_probe(_h2_append_imp, "imp")
+_h2_i1 = _h2_probe(_h2_append, "rebind")
+print("honest2 I1 probe:", _h2_i1[0], _h2_i1[1].strip().splitlines(), "imp", _h2_i1_imp[1].strip().splitlines())
+_h2_lines = [ln for ln in _h2_i1[1].splitlines() if ln]
+_h2_imp_lines = [ln for ln in _h2_i1_imp[1].splitlines() if ln]
+check("honest2 I1: a rebinding appended after the final import check still imports (doc-conceded) if it adds no import, but keygen and save_seed re-run _check_module_bindings and refuse it; the original w04 append (which imported random) is now refused at import; the docstring says so",
+      _h2_lines[:2] == ["imported", N.key_signature(SEED).hex()]
+      and any(ln.startswith("RuntimeError:keygen") for ln in _h2_lines)
+      and any(ln.startswith("RuntimeError:save") for ln in _h2_lines)
+      and _h2_imp_lines == ["RuntimeError:import"]
+      and "when the check runs" in " ".join(N._check_module_bindings.__doc__.split())
+      and "_check_module_bindings()" in inspect.getsource(N.keygen)
+      and "_check_module_bindings()" in inspect.getsource(N.save_seed))
+# I2: published helper SHAs; --check-sha verifies them (covered in part by L2 etudes tamper)
+check("honest2 I2: the score publishes etudes_sha256 and generate_score_sha256 and --check-sha verifies all three files",
+      _committed["etudes_sha256"] == hashlib.sha256(open(os.path.join(HERE, "etudes.py"), "rb").read()).hexdigest()
+      and _committed["generate_score_sha256"] == hashlib.sha256(open(os.path.join(HERE, "score", "generate_score.py"), "rb").read()).hexdigest()
+      and _gen_score.check_file_sha()
+      and _h2_gs_run("--check-sha").returncode == 0
+      and "etudes.py SHA-256 matches" in _h2_gs_run("--check-sha").stdout
+      and "generate_score.py SHA-256 matches" in _h2_gs_run("--check-sha").stdout)
+# I3: .gitattributes
+_h2_ga = open(os.path.join(HERE, ".gitattributes"), encoding="utf-8").read()
+check("honest2 I3: .gitattributes sets *.py eol=lf and treats score/vectors.json and the non-demo seed as -text",
+      os.path.isfile(os.path.join(HERE, ".gitattributes"))
+      and "*.py" in _h2_ga and "eol=lf" in _h2_ga
+      and "score/vectors.json" in _h2_ga and "score/nondemo-test-seed.txt" in _h2_ga
+      and "-text" in _h2_ga)
+# I4 / I5: group-writable ancestors warn on load and save; save_seed uses the same folder checks
+with _ho_tmp.TemporaryDirectory(prefix="n2_h2_i45_") as _h2_td:
+    _gw = os.path.join(_h2_td, "gw"); os.mkdir(_gw); os.chmod(_gw, 0o775)
+    _inner = os.path.join(_gw, "mine"); os.mkdir(_inner, 0o700)
+    _pk = os.path.join(_inner, "k.txt")
+    # first save into a clean tree, then move? save into group-writable ancestor
+    _h2_save_gw = _cf_warns(lambda: N.save_seed(_pk, _ho_k))
+    _h2_load_gw = _cf_warns(lambda: N.load_seed(_pk))
+    os.chmod(_gw, 0o1775)
+    _h2_load_sticky = _cf_warns(lambda: N.load_seed(_pk))
+    _pk2 = os.path.join(_inner, "k2.txt")
+    _h2_save_sticky = _cf_warns(lambda: N.save_seed(_pk2, _ho_k))
+    os.chmod(_gw, 0o770)
+    _pk3 = os.path.join(_inner, "k3.txt")
+    _h2_save_770 = _cf_warns(lambda: N.save_seed(_pk3, _ho_k))
+    _h2_load_770 = _cf_warns(lambda: N.load_seed(_pk3))
+    # I5: save into a world-writable non-sticky folder
+    _ww = os.path.join(_h2_td, "ww"); os.mkdir(_ww); os.chmod(_ww, 0o777)
+    _h2_save_ww = _cf_warns(lambda: N.save_seed(os.path.join(_ww, "k.txt"), _ho_k))
+    os.chmod(_ww, 0o700)
+check("honest2 I4: load_seed and save_seed warn on a group-writable non-sticky ancestor (0775/0770) and stay silent on a sticky 1775 one",
+      _h2_load_gw[0] == _ho_k and any("writable by the group without the sticky bit" in w for w in _h2_load_gw[1])
+      and any("writable by the group without the sticky bit" in w for w in _h2_save_gw[1])
+      and _h2_load_sticky == (_ho_k, []) and _h2_save_sticky[1] == []
+      and any("writable by the group without the sticky bit" in w for w in _h2_load_770[1])
+      and any("writable by the group without the sticky bit" in w for w in _h2_save_770[1]))
+check("honest2 I5: save_seed runs the same folder checks as load_seed and warns when the destination folder is world-writable without the sticky bit",
+      any("writable by group/others" in w for w in _h2_save_ww[1])
+      and "_seed_folder_problems" in inspect.getsource(N.save_seed)
+      and "_seed_folder_problems" in inspect.getsource(N.load_seed))
+# I6: zip install falls back to __loader__.get_source() so workers>1 work; .pyc-only is documented
+with _ho_tmp.TemporaryDirectory(prefix="n2_h2_i6_") as _h2_td:
+    _zp = os.path.join(_h2_td, "octavo.zip")
+    with _h2_zip.ZipFile(_zp, "w") as _z:
+        _z.write(os.path.join(HERE, "sneak_n2.py"), "sneak_n2.py")
+        _z.write(os.path.join(HERE, "sneak1024-seed.txt"), "sneak1024-seed.txt")
+    _h2_zip_code = ("import sys; sys.path.insert(0, %r); import sneak_n2 as M; s=bytes.fromhex(%r); "
+                    "assert M._MODULE_SOURCE is not None; "
+                    "msg=b'zip-workers'*20; "
+                    "b=M.encrypt_rehearsal(msg, s, b'i6', 128, workers=2); "
+                    "assert M.decrypt_rehearsal(b, s, b'i6', workers=2)==msg; "
+                    "print('zip-workers-ok')") % (_zp, SEED.hex())
+    _h2_zip_r = subprocess.run([sys.executable, "-B", "-c", _h2_zip_code], capture_output=True, text=True,
+                               env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"), timeout=180)
+    _pd = os.path.join(_h2_td, "pyconly"); os.mkdir(_pd)
+    open(os.path.join(_pd, "sneak_n2.py"), "wb").write(open(os.path.join(HERE, "sneak_n2.py"), "rb").read())
+    open(os.path.join(_pd, "sneak1024-seed.txt"), "wb").write(open(os.path.join(HERE, "sneak1024-seed.txt"), "rb").read())
+    _h2_compileall.compile_file(os.path.join(_pd, "sneak_n2.py"), legacy=True, quiet=1)
+    os.remove(os.path.join(_pd, "sneak_n2.py"))
+    _h2_pyc_code = ("import sys; sys.path.insert(0, %r); import sneak_n2 as M; s=M.load_seed()\n"
+                    "print('src', M._MODULE_SOURCE is not None)\n"
+                    "try:\n"
+                    "    M.encrypt_rehearsal(b'x'*400, s, b'', 128, workers=2)\n"
+                    "    print('pyc-workers-ok')\n"
+                    "except RuntimeError as e:\n"
+                    "    print('pyc-workers:' + str(e)[:160])") % _pd
+    _h2_pyc_r = subprocess.run([sys.executable, "-B", "-c", _h2_pyc_code], capture_output=True, text=True,
+                               env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"), timeout=180)
+print("honest2 I6 zip:", _h2_zip_r.returncode, _h2_zip_r.stdout.strip(), (_h2_zip_r.stderr or "")[-200:])
+print("honest2 I6 pyc:", _h2_pyc_r.returncode, _h2_pyc_r.stdout.strip(), (_h2_pyc_r.stderr or "")[-200:])
+check("honest2 I6: a zip install gets module source from the loader and workers=2 round-trips; a .pyc-only install has no source and workers>1 raise the documented error",
+      _h2_zip_r.returncode == 0 and "zip-workers-ok" in _h2_zip_r.stdout
+      and _h2_pyc_r.returncode == 0 and "src False" in _h2_pyc_r.stdout
+      and "pyc-workers:" in _h2_pyc_r.stdout and "pyc-only" in _h2_pyc_r.stdout
+      and "get_source" in inspect.getsource(N._module_source_snapshot))
+check("honest2: key_sig 340dc1e0... and rehearsal_sig 07172e74... unchanged; signature halves unchanged; docs name rehearsal-honest2 and the new core pin",
+      N.key_signature(SEED).hex() == "340dc1e062502bb13462a94ba490c3dc" and N.rehearsal_signature(SEED).hex() == "07172e74d02a04a42ea0a51b8e69cbf1"
+      and N.KEY_SIG_PIN == (N.EXPECTED_MIX_CORE_SHA256, "fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6")
+      and N.REHEARSAL_SIG_PIN == (N.EXPECTED_REHEARSAL_CORE_SHA256, "a21cf6e768a88cc21b4698b54426cf2d1527936f101f783862a609efa8bbad45")
+      and all("rehearsal-honest2" in open(os.path.join(HERE, f), encoding="utf-8").read() and N.EXPECTED_MIX_CORE_SHA256[:8] in open(os.path.join(HERE, f), encoding="utf-8").read()
+              for f in ("README.md", "SPEC.md", "SECURITY.md", "SNAPSHOT.md", "LINER_NOTES.md")))
 
 
 def sha_ok(listfile):

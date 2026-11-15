@@ -34,25 +34,38 @@ The default seed file sneak1024-seed.txt is a PUBLIC DEMO SEED: its full
 hex is published in score/vectors.json, so any blob made with it (load_seed(), or seed=None
 before key-fix) is readable by anyone. Make real keys with keygen(); seed=None raises TypeError.
 """
-import hashlib, hmac, os, json, inspect, ast, textwrap, types, time, warnings, collections, operator
+import hashlib, hmac, os, json, inspect, ast, textwrap, types, time, warnings, collections, operator, platform
 import errno, pickle, subprocess, sys, tempfile
 import io, linecache, selectors, stat
 
 def _module_source_snapshot():
     """rehearsal-polish I1: the exact source of this module, read ONCE at import (or handed in by the
     worker loader), primed into linecache so both attestations hash these bytes and workers > 1 are
-    sent these bytes over their pipe. A later change to the file on disk changes neither."""
+    sent these bytes over their pipe. A later change to the file on disk changes neither.
+    honest2 I6: if the path cannot be opened (a zipimport, or a path that is not a .py), fall back to
+    __loader__.get_source() when the loader provides it (zipimport does). A sourceless .pyc-only
+    install still has no source, so workers > 1 stay unavailable there."""
     g = globals()
     src = g.pop("__octavo_worker_source__", None)
     path = g.get("__file__")
     if src is None:
-        if not path or not path.endswith(".py"):
-            return None
-        try:
-            with open(path, "rb") as f:
-                src = f.read()
-        except OSError:
-            return None
+        if path and path.endswith(".py"):
+            try:
+                with open(path, "rb") as f:
+                    src = f.read()
+            except OSError:
+                src = None
+        if src is None:
+            loader, name = g.get("__loader__"), g.get("__name__")
+            text = None
+            if loader is not None and name and hasattr(loader, "get_source"):
+                try:
+                    text = loader.get_source(name)
+                except (OSError, ImportError, AttributeError, TypeError):
+                    text = None
+            if not text:
+                return None
+            src = text if isinstance(text, bytes) else text.encode("utf-8")
     try:
         lines = io.StringIO(src.decode("utf-8-sig"), newline=None).readlines()
     except UnicodeDecodeError:
@@ -104,35 +117,40 @@ LEGACY_MIX_SHA256 = "4e9a7ded574924fe9635e2b7b908ba7c5fa5c489062137203d3ce03341a
 SEED_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sneak1024-seed.txt")
 # sha256(mix_description()) hex; used as the StaffSponge nonce for key_signature.
 # Excluded from attestation so this constant is not part of what it names (chicken-and-egg).
-EXPECTED_MIX_SHA256 = "b6e0fa2a5852a1bddb2aa407101080f989fb1efe1e4ddc590a58c8cdfe261991"
+EXPECTED_MIX_SHA256 = "1fafb4adc1cae574a1158fc19695b5a7c354e405666278ab5f66444122f8f34a"
 # sha256(rehearsal_description()) hex (rehearsal, format version 9); sponge nonce for rehearsal_signature.
 # Excluded from both attestations for the same chicken-and-egg reason. The live mix digest above is
 # unchanged by rehearsal, so key_sig and every v6/v7 blob stay byte-identical.
-EXPECTED_REHEARSAL_SHA256 = "d0550f7fdb09d4f823c27f2497f40b30dd1f31627b643089af555c435bd6a491"
+EXPECTED_REHEARSAL_SHA256 = "44ad0a4a2eb86b7b98ff147ecf0374552e16bd9fe031fbe32b6b7ed0b1f67737"
 # key-fix: the import attestation (EXPECTED_*_SHA256 above) covers ALL code, the seed-input policy
 # included. What the tags bind is a separate "signature nonce": the pinned rehearsal-curtain digest for
 # as long as the cipher CORE (everything reachable from the roots except the seed policy, see
 # _core_digest) is unchanged, otherwise the live attestation digest. So the key-fix seed policy moved
 # EXPECTED_MIX_SHA256 / EXPECTED_REHEARSAL_SHA256 but not key_sig, rehearsal_sig or any blob, and any
 # real core change still moves the signatures on its own (no pin to forget).
-EXPECTED_MIX_CORE_SHA256 = "a4b54e7e2ac6d311ed461235b02a91472dd411ddaf2c0db332bc83fcc14202ff"
-EXPECTED_REHEARSAL_CORE_SHA256 = "f1e21f5006a27ff5b19f352ce17c2d24c042252586c515dd99763b1934cd5432"
-# chainfix re-pinned the CORE half of both pins (the seed normaliser moved into the core, chainfix L1; the
-# second half, the signature nonce, is unchanged, so key_sig, rehearsal_sig and every blob are unchanged).
-# Previous core pins: mix 4947e89d… (rehearsal-curtain .. rehearsal-chain), rehearsal 5e91e290… (rehearsal-chain).
-KEY_SIG_PIN = ("a4b54e7e2ac6d311ed461235b02a91472dd411ddaf2c0db332bc83fcc14202ff",        # mix core at chainfix
+EXPECTED_MIX_CORE_SHA256 = "9b8ac067676c92f2150d897c7ea9fa1021952ee6c728269ba9bdecf6a4b1efb1"
+EXPECTED_REHEARSAL_CORE_SHA256 = "636d48eea97eb29449fbd0270d41d75826d6b9cab6a743e19e5cbb3a8319da72"
+# chainfix and seedguard re-pinned the CORE half of both pins (chainfix L1 moved the seed normaliser into the
+# core; seedguard L1 moved load_seed/keygen/save_seed in and added the strict gate and policy lint). The second
+# half, the signature nonce, is unchanged, so key_sig, rehearsal_sig and every blob are unchanged.
+# rehearsal-honest re-pinned the core halves (module bindings, exact-type canon, policy error filter).
+# rehearsal-honest2 re-pins them again (import-bound binding check, folder warnings, keygen/save_seed re-check).
+# Previous core pins: mix e48c6878… / rehearsal 0d6d9122… (rehearsal-honest), mix 43cd3014… / rehearsal e4dc803c… (rehearsal-seedguard), mix a4b54e7e… / rehearsal f1e21f50… (rehearsal-chainfix), mix 4947e89d… (rehearsal-curtain
+# .. rehearsal-chain), rehearsal 5e91e290… (rehearsal-chain).
+KEY_SIG_PIN = ("9b8ac067676c92f2150d897c7ea9fa1021952ee6c728269ba9bdecf6a4b1efb1",        # mix core at rehearsal-honest2
                "fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6")        # its EXPECTED_MIX_SHA256
 # rehearsal-chain re-pinned the rehearsal signature to the v9 code (it was the rehearsal-curtain pair
 # 59ff3036…/50c077f3…; v8 now uses the frozen REHEARSAL_V8_SHA256 directly).
-REHEARSAL_SIG_PIN = ("f1e21f5006a27ff5b19f352ce17c2d24c042252586c515dd99763b1934cd5432",  # rehearsal core at chainfix
+REHEARSAL_SIG_PIN = ("636d48eea97eb29449fbd0270d41d75826d6b9cab6a743e19e5cbb3a8319da72",  # rehearsal core at rehearsal-honest2
                      "a21cf6e768a88cc21b4698b54426cf2d1527936f101f783862a609efa8bbad45")  # its EXPECTED_REHEARSAL_SHA256
-# chainfix L1: digest of the seed-input policy alone (_seed_policy_digest); checked at import.
-EXPECTED_SEED_POLICY_SHA256 = "ab5cdce45c3078c80a0fd0af3ca573bd5d73267cea8ef81d7cc8bb2db272a2a0"
+# chainfix L1: digest of the seed-input policy alone (_seed_policy_digest); checked at import. seedguard L1: the
+# policy is trusted code, so a change to this pin needs the same review as a change to the core pins.
+EXPECTED_SEED_POLICY_SHA256 = "0fc482e65533814588ade098f6c8d5e68693aca76e6a1232f76466b5e609cd5e"
 
 # Picture / documentation metadata. Not part of the mix or tag; excluded from
 # attestation so a label or feature-list edit does not change key_sig or ciphertext.
-REVISION = "rehearsal-chainfix"
-REVISION_DATE = "2026-11-14"
+REVISION = "rehearsal-honest2"
+REVISION_DATE = "2026-11-15"
 FEATURES = (
     "keyed SM4 S-boxes",
     "latin B0 + field bar pairs",
@@ -200,7 +218,12 @@ class LegacyFormatWarning(UserWarning):
     filters the user sets (-W, PYTHONWARNINGS, simplefilter) come first and still win."""
 class SeedWarning(UserWarning):
     """chainfix I4: load_seed(path) read a seed file that is a symlink, readable by group/others, or held
-    characters other than hex digits and whitespace; or save_seed() was asked to store the PUBLIC demo seed."""
+    characters other than hex digits and whitespace; or save_seed() was asked to store the PUBLIC demo seed.
+    seedguard I5: also a seed file in a folder reached through a symlink or writable by group/others.
+    seedguard I4: an appended "always" filter makes it show on EVERY call (not once per call site), like
+    LegacyFormatWarning; filters the user sets (-W, PYTHONWARNINGS, simplefilter) come first and still win."""
+
+warnings.filterwarnings("always", category=SeedWarning, append=True)
 
 # ---------------------------------------------------------------- seed
 # sha256 of the PUBLIC demo seed (sneak1024-seed.txt; its hex is in score/vectors.json). Used only to warn.
@@ -213,11 +236,27 @@ def load_seed(path=None) -> bytes:
     The default file is parsed once and cached. The cache key is (path, st_dev, st_ino, st_size,
     st_mtime_ns, st_ctime_ns) (conductor-polish I4): replacing the file (new inode) or rewriting it
     in place (new ctime, which cp -p, rsync -t and touch -r cannot set back) forces a re-read.
-    chainfix I4: for an explicit path (a real key), SeedWarning is emitted if the path is a symlink, if the
-    file is readable or writable by group/others (save_seed creates 0600), or if characters other than hex
-    digits and whitespace were dropped while parsing (for example dash-decorated hex). The file is still
-    read: these are warnings, not refusals, and they are skipped for the public demo seed itself. The returned bytes are NOT checked here; every API that takes
-    the seed checks it (_seed_bytes)."""
+    seedguard L1: CIPHER CORE. The read, the hex parse and the length check that decide which 128 bytes
+    come back are all here, under the core digest (an edit moves EXPECTED_MIX_CORE_SHA256 and, unless
+    KEY_SIG_PIN is deliberately re-pinned, key_sig). No excluded code runs on this path.
+    seedguard I5: an explicit path is opened with O_NOFOLLOW | O_NONBLOCK and every check is made on the
+    OPENED descriptor (fstat), so a racing symlink swap can no longer be read without a warning; a
+    non-regular file (FIFO, device, directory) raises ValueError.
+    chainfix I4 / seedguard I5: for an explicit path (a real key), SeedWarning is emitted if the path is a
+    symlink, if the file is readable or writable by group/others (save_seed creates 0600), if characters
+    other than hex digits and whitespace were dropped while parsing (for example dash-decorated hex), if
+    the folder is reached through a symlink, or if the folder is writable by group/others (someone else
+    could replace the file). The file is still read: these are warnings, not refusals, and they are
+    skipped for the public demo seed itself. The returned bytes are NOT checked here; every API that
+    takes the seed checks it (_seed_bytes).
+    honest I5 / honest2 I4: the file may be at most _SEED_FILE_MAX (16384) bytes (larger: ValueError, at most
+    that much is read) and must be UTF-8 (otherwise ValueError, not UnicodeDecodeError). For an explicit path
+    every ANCESTOR folder up to / is checked too: one writable by the group or by everyone WITHOUT the sticky
+    bit warns (anyone in that group, or anyone at all, could rename the folders below it). A sticky
+    world-writable ancestor such as /tmp (1777), or a sticky group-writable one (1770/1775), does not warn,
+    because the sticky bit stops other users renaming or deleting entries they do not own, so your own
+    0700 folder inside it cannot be swapped; the key's own folder still warns if it is group/other-writable.
+    Paths may be str, bytes or os.PathLike."""
     key = None
     explicit = path is not None
     if path is None:
@@ -227,12 +266,35 @@ def load_seed(path=None) -> bytes:
         if load_seed.cache is not None and load_seed.cache[0] == key:
             return load_seed.cache[1]
     problems = []
-    if explicit and os.path.islink(path):
-        problems.append("is a symlink")
-    with open(path) as f:
-        if explicit and os.fstat(f.fileno()).st_mode & 0o077:
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NONBLOCK", 0)
+    if explicit:
+        try:
+            fd = os.open(path, flags | getattr(os, "O_NOFOLLOW", 0))
+        except OSError as e:
+            if e.errno not in (errno.ELOOP, errno.EMLINK):
+                raise
+            problems.append("is a symlink")
+            fd = os.open(path, flags)
+    else:
+        fd = os.open(path, flags)
+    with os.fdopen(fd, "rb") as f:
+        st = os.fstat(f.fileno())
+        if not stat.S_ISREG(st.st_mode):
+            raise ValueError("seed file %r is not a regular file" % (os.fspath(path),))
+        if explicit and st.st_mode & 0o077:
             problems.append("is readable or writable by group/others (chmod 600 it)")
-        text = f.read()
+        data = f.read(_SEED_FILE_MAX + 1)
+    if len(data) > _SEED_FILE_MAX:
+        raise ValueError("seed file %r is larger than %d bytes" % (os.fspath(path), _SEED_FILE_MAX))
+    text = None
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        pass
+    if text is None:
+        raise ValueError("seed file %r is not UTF-8 text" % (os.fspath(path),))
+    if explicit:
+        problems.extend(_seed_folder_problems(path))
     h = "".join(c for c in text.lower() if c in "0123456789abcdef")
     if explicit and any(not (c.isspace() or c in "0123456789abcdef") for c in text.lower()):
         problems.append("contains characters other than hex digits and whitespace (they were ignored)")
@@ -244,6 +306,34 @@ def load_seed(path=None) -> bytes:
         load_seed.cache = (key, seed)
     return seed
 load_seed.cache = None
+_SEED_FILE_MAX = 16384     # honest I5: a seed file is 256 hex digits plus whitespace; refuse anything bigger
+
+def _seed_folder_problems(path) -> list:
+    """honest2 I4 / I5 (CORE): warnings about the folder that holds (or will hold) a seed file, and its
+    ancestors. Used by load_seed (explicit path) and save_seed. The key's own folder warns if it is
+    writable by group/others (someone else could replace the file) or reached through a symlink.
+    An ancestor writable by the group (0o020) or by everyone (0o002) WITHOUT the sticky bit warns
+    (they could rename the folders below it); a sticky ancestor (for example /tmp at 1777) does not."""
+    problems = []
+    folder = os.path.dirname(os.path.abspath(path))
+    if os.path.realpath(folder) != folder:
+        problems.append("is in a folder reached through a symlink (%s)" % (os.fspath(os.path.realpath(folder)),))
+    if os.stat(folder).st_mode & 0o022:
+        problems.append("is in a folder writable by group/others (someone else could replace the file)")
+    anc = os.path.dirname(folder)
+    while True:
+        am = os.stat(anc).st_mode
+        if (am & 0o022) and not (am & stat.S_ISVTX):
+            if am & 0o002:
+                problems.append("is below a folder writable by everyone without the sticky bit (%s)" % (os.fspath(anc),))
+            else:
+                problems.append("is below a folder writable by the group without the sticky bit (%s)" % (os.fspath(anc),))
+            break
+        up = os.path.dirname(anc)
+        if up == anc:
+            break
+        anc = up
+    return problems
 
 class _DerivedKey(bytes):
     """Marker for a key derived inside this package (étude keys K_e). Carries no special treatment since
@@ -254,7 +344,8 @@ class _DerivedKey(bytes):
 class _CheckedSeed(bytes):
     """chainfix: a 128-byte seed that _seed_bytes already normalised and checked during THIS call chain.
     _seed_bytes returns it as is, so one public call runs the weak-seed rule once, not once per helper.
-    There is no cross-call cache (chainfix I6). Private: constructing one by hand skips the rule."""
+    There is no cross-call cache (chainfix I6). Private: constructing one by hand skips the weak-seed rule,
+    but (seedguard I1) never the type and 128-byte length check: the shortcut needs both."""
     __slots__ = ()
 
 def _seed_bytes(seed) -> bytes:
@@ -265,9 +356,14 @@ def _seed_bytes(seed) -> bytes:
     seed=None is REFUSED (TypeError; key-fix: it used to mean the public demo seed). bool and other
     non-bytes, non-int types: TypeError. Ints must be 0 <= seed < 2**1024 (ValueError otherwise), encoded
     as 128 big-endian bytes (N1 style). Bytes-like values are copied raw (memoryview), never via __bytes__.
+    seedguard L1: the returned key is built (an immutable _CheckedSeed) BEFORE the excluded policy runs and is
+    held only on this frame's evaluation stack while it runs, which f_locals / frame writes cannot reach; the
+    policy gets its own immutable copy, and _policy_verdict accepts exactly None (anything else that it
+    returns is a RuntimeError, a raise is a reject). _check_policy_purity (core, run inside mix_description
+    at import) refuses policy code that names frames, sys, imports or any attribute outside a short list.
     Pass keygen() output for a real key, or load_seed() explicitly for the public demo seed (samples,
     tests and the published score only)."""
-    if type(seed) is _CheckedSeed:
+    if type(seed) is _CheckedSeed and len(seed) == 128:      # seedguard I1: the shortcut checks length too
         return seed
     if seed is None:
         raise TypeError("seed is required: use keygen() for a new key, or load_seed() for the PUBLIC demo seed "
@@ -283,15 +379,71 @@ def _seed_bytes(seed) -> bytes:
     else:
         raise TypeError("seed must be 128 bytes (bytes, bytearray, memoryview) or an int, not " + type(seed).__name__)
     if len(s) != 128: raise ValueError("seed must be 128 bytes (1024 bits)")
-    _seed_policy_check(bytes(s))           # accept or raise; the return value is deliberately ignored
-    return _CheckedSeed(s)
+    # seedguard L1: _CheckedSeed(s) is evaluated FIRST and stays on the evaluation stack while the policy runs.
+    return _policy_verdict(_CheckedSeed(s), _ask_policy(bytes(s)))
 
-def _seed_policy_check(seed: bytes) -> None:
+# honest I1: the reason shapes the honest weak-seed rule produces (digit runs collapsed to "#"). A policy error
+# whose message has one of these shapes keeps it; anything else becomes the fixed ValueError("weak seed").
+_WEAK_REASON_SHAPES = frozenset({
+    "need at least # distinct nonzero bytes",
+    "one byte value repeats too often (zero padding or low entropy)",
+    "Hamming weight # of # is far from #",
+    "all printable ASCII (a password or hex text, not # random bits)",
+    "every byte is below #x#",
+    "repeated pattern (period #)",
+    "counter or arithmetic sequence (stride #)",
+    "long monotone run",
+    "a published constant",
+})
+
+def _reason_shape(text) -> str:
+    """honest I1 (CORE): text with every run of decimal digits collapsed to one "#"."""
+    out = []
+    for c in text:
+        d = c in "0123456789"
+        if not (d and out and out[-1] == "#"):
+            out.append("#" if d else c)
+    return "".join(out)
+
+def _ask_policy(copy):
+    """honest I1 (CORE): run the excluded policy on its own immutable copy. Any Exception it raises becomes
+    a NEW ValueError raised outside the handler (no __cause__, no __context__, so the policy's exception and
+    whatever it carried never travel on). The message is "weak seed: <reason>" only when the policy raised
+    exactly ValueError("weak seed: <reason>") with <reason> of a known shape (_WEAK_REASON_SHAPES; numbers
+    only, never seed bytes) and at most 100 characters; otherwise it is the fixed "weak seed"."""
+    try:
+        verdict = _seed_policy_check(copy)
+    except Exception as e:
+        msg = "weak seed"
+        if type(e) is ValueError and len(e.args) == 1 and type(e.args[0]) is str:
+            text = e.args[0]
+            if len(text) <= 100 and text.startswith("weak seed: ") and _reason_shape(text[11:]) in _WEAK_REASON_SHAPES:
+                msg = text
+    else:
+        return verdict
+    raise ValueError(msg)
+
+def _policy_verdict(key, verdict):
+    """seedguard L1 (CORE): strict accept/reject. The policy accepts by returning exactly None and rejects
+    by raising; any other return value is a RuntimeError (it never becomes or alters the key). key was
+    built by _seed_bytes before the policy ran and is returned unchanged."""
+    if verdict is not None:
+        raise RuntimeError("seed policy must return None (accept) or raise (reject), got " + type(verdict).__name__)
+    if type(key) is not _CheckedSeed or len(key) != 128:
+        raise RuntimeError("seed gate lost its key")
+    return key
+
+def _seed_policy_check(seed):
     """Seed-INPUT policy (chainfix L1: a pure predicate). Raises ValueError("weak seed: ...") if the
-    128-byte seed fails the weak-seed rule; otherwise returns None. It cannot change the key: _seed_bytes
-    (core) ignores anything it returns. Excluded from the cipher-core digest (SEED_POLICY_NAMES), so
-    tightening it moves no ciphertext; it is in the import attestation and has its own pinned digest
-    (EXPECTED_SEED_POLICY_SHA256). No memo (chainfix I6): every call runs the full rule."""
+    128-byte seed fails the weak-seed rule; otherwise returns None. Excluded from the cipher-core digest
+    (SEED_POLICY_NAMES), so tightening it moves no ciphertext; it is in the import attestation and has its
+    own pinned digest (EXPECTED_SEED_POLICY_SHA256). No memo (chainfix I6): every call runs the full rule.
+    seedguard L1: excluded code is still TRUSTED code. The core fixes the key before calling it, accepts only
+    a None return (_policy_verdict) and lints its source (_check_policy_purity), but an edit here can still
+    let weak seeds through or refuse good ones, so a change to EXPECTED_SEED_POLICY_SHA256 needs the same
+    review as a change to the core pins. honest I2: no annotations, while loops, match or ** here (the core lint
+    refuses them). honest I1: whatever this raises reaches the caller only as a fresh ValueError from
+    _ask_policy ("weak seed", or "weak seed: <reason>" for a known reason shape), never chained."""
     reason = _weak_seed_reason(seed)
     if reason is not None:
         raise ValueError("weak seed: " + reason)
@@ -336,7 +488,7 @@ KNOWN_CONSTANT_SEEDS_SHA256 = frozenset((
     "f9922e9a37f3a9ac7ee1c689396035b9460d2d89f03e950692be336959dcc08c",
 ))
 
-def _weak_seed_reason(seed: bytes):
+def _weak_seed_reason(seed):
     """None if a 128-byte seed passes the weak-seed rule, else a short reason (key-fix). A sanity check
     against obvious structure, not an entropy test (chainfix L4): passing it does NOT make a seed secret.
     Rejects: fewer than 32 distinct nonzero bytes (the original rule); any byte value more than 11
@@ -378,33 +530,84 @@ def _weak_seed_reason(seed: bytes):
     return None
 
 def keygen() -> bytes:
-    """key-fix: a fresh 1024-bit seed, os.urandom(128), redrawn if it fails the weak-seed rule (key-fix
-    measured 0 in 1,000,000; a redraw is expected far less than once in 10^9 calls). THIS is the real
+    """key-fix: a fresh 1024-bit seed, os.urandom(128). honest I4: ONE draw, never redrawn. The draw gets the
+    core type/length checks and then the normal _seed_bytes path; if the (excluded) weak-seed rule rejects it,
+    keygen raises RuntimeError instead of drawing again, so the excluded rule can make keygen fail but can
+    never choose among draws (key-fix measured 0 rejects in 1,000,000 random seeds). THIS is the real
     protection (chainfix L4); the weak-seed rule is only a sanity check. Keep it secret: save it with
     save_seed(path, seed) (0600, new file only) and read it back with load_seed(path).
-    Raises RuntimeError if 16 draws in a row are weak (the system RNG is broken).
-    chainfix L2: attested at import and in EXPECTED_SEED_POLICY_SHA256 (not in the cipher core)."""
-    for _ in range(16):
-        seed = os.urandom(128)
-        if _weak_seed_reason(seed) is None:
-            return seed
-    raise RuntimeError("os.urandom(128) failed the weak-seed rule 16 times in a row; the system RNG looks broken")
+    Raises RuntimeError if the draw is refused (the system RNG or the policy is broken).
+    seedguard L1: CIPHER CORE (it decides the key bytes); only the accept/reject rule it asks is excluded.
+    honest2 I1: re-runs _check_module_bindings so a module rebinding placed after the import checks is
+    still refused when a key is made."""
+    _check_module_bindings()
+    seed = os.urandom(128)
+    if type(seed) is not bytes or len(seed) != 128:
+        raise RuntimeError("os.urandom(128) did not return 128 bytes")
+    rejected = False
+    try:
+        _seed_bytes(seed)
+    except ValueError:
+        rejected = True
+    if rejected:
+        raise RuntimeError("os.urandom(128) output failed the weak-seed rule (expected far less than once in 10^9 "
+                           "draws): the system RNG or the seed policy is broken. keygen() does not redraw.")
+    return seed
+
+# seedguard I3: False forces the named-temp fallback (tests; systems without O_TMPFILE or /proc use it anyway).
+_SEED_USE_O_TMPFILE = True
 
 def save_seed(path, seed) -> None:
     """key-fix: write seed as 256 hex digits (the load_seed format) to a NEW file (an existing path,
     symlink, directory or FIFO raises FileExistsError and is left untouched). The seed is checked first.
-    chainfix L3: atomic. The hex goes to a private dot-temp file in the same directory (O_CREAT | O_EXCL |
-    O_NOFOLLOW, 0600), is fsync'd, then published with link() (never clobbers), the temp name is removed
-    and the directory is fsync'd. On ANY error the temp file is removed, so a failed write (disk full, a
-    file-size limit) leaves nothing behind and a retry works. chainfix I4: storing the PUBLIC demo seed
-    emits SeedWarning (it is not a key). chainfix L2: attested (import check and EXPECTED_SEED_POLICY_SHA256)."""
+    seedguard I3: on Linux the hex goes to an ANONYMOUS O_TMPFILE file (0600) in the target directory, is
+    fsync'd, and is published with linkat (os.link via /proc/self/fd, which never clobbers), so no file name
+    holding the key exists before it is published and a SIGKILL at any point leaves nothing behind.
+    Fallback (no O_TMPFILE on this kernel/filesystem, no /proc, or the /proc link refused): chainfix L3's
+    private dot-temp file in the same directory (O_CREAT | O_EXCL | O_NOFOLLOW, 0600), fsync'd, published
+    with link() and unlinked; on any error it is removed, but a SIGKILL between its creation and the
+    unlink leaves ".<name>.<random>.tmp" (0600) HOLDING THE FULL KEY: delete it after a crash. Either way
+    the directory is fsync'd. A failed write (disk full, a file-size limit) leaves nothing behind and a
+    retry works. chainfix I4: storing the PUBLIC demo seed emits SeedWarning (it is not a key).
+    seedguard L1: CIPHER CORE (under the core digest), not excluded seed-policy code.
+    honest I6: path may be str, bytes or os.PathLike (bytes are decoded with os.fsdecode).
+    honest2 I1: re-runs _check_module_bindings so a module rebinding placed after the import checks is
+    still refused when a key is written. honest2 I5: runs the same folder and ancestor checks as
+    load_seed and warns (SeedWarning) if the destination folder is unsafe; the file is still written."""
+    _check_module_bindings()
     seed = bytes(_seed_bytes(seed))
     if hashlib.sha256(seed).hexdigest() == DEMO_SEED_SHA256:
         warnings.warn("save_seed: this is the PUBLIC demo seed (published in score/vectors.json), not a key; "
                       "use keygen() for a real key", SeedWarning, stacklevel=2)
-    path = os.fspath(path)
+    path = os.fsdecode(os.fspath(path))        # honest I6: str, bytes or os.PathLike, like load_seed
     folder = os.path.dirname(os.path.abspath(path))
+    folder_problems = _seed_folder_problems(path)
+    if folder_problems:
+        warnings.warn("seed file %r %s" % (os.fspath(path), "; ".join(folder_problems)), SeedWarning, stacklevel=2)
     data = (seed.hex() + "\n").encode("ascii")
+    if _SEED_USE_O_TMPFILE and hasattr(os, "O_TMPFILE") and os.path.isdir("/proc/self/fd"):
+        try:
+            fd = os.open(folder, os.O_TMPFILE | os.O_WRONLY | getattr(os, "O_CLOEXEC", 0), 0o600)
+        except OSError:
+            fd = None                    # no O_TMPFILE here: named temp below
+        if fd is not None:
+            try:
+                view = memoryview(data)
+                while view:
+                    view = view[os.write(fd, view):]
+                os.fsync(fd)
+                try:
+                    os.link("/proc/self/fd/%d" % fd, path, follow_symlinks=True)
+                    linked = True
+                except FileExistsError:
+                    raise
+                except OSError:
+                    linked = False       # odd /proc or sandbox: named temp below
+            finally:
+                os.close(fd)
+            if linked:
+                _fsync_dir(folder)
+                return
     tmp = os.path.join(folder, ".%s.%s.tmp" % (os.path.basename(path), os.urandom(8).hex()))
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0), 0o600)
     try:
@@ -436,6 +639,163 @@ def _fsync_dir(folder) -> None:
         pass
     finally:
         os.close(dfd)
+
+# seedguard L1: everything the EXCLUDED seed policy (SEED_POLICY_NAMES) may name. Builtins must not be
+# shadowed by a module global, modules must be the real ones, constants must be immutable.
+_POLICY_BUILTINS = frozenset({"len", "max", "min", "sum", "map", "range", "zip", "bin", "int", "all", "any",
+                              "abs", "bytes", "ValueError"})
+_POLICY_MODULES = frozenset({"operator", "hashlib"})
+_POLICY_CONSTANTS = frozenset({"SEED_MIN_DISTINCT_NONZERO", "SEED_MAX_BYTE_COUNT", "SEED_WEIGHT_RANGE",
+                               "SEED_MAX_LAG_EQUAL", "SEED_MAX_LAG_DIFF", "SEED_DIFF_LAGS", "SEED_MAX_MONOTONE_RUN",
+                               "KNOWN_CONSTANT_SEEDS_SHA256"})
+_POLICY_ATTRS = frozenset({"eq", "sub", "xor", "sha256", "hexdigest", "count", "from_bytes"})
+_POLICY_BANNED_NODES = frozenset({"Import", "ImportFrom", "Global", "Nonlocal", "Lambda", "FunctionDef",
+                                  "AsyncFunctionDef", "ClassDef", "Yield", "YieldFrom", "Await", "Delete", "With",
+                                  "AsyncWith", "Try", "TryStar", "Starred",
+                                  # honest I2 / I3: no unbounded loops, no ** or << growth, no annotations, no match
+                                  "While", "Pow", "LShift", "AnnAssign", "Match", "match_case", "MatchValue",
+                                  "MatchSingleton", "MatchSequence", "MatchMapping", "MatchClass", "MatchStar",
+                                  "MatchAs", "MatchOr"})
+
+def _exact_constant(v) -> bool:
+    """honest L2 (CORE): True only for an EXACT int (not bool, not a subclass), str or bytes, or an EXACT
+    tuple / frozenset whose elements are all exact constants (checked recursively)."""
+    t = type(v)
+    if t is int or t is str or t is bytes:
+        return True
+    if t is tuple or t is frozenset:
+        return all(_exact_constant(x) for x in v)
+    return False
+
+def _check_policy_purity() -> None:
+    """seedguard L1 (CORE, run inside mix_description, so at every import and under the core digest): a
+    static allowlist lint of the excluded seed policy. Each SEED_POLICY_NAMES entry must be one plain
+    module function (no defaults, closure or decorators, no nested defs, imports, global/nonlocal, try,
+    with, lambda, yield; honest I2/I3: no while, **, <<, annotations or match) whose free names are only
+    _POLICY_BUILTINS (unshadowed), _POLICY_MODULES (the very sys.modules objects), _POLICY_CONSTANTS (honest
+    L2: EXACT int / tuple / frozenset, elements checked recursively, no subclass) or other policy
+    functions, and whose attribute accesses
+    are only _POLICY_ATTRS. So the policy cannot reach sys, frames, f_locals, gc, inspect, __import__,
+    getattr or dunder attributes, and cannot rewrite a caller's key the way the chainfix T1 tamper did.
+    Raises RuntimeError otherwise. This is a lint, not a sandbox: runtime monkeypatching after import is
+    not re-checked (seedguard I2; same-process code can do anything)."""
+    g = globals()
+    for name in sorted(SEED_POLICY_NAMES):
+        obj = g.get(name)
+        if type(obj) is not types.FunctionType or obj.__globals__ is not g:
+            raise RuntimeError("seed policy %s is not a plain module function" % name)
+        if obj.__defaults__ or obj.__kwdefaults__ or obj.__closure__:
+            raise RuntimeError("seed policy %s may not carry defaults or a closure" % name)
+        tree = ast.parse(textwrap.dedent(inspect.getsource(obj)))
+        fn = tree.body[0] if len(tree.body) == 1 else None
+        if not isinstance(fn, ast.FunctionDef) or fn.name != name or fn.decorator_list:
+            raise RuntimeError("seed policy %s must be one undecorated def" % name)
+        a = fn.args
+        local = {x.arg for x in a.posonlyargs + a.args + a.kwonlyargs}
+        if a.vararg or a.kwarg or a.defaults or a.kw_defaults:
+            raise RuntimeError("seed policy %s: only plain positional arguments" % name)
+        if fn.returns is not None or any(x.annotation is not None for x in a.posonlyargs + a.args + a.kwonlyargs):
+            raise RuntimeError("seed policy %s may not carry annotations" % name)
+        for node in ast.walk(fn):
+            if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+                local.add(node.id)
+        for node in ast.walk(fn):
+            if node is not fn and type(node).__name__ in _POLICY_BANNED_NODES:
+                raise RuntimeError("seed policy %s uses a forbidden construct (%s)" % (name, type(node).__name__))
+            if isinstance(node, ast.Attribute) and node.attr not in _POLICY_ATTRS:
+                raise RuntimeError("seed policy %s uses a forbidden attribute .%s" % (name, node.attr))
+            if isinstance(node, ast.Name) and not isinstance(node.ctx, ast.Store) and node.id not in local:
+                n = node.id
+                if n in _POLICY_BUILTINS and n not in g:
+                    continue
+                if n in _POLICY_MODULES and type(g.get(n)) is types.ModuleType and g[n] is sys.modules.get(n):
+                    continue
+                if n in _POLICY_CONSTANTS and type(g.get(n)) in (int, tuple, frozenset) and _exact_constant(g[n]):
+                    continue
+                if n in SEED_POLICY_NAMES:
+                    continue
+                raise RuntimeError("seed policy %s names %r, which it may not use" % (name, n))
+
+# honest L1 / honest2 L1: names this file binds with top-level import statements (checked by
+# _check_module_bindings). Dunder names such as __builtins__ are not in the set: they are not imports.
+# honest2 adds platform (python_implementation, to skip C-builtin identity checks off CPython).
+_EXPECTED_MODULES = frozenset({"ast", "collections", "errno", "hashlib", "hmac", "inspect", "io", "json", "linecache",
+                               "operator", "os", "pickle", "platform", "selectors", "stat", "subprocess", "sys",
+                               "tempfile", "textwrap", "time", "types", "warnings"})
+# honest L1: (module, attribute) primitives that must be C builtins owned by a real module in sys.modules.
+# honest2 L1: these identity checks run only on CPython (platform.python_implementation()); PyPy implements
+# some of them in Python, so they are not BuiltinFunctionType there.
+_BUILTIN_PRIMITIVES = (("os", "urandom"), ("os", "open"), ("os", "write"), ("os", "read"), ("os", "fsync"),
+                       ("os", "link"), ("os", "fstat"), ("os", "stat"), ("os", "unlink"), ("hashlib", "sha256"),
+                       ("hashlib", "shake_256"), ("hmac", "compare_digest"), ("os", "fspath"))
+# honest L1: Python-level primitives that must be the function defined in that very stdlib module.
+_STDLIB_FUNCTIONS = (("hmac", "new"), ("hmac", "digest"), ("os", "fsdecode"))
+
+def _names_bound_by_imports(src=None) -> frozenset:
+    """honest2 L1 (CORE): names this file binds with top-level `import` / `from ... import` statements.
+    Used by _check_module_bindings so __builtins__ (a module under PyPy and whenever this file runs as
+    __main__) and any other non-import ModuleType global are not treated as a binding change. A
+    sourceless install falls back to the pinned _EXPECTED_MODULES set."""
+    if src is None:
+        src = _MODULE_SOURCE
+    if not src:
+        return _EXPECTED_MODULES
+    if isinstance(src, bytes):
+        try:
+            text = src.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            return _EXPECTED_MODULES
+    else:
+        text = src
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return _EXPECTED_MODULES
+    names = set()
+    for node in tree.body:
+        if isinstance(node, ast.Import):
+            for a in node.names:
+                names.add(a.asname or a.name.split(".")[0])
+        elif isinstance(node, ast.ImportFrom):
+            for a in node.names:
+                if a.name == "*":
+                    continue
+                names.add(a.asname or a.name)
+    return frozenset(names)
+
+def _check_module_bindings() -> None:
+    """honest L1 / honest2 L1, I1 (CORE, run inside mix_description at every import, and again from
+    keygen and save_seed): the names bound by this file's top-level import statements must be exactly
+    _EXPECTED_MODULES, each the very object in sys.modules under its own name (type ModuleType);
+    on CPython (platform.python_implementation()), each _BUILTIN_PRIMITIVES entry must be a C builtin
+    whose owning module is the real sys.modules entry and which that module still exposes; each
+    _STDLIB_FUNCTIONS entry must be a Python function whose __globals__ is that module's namespace.
+    RuntimeError otherwise. This catches a rebinding of an imported name that is in place when the
+    check runs (the seedguard attack's w01: `os` swapped for a look-alike, if that swap happens
+    before the import checks, or later when keygen or save_seed re-runs this check). It cannot catch
+    a process whose sys.modules was already poisoned before import, and a rebinding placed after the
+    import checks is not seen until keygen or save_seed runs. See SECURITY.md: the import self-checks
+    are not a tamper guard."""
+    g = globals()
+    bound = _names_bound_by_imports()
+    if bound != _EXPECTED_MODULES:
+        raise RuntimeError("module bindings changed: %s" % sorted(bound ^ _EXPECTED_MODULES))
+    for n in sorted(bound):
+        m = g.get(n)
+        if type(m) is not types.ModuleType or m.__name__ != n or sys.modules.get(n) is not m:
+            raise RuntimeError("module global %s is not the imported module %s" % (n, n))
+    if platform.python_implementation() == "CPython":
+        for mod, attr in _BUILTIN_PRIMITIVES:
+            f = getattr(g[mod], attr, None)
+            owner = getattr(f, "__self__", None)
+            if type(f) is not types.BuiltinFunctionType or type(owner) is not types.ModuleType:
+                raise RuntimeError("%s.%s is not a C builtin" % (mod, attr))
+            if sys.modules.get(owner.__name__) is not owner or getattr(owner, f.__name__, None) is not f:
+                raise RuntimeError("%s.%s is not owned by a real module" % (mod, attr))
+    for mod, attr in _STDLIB_FUNCTIONS:
+        f = getattr(g[mod], attr, None)
+        if type(f) is not types.FunctionType or f.__globals__ is not vars(g[mod]):
+            raise RuntimeError("%s.%s is not the stdlib function" % (mod, attr))
 
 # ---------------------------------------------------------------- staff sponge (SHA-256 underneath)
 class StaffSponge:
@@ -868,12 +1228,18 @@ MIX_CODE_FUNCS = (
     "Rejected", "_DerivedKey",
     # added 2026-11-14 (chainfix L1): the core seed marker and the excluded accept/reject predicate + rule.
     "_CheckedSeed", "_seed_policy_check", "_weak_seed_reason",
-    # added 2026-11-14 (chainfix L2/I4/I5): ATTESTATION ONLY (ATTEST_ONLY_NAMES keeps them out of the
-    # cipher core): key tools, seed-file warning class, the pin logic itself and the sample/analysis helpers.
+    # added 2026-11-14 (chainfix L2/I4/I5): key tools and seed-file warning class (CORE since seedguard L1),
+    # then ATTESTATION ONLY (ATTEST_ONLY_NAMES): the pin logic itself and the sample/analysis helpers.
     "keygen", "save_seed", "_fsync_dir", "SeedWarning",
     "_core_digest", "_seed_policy_digest", "_signature_nonce", "_init_attestation", "_init_rehearsal_attestation",
     "_init_seed_policy_attestation", "_executed_pyc_code", "_verify_executed_code", "_module_source_snapshot",
     "encrypt_hello", "grid_rows", "ddt_max", "lat_max",
+    # added 2026-11-15 (seedguard L1): the strict policy gate and the policy lint (both CORE).
+    "_policy_verdict", "_check_policy_purity",
+    # added 2026-11-15 (rehearsal-honest): policy error filter, exact-constant check, module identity check.
+    "_ask_policy", "_reason_shape", "_exact_constant", "_check_module_bindings",
+    # added 2026-11-15 (rehearsal-honest2): import-bound name walk, shared seed-folder warnings.
+    "_names_bound_by_imports", "_seed_folder_problems",
 )
 
 def _referenced_globals(obj):
@@ -904,11 +1270,10 @@ def mix_code_closure(roots=None):
         if name in _ATTEST_SKIP: continue
         if name in code or name in data or name not in g: continue
         obj = g[name]
-        if isinstance(obj, types.ModuleType): continue
         if isinstance(obj, (types.FunctionType, type)):
             code.add(name); todo.extend(sorted(_referenced_globals(obj)))
         else:
-            data.add(name)
+            data.add(name)        # honest L1: modules too (canonical "module:<name>", identity checked at import)
     return code, data
 
 def _canon_data(x):
@@ -920,24 +1285,36 @@ def _canon_data(x):
     depend on iteration order. tuples, lists, and dicts (keys sorted the same
     way) are nested. Any other type raises TypeError with the type name, so a
     new constant type is an explicit error rather than a silent skip.
+    honest L2: types are matched EXACTLY and labelled by identity, not by __name__, so an int subclass
+    renamed "int" (or any other subclass) raises TypeError. honest L1: a module is encoded "module:<name>".
     """
-    if x is None or isinstance(x, (bool, int, float, complex, str, bytes)):
-        return type(x).__name__ + ":" + repr(x)
-    if isinstance(x, (bytearray, memoryview)):
-        return type(x).__name__ + ":" + repr(bytes(x))
-    if isinstance(x, (tuple, list)):
-        return type(x).__name__ + "[" + ",".join(_canon_data(y) for y in x) + "]"
-    if isinstance(x, (set, frozenset)):
-        return type(x).__name__ + "{" + ",".join(_canon_data(y) for y in sorted(x, key=_canon_data)) + "}"
-    if isinstance(x, dict):
+    t = type(x)                       # honest L2: EXACT types only, named by identity (a subclass raises)
+    for k, label in ((type(None), "NoneType"), (bool, "bool"), (int, "int"), (float, "float"),
+                     (complex, "complex"), (str, "str"), (bytes, "bytes")):
+        if t is k:
+            return label + ":" + repr(x)
+    for k, label in ((bytearray, "bytearray"), (memoryview, "memoryview")):
+        if t is k:
+            return label + ":" + repr(bytes(x))
+    for k, label in ((tuple, "tuple"), (list, "list")):
+        if t is k:
+            return label + "[" + ",".join(_canon_data(y) for y in x) + "]"
+    for k, label in ((set, "set"), (frozenset, "frozenset")):
+        if t is k:
+            return label + "{" + ",".join(_canon_data(y) for y in sorted(x, key=_canon_data)) + "}"
+    if t is dict:
         return "dict{" + ",".join(_canon_data(k) + "=" + _canon_data(x[k]) for k in sorted(x, key=_canon_data)) + "}"
-    raise TypeError("cannot attest object of type " + type(x).__name__)
+    if t is types.ModuleType:        # honest L1: an imported module is attested by name (identity: _check_module_bindings)
+        return "module:" + str(x.__name__)
+    raise TypeError("cannot attest object of type " + t.__name__ + " (exact built-in types only)")
 
 def mix_description():
     """Canonical ASCII JSON of parameters and listed mix function sources.
     Source is recomputed on each call; unavailable source fails closed, not silent.
     Length-framed names and sources make the digest unambiguous and stable.
     """
+    _check_module_bindings()      # honest L1: the imported modules and their primitives are the real ones
+    _check_policy_purity()        # seedguard L1: lint the excluded seed policy at every attestation
     reach, data_names = mix_code_closure()
     funcs = tuple(MIX_CODE_FUNCS) + tuple(sorted(reach - set(MIX_CODE_FUNCS)))
     code = hashlib.sha256()
@@ -978,12 +1355,14 @@ def mix_description():
 
 # key-fix / chainfix: names that are ATTESTED at import (MIX_CODE_FUNCS, so EXPECTED_MIX_SHA256 covers their
 # source) but are NOT part of the cipher core that decides key_sig / rehearsal_sig (_core_digest skips them).
-# SEED_POLICY_NAMES is the seed-input policy plus the key tools (chainfix L1/L2). Since chainfix the policy is
-# a pure accept/reject predicate: _seed_bytes (CORE) normalises the seed and ignores what the policy returns,
-# so editing excluded code can refuse keys or let weak ones through but cannot change a key. The policy has
-# its own pinned digest, EXPECTED_SEED_POLICY_SHA256 (_seed_policy_digest), shown in the score and README.
-SEED_POLICY_NAMES = frozenset({"_seed_policy_check", "_weak_seed_reason", "load_seed", "keygen", "save_seed",
-                               "_fsync_dir", "SeedWarning"})
+# SEED_POLICY_NAMES is ONLY the accept/reject weak-seed rule (seedguard L1). load_seed, keygen, save_seed,
+# _fsync_dir and SeedWarning moved into the cipher core, so every byte of a key is decided by core code.
+# _seed_bytes (CORE) builds the key before asking the policy, accepts only a None return (_policy_verdict),
+# and _check_policy_purity (CORE) lints the policy source at import. Editing excluded code can still refuse
+# keys or let weak ones through, so excluded code is TRUSTED code: a change to EXPECTED_SEED_POLICY_SHA256
+# (its own pinned digest, _seed_policy_digest, shown in the score and README) needs the SAME review as a
+# change to the core pins. None of this re-checks the module after import (seedguard I2).
+SEED_POLICY_NAMES = frozenset({"_seed_policy_check", "_weak_seed_reason"})
 # chainfix I5: the pin logic and the sample/analysis helpers are attested too (MIX_CODE_FUNCS), not core.
 PIN_LOGIC_NAMES = frozenset({"_core_digest", "_seed_policy_digest", "_signature_nonce", "_init_attestation",
                              "_init_rehearsal_attestation", "_init_seed_policy_attestation", "_executed_pyc_code",
@@ -1004,11 +1383,10 @@ def _core_digest(roots, listed=(), extra: bytes = b"") -> str:
         if name in _ATTEST_SKIP or name in ATTEST_ONLY_NAMES: continue
         if name in code or name in data or name not in g: continue
         obj = g[name]
-        if isinstance(obj, types.ModuleType): continue
         if isinstance(obj, (types.FunctionType, type)):
             code.add(name); todo.extend(sorted(_referenced_globals(obj)))
         else:
-            data.add(name)
+            data.add(name)        # honest L1: modules included
     h = hashlib.sha256()
     def put(*parts):
         for part in parts:
@@ -1035,7 +1413,6 @@ def _seed_policy_digest() -> str:
         name = todo.pop()
         if name in _ATTEST_SKIP or name in code or name in data or name not in g: continue
         obj = g[name]
-        if isinstance(obj, types.ModuleType): continue
         if isinstance(obj, (types.FunctionType, type)):
             if name in SEED_POLICY_NAMES:
                 code.add(name); todo.extend(sorted(_referenced_globals(obj)))
@@ -1887,7 +2264,7 @@ class _RehearsalWorkers:
         if not sys.executable:
             raise RuntimeError("workers > 1 needs sys.executable")
         if _MODULE_SOURCE is None:
-            raise RuntimeError("workers > 1 needs the module source (not available in this install)")
+            raise RuntimeError("workers > 1 needs the module source (not available in this install; zip installs use the loader, a .pyc-only install has no source)")
         p = subprocess.Popen([sys.executable, "-I", "-B", "-S", "-c", _REHEARSAL_WORKER_SRC],
                              stdin=subprocess.PIPE, stdout=subprocess.PIPE, close_fds=True, bufsize=0,
                              env=_rehearsal_worker_env())

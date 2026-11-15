@@ -1,0 +1,6 @@
+# Keep Python sources and the published score byte-identical across checkouts.
+# A CRLF conversion of sneak_n2.py (or etudes.py / generate_score.py) would fail
+# `python3 score/generate_score.py --check-sha`.
+*.py text eol=lf
+score/vectors.json -text
+score/nondemo-test-seed.txt -text

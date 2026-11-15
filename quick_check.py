@@ -1,7 +1,8 @@
 """Portable sanity check for a fresh clone: decrypts the published hello-world
 and rehearsal-demo blobs, round-trips a message under a fresh random seed,
-checks that a missing seed raises TypeError, and confirms score version 10.
+checks that a missing seed raises TypeError, and confirms score version 11.
 Run: python3 quick_check.py"""
+import hashlib
 import json
 import os
 from sneak_n2 import (
@@ -17,8 +18,10 @@ from sneak_n2 import (
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
+
 def blob_from(name):
     return bytes.fromhex(next(l for l in open(os.path.join(HERE, name)) if l.startswith("blob")).split()[-1])
+
 
 assert FMT_VERSION == 6
 assert FMT_REHEARSAL == 9
@@ -60,6 +63,8 @@ try:
 except TypeError as e:
     assert "seed is required" in str(e)
 score = json.load(open(os.path.join(HERE, "score", "vectors.json")))
-assert score["score_version"] == 10 and score["counts"]["total"] == 79
-assert score["revision"] == "rehearsal-chainfix"
-print("OK: hello-world (v6) and rehearsal-demo (v9) decrypt, random-key round trip works, AD binds, missing seed raises TypeError, tampering and versions 1, 2, 4 and 8 are rejected, score is version 10")
+assert score["score_version"] == 11 and score["counts"]["total"] == 79
+assert score["revision"] == "rehearsal-honest2"
+src = open(os.path.join(HERE, "sneak_n2.py"), "rb").read()
+assert hashlib.sha256(src).hexdigest() == score["sneak_n2_sha256"]
+print("OK: hello-world (v6) and rehearsal-demo (v9) decrypt, random-key round trip works, AD binds, missing seed raises TypeError, tampering and versions 1, 2, 4 and 8 are rejected, score is version 11, sneak_n2.py SHA matches the published score")

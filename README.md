@@ -1,7 +1,180 @@
 <p align="center"><img src="sneak-staff-n2.png" alt="Octavo dual-octahedra picture" width="720"></p>
 <p align="center"><img src="logo.png" alt="Octavo logo" width="120"></p>
 
-## Current live revision — rehearsal-chainfix (2026-11-14, not frozen)
+## Current live revision — rehearsal-honest2 (2026-11-15, not frozen)
+
+Rehearsal-honest2 fixes every finding of the in-house attack on
+rehearsal-honest (`/workspace/attacks_octavo_honest/REPORT.md`: L1, L2
+and I1–I6). **No ciphertext changed:** v6, v7 and v9 blobs are byte-identical, `key_sig`
+(`340dc1e062502bb13462a94ba490c3dc`) and `rehearsal_sig`
+(`07172e74d02a04a42ea0a51b8e69cbf1`) did not move, and all 79 vectors are
+byte-identical. The score is now **version 11**: the 79 vectors are unchanged and
+the header adds published SHAs for `etudes.py` and `generate_score.py`. Still homemade,
+**not for real secrets** (use AES-GCM-SIV, age or libsodium). This revision has
+not been attacked yet.
+
+- **L1, import check false rejects.** `_check_module_bindings` now checks only the
+  names bound by top-level import statements, so `__builtins__` (present under
+  PyPy and whenever the file runs as `__main__`) is not treated as a binding
+  change. The C-builtin identity checks (`hashlib.shake_256` and the rest) run
+  only on CPython (`platform.python_implementation()`). `python3 sneak_n2.py`,
+  `python3 -m sneak_n2`, `runpy`, and PyPy 3.11 all import and run.
+- **L2, `--check-sha` typo footgun.** `score/generate_score.py` uses argparse.
+  Regeneration requires an explicit `--write`. Unknown arguments (including
+  typo flags such as `--check_sha`) exit 2 without writing. `--check-sha` never
+  writes, even if `--write` is also passed.
+- **I1.** The `_check_module_bindings` docstring now says it catches a rebinding
+  that is in place when the check runs. `keygen` and `save_seed` re-run the
+  binding check on each call, so a rebinding appended after the import checks
+  is refused when a key is made or written.
+- **I2.** The score publishes `etudes_sha256` and `generate_score_sha256`.
+  `--check-sha` verifies `sneak_n2.py`, `etudes.py` and `generate_score.py`.
+- **I3.** `.gitattributes` sets `*.py eol=lf` and treats `score/vectors.json`
+  and `score/nondemo-test-seed.txt` as `-text`, so a Windows checkout keeps
+  the published bytes (a CRLF conversion of `sneak_n2.py` would fail the SHA
+  check).
+- **I4.** `load_seed` also warns on a group-writable ancestor without the
+  sticky bit (0775/0770). A sticky group-writable ancestor (1770/1775) does
+  not warn, same rule as a sticky `/tmp`.
+- **I5.** `save_seed` runs the same folder and ancestor checks as `load_seed`
+  and warns (`SeedWarning`) if the destination is unsafe; the file is still
+  written.
+- **I6.** `workers > 1` falls back to `__loader__.get_source()` when the `.py`
+  path cannot be opened (zip installs). A sourceless `.pyc-only` install still
+  has no source, so `workers > 1` stays unavailable there.
+- **Identifiers.** sneak_n2.py SHA-256 `19181bc1623115c075dc5dee25edec388f5413466777d47b7f19fa66d1e71eee`; `EXPECTED_MIX_SHA256` `1fafb4adc1cae574a1158fc19695b5a7c354e405666278ab5f66444122f8f34a`
+  (was `2bc45b77…`), core `9b8ac067676c92f2150d897c7ea9fa1021952ee6c728269ba9bdecf6a4b1efb1` (was `e48c6878…`); `EXPECTED_REHEARSAL_SHA256`
+  `44ad0a4a2eb86b7b98ff147ecf0374552e16bd9fe031fbe32b6b7ed0b1f67737` (was `8987bf9f…`), core `636d48eea97eb29449fbd0270d41d75826d6b9cab6a743e19e5cbb3a8319da72` (was `0d6d9122…`);
+  `EXPECTED_SEED_POLICY_SHA256` `0fc482e65533814588ade098f6c8d5e68693aca76e6a1232f76466b5e609cd5e` (unchanged). Only the core halves
+  of `KEY_SIG_PIN` / `REHEARSAL_SIG_PIN` were re-pinned. `REVISION` =
+  "rehearsal-honest2".
+- Tests: 544/544 passed, 27 skipped (about 13 min, 11:17–11:30 AM ET; `honest2_verification/test_run_final.txt`). Pre-change backup:
+  `/workspace/sneak_n2_backups_rebuilt/pre_honest2/`. Work: `/workspace/honest2_work/`.
+
+## Previous revision — rehearsal-honest (2026-11-15, not frozen; backup /workspace/sneak_n2_backups_rebuilt/pre_honest2/; attacked in `attacks_octavo_honest/`)
+
+Rehearsal-honest fixes every finding of the in-house attack on
+rehearsal-seedguard (`/workspace/attacks_octavo_seedguard/REPORT.md`: L1, L2
+and I1–I6). It also says plainly what the import self-checks are: **they catch
+mistakes and honest drift, not a determined editor of the file, so they are not a tamper guard.** The real
+tamper check is comparing `sha256(sneak_n2.py)` with the `sneak_n2_sha256` in
+the published score (`python3 score/generate_score.py --check-sha`) and with a
+copy you trust (SECURITY.md, "The import self-checks are not a tamper guard").
+**No ciphertext changed:** v6, v7 and v9 blobs are byte-identical, `key_sig`
+(`340dc1e062502bb13462a94ba490c3dc`) and `rehearsal_sig`
+(`07172e74d02a04a42ea0a51b8e69cbf1`) did not move, and all 79 score-version-10
+vectors regenerate byte for byte (header identifiers only). Still homemade,
+**not for real secrets** (use AES-GCM-SIV, age or libsodium). Attacked in
+`/workspace/attacks_octavo_honest/` (0 high, 0 medium, 2 low, 6 info; no
+cryptographic break); those findings are fixed in rehearsal-honest2.
+
+- **L1, module rebinding.** Imported modules are now attested by name
+  (`module:<name>` in every digest walk). A new core check,
+  `_check_module_bindings`, runs inside `mix_description` at import. It
+  requires each module global to be the very `sys.modules` object, and the
+  bound module names to be exactly `_EXPECTED_MODULES`. It also requires
+  `os.urandom`, `os.open`, `os.write`, `os.read`, `os.fsync`, `os.link`,
+  `os.fstat`, `os.stat`, `os.unlink`, `os.fspath`, `hashlib.sha256`,
+  `hashlib.shake_256` and `hmac.compare_digest` to be C builtins owned by a
+  real module, and `hmac.new`, `hmac.digest` and `os.fsdecode` to be the stdlib
+  functions. The attack's w01 tamper (with zero re-pins) and four variants are
+  refused at import. `score/generate_score.py --check-sha` compares the file
+  SHA with the score.
+- **L2, subclass constants.** `_canon_data` matches exact built-in types by
+  identity, so a subclass raises `TypeError`. The policy lint requires exact
+  `int` / `tuple` / `frozenset` constants and checks their elements
+  recursively (`_exact_constant`). The attack's w02 tamper (an `int` subclass
+  renamed "int", zero re-pins) is refused at import.
+- **I1.** Any exception from the policy becomes a fresh `ValueError` with no
+  cause or context. Its message is "weak seed", or "weak seed: <reason>" when
+  the reason has one of the known shapes (numbers only, never seed bytes).
+- **I2 / I3.** The lint refuses `while`, `**`, `<<`, annotated assignments,
+  argument and return annotations, and `match` (the policy's own annotations
+  were removed). Nested `range` loops can still burn time; this is documented
+  as a trusted-code denial of service.
+- **I4.** `keygen()` makes one draw. If the policy rejects it, keygen raises
+  `RuntimeError` instead of redrawing, so the excluded rule can't choose
+  among draws.
+- **I5.** `load_seed` caps the file at 16384 bytes, turns non-UTF-8 content
+  into a plain `ValueError`, and warns on any world-writable ancestor folder
+  without the sticky bit. A sticky one such as `/tmp` doesn't warn: other
+  users can't rename or delete your entries in it.
+- **I6.** `save_seed` accepts bytes paths, like `load_seed`.
+- **Identifiers.** sneak_n2.py SHA-256 `476f8a8b1a4e924d302401e42d5914f882b5dfbc0ac961cc656902548f4496e3`; `EXPECTED_MIX_SHA256` `2bc45b7785ef96f5aeed181bb24180fa87bdfe9152e072570d056406dc6010a9`
+  (was `e41a177c…`), core `e48c68782f5280a199f9a62b3f066d01ac2a53ac2c3d82d1d80fd353027c7dab` (was `43cd3014…`); `EXPECTED_REHEARSAL_SHA256`
+  `8987bf9fd0129d440cdc90e26e7fe71a995bc76bf5b9dce7b531949bcbda2785` (was `40a58c01…`), core `0d6d9122ce920a2e31cf588a5dc3c2052f82a08a0bae61edc18e80717798d04b` (was `e4dc803c…`);
+  `EXPECTED_SEED_POLICY_SHA256` `0fc482e65533814588ade098f6c8d5e68693aca76e6a1232f76466b5e609cd5e` (was `612ff6ce…`). Only the core halves
+  of `KEY_SIG_PIN` / `REHEARSAL_SIG_PIN` were re-pinned. `REVISION` =
+  "rehearsal-honest".
+- Tests: 533/533 passed, 27 skipped (honest_verification/test_run_final.txt). The L1/L2 re-check is in `honest_verification/`.
+  The picture was re-rendered. Pre-change backup:
+  `/workspace/sneak_n2_backups_rebuilt/pre_seedguard2/`.
+
+## Previous revision — rehearsal-seedguard (2026-11-15, not frozen; backup /workspace/sneak_n2_backups_rebuilt/pre_seedguard2/; attacked in `attacks_octavo_seedguard/`)
+
+Rehearsal-seedguard fixes every finding of the in-house attack on
+rehearsal-chainfix (`/workspace/attacks_octavo_chainfix/REPORT.md`: L1 and
+I1–I6). **No ciphertext changed:** v6, v7 and v9 blobs are byte-identical to
+rehearsal-chainfix, `key_sig` (demo seed `340dc1e062502bb13462a94ba490c3dc`)
+and `rehearsal_sig` (demo seed `07172e74d02a04a42ea0a51b8e69cbf1`) did not
+move, and all 79 score-version-10 vectors regenerate byte for byte (the score
+stays version 10; only its header identifiers changed). Still homemade, **not
+for real secrets** (use AES-GCM-SIV, age or libsodium). This revision has not
+been attacked yet.
+
+- **L1, excluded code could still change keys.** Only the accept/reject
+  weak-seed rule (`_seed_policy_check`, `_weak_seed_reason`) is excluded from
+  the cipher core now. `load_seed` (file read, hex parse, length check),
+  `keygen`, `save_seed`, `_fsync_dir` and `SeedWarning` moved into the core, so
+  every byte of a key is decided by code under the core digests. `_seed_bytes`
+  builds the key (an immutable `_CheckedSeed`) **before** calling the policy and
+  keeps it on the evaluation stack, where frame / `f_locals` writes cannot reach
+  it. The policy gets its own immutable copy, and the new core gate
+  `_policy_verdict` accepts only a `None` return; any other return value is a
+  `RuntimeError`. The new core lint `_check_policy_purity` runs inside
+  `mix_description` at every import and refuses policy source that names
+  `sys`, frames, `globals`, `__import__`, imports, or any attribute outside a
+  short allowlist. Re-check of the attack's tampers (`/workspace/chainfix2_work/`):
+  T1 (frame write-through) is **refused at import**. T2 (`load_seed` weakens
+  explicit-path keys) is **refused at import** (core attestation mismatch) when
+  only the three non-core pins are re-pinned. If the core pins are re-pinned
+  too, `key_sig`, `rehearsal_sig` and every score vector move. The docs and
+  comments now say plainly that excluded code is trusted code: **a change to
+  `EXPECTED_SEED_POLICY_SHA256` needs the same review as a change to the core
+  pins.** The score already reads the non-demo seed through the explicit-path
+  `load_seed`, and that path is core now, so no score line was added.
+- **I1.** The `_CheckedSeed` shortcut also requires `len == 128` (and the exact
+  type). A hand-built 3-byte or empty marker raises `ValueError`.
+- **I2.** Docs only. The import checks are **not a runtime guard**: monkeypatching after
+  import is not re-checked (same-process code can do anything).
+- **I3.** `save_seed` writes an anonymous `O_TMPFILE` file (0600) on Linux and
+  publishes it with `linkat` (`os.link` via `/proc/self/fd`), so a SIGKILL
+  leaves nothing. The fallback (no `O_TMPFILE`, no `/proc`, or the link refused)
+  is the chainfix dot-temp file. A SIGKILL in that window leaves
+  `.<name>.<random>.tmp` holding the full key; this is documented.
+- **I4.** `SeedWarning` gets an appended `always` filter, like
+  `LegacyFormatWarning`: 5 of 5 calls warn under the default filters.
+- **I5.** `load_seed(path)` opens with `O_NOFOLLOW | O_NONBLOCK` and checks the
+  **opened** descriptor (`fstat`): a racing symlink swap is never read silently
+  (0 silent reads in a 3000-read race test), and a FIFO or directory raises
+  `ValueError` instead of hanging. It also warns when the folder is reached
+  through a symlink or is writable by group/others.
+- **I6.** The stale SECURITY.md line about `_seed_bytes` / `_DerivedKey` is fixed.
+- **Identifiers.** sneak_n2.py SHA-256 `21213355199f45c934358a83a2a49c230068129d80195c238e9a8b490e97c42c`;
+  `EXPECTED_MIX_SHA256` `e41a177c2ee6b15d55122eb2f360a70d12536047997309d7420f3696983836b6` (was `b6e0fa2a…`), core
+  `43cd301469d5ea3fd6c62882a1d216fc58d72aee0f3beb20f6e66e68870c14dc` (was `a4b54e7e…`); `EXPECTED_REHEARSAL_SHA256`
+  `40a58c015443c7bd6ccb386247b30b9514f6bc3330321977fa5377f5935d6cdb` (was `d0550f7f…`), core
+  `e4dc803c5921f20ee753e5934008289ea4678bdf30c6d0908a17598d88519939` (was `f1e21f50…`); `EXPECTED_SEED_POLICY_SHA256`
+  `612ff6ce280d48e4b4ea888414f63eed41157e2f040ff4fc427b91b0e983bc24` (was `ab5cdce4…`). Only the core halves of
+  `KEY_SIG_PIN` / `REHEARSAL_SIG_PIN` were re-pinned. The signature halves (`fe939969…`, `a21cf6e7…`) are unchanged.
+  `REVISION` = "rehearsal-seedguard". FEATURES unchanged.
+- Tests: 523/523 passed, 0 failed, 27 skipped (about 20 min, 08:48-09:08 ET; seedguard_verification/test_run_final.txt) (new seedguard block; older chainfix checks updated: the
+  policy-returns-a-key check now expects `RuntimeError`, and the coverage lists
+  have the key tools in the core). Full log: `seedguard_verification/`. The
+  picture was re-rendered. Pre-change backup:
+  `/workspace/sneak_n2_backups_rebuilt/pre_chainfix2/` (the full rehearsal-chainfix tree).
+
+## Previous revision — rehearsal-chainfix (2026-11-14; frozen as /workspace/octavo015, pushed as 36b535d; attacked in `attacks_octavo_chainfix/`)
 
 Rehearsal-chainfix fixes every finding of the in-house attack on
 rehearsal-chain (`/workspace/attacks_octavo_rehearsalchain/REPORT.md`: L1–L4

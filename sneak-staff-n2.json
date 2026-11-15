@@ -1,18 +1,18 @@
 {
   "blob_len": 228,
   "commit": "58f669593230e1bde8ac0507e63c63c213b08d8199ab6cc897b149e84ddc3f6f",
-  "expected_rehearsal_sha256": "d0550f7fdb09d4f823c27f2497f40b30dd1f31627b643089af555c435bd6a491",
-  "file_sha256": "48d261e36671a35b15000e68dbd82469e631be14cc77a3f391e115d19e8b9786",
+  "expected_rehearsal_sha256": "44ad0a4a2eb86b7b98ff147ecf0374552e16bd9fe031fbe32b6b7ed0b1f67737",
+  "file_sha256": "19181bc1623115c075dc5dee25edec388f5413466777d47b7f19fa66d1e71eee",
   "fmt_version": 6,
   "key_sig": "340dc1e062502bb13462a94ba490c3dc",
   "nonce": "d4a86fc3847623035bbe3a19ceda33b1",
   "pickup": "2b87dc4e184cd78e6c77b829273b17a3",
   "rehearsal_fmt_version": 9,
   "rehearsal_sig": "07172e74d02a04a42ea0a51b8e69cbf1",
-  "revision": "rehearsal-chainfix",
-  "revision_date": "2026-11-14",
+  "revision": "rehearsal-honest2",
+  "revision_date": "2026-11-15",
   "subtitle": "keyed SM4 S-boxes \u00b7 latin B0 + field bar pairs \u00b7 six triplets \u00b7 bow-pressure \u00b7 latin odd restack \u00b7 cross-staff mix \u00b7 open 8-beat staffs \u00b7 SIV nonce SHA-256(clef\u2016pickup\u2016enc(msg)\u2016enc(AD))[:16] \u00b7 rehearsal v9 chained stream \u00b7 HMAC tag over clef\u2016key_sig\u2016version\u2016SN2\u2016pickup\u2016nonce\u2016tuning\u2016ct\u2016AD \u00b7 movements: theme T; cadence HMAC-D over theme\u2016index\u2016ct; coda HMAC-O over header\u2016count\u2016ct\u2016cadences\u2016AD \u00b7 tuning: HMAC-U commitment over version\u2016SN2\u2016pickup\u2016nonce\u2016AD (and nmov) \u00b7 conductor-polish: equal-time rejects \u00b7 grid IS ciphertext \u00b7 \u00e9tudes 2/4/6 (lab only, own key E)",
   "tag": "070be290b9cc65401ef796d1ab93ced2e979aafc586cf3cee0c062787f8cbc2f",
-  "title": "Octavo (sneak staff-core N2)  \u00b7  rehearsal-chainfix  \u00b7  v6  \u00b7  228-byte blob  \u00b7  SHA 48d261e3\u2026  \u00b7  key_sig 340dc1e0\u2026  \u00b7  2026-11-14",
+  "title": "Octavo (sneak staff-core N2)  \u00b7  rehearsal-honest2  \u00b7  v6  \u00b7  228-byte blob  \u00b7  SHA 19181bc1\u2026  \u00b7  key_sig 340dc1e0\u2026  \u00b7  2026-11-15",
   "warning": "NOT for real secrets \u2014 use AES-GCM-SIV, age, or libsodium"
 }

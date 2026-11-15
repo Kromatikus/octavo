@@ -1,3 +1,27 @@
+rehearsal-honest revision test results (2026-11-15, America/New_York; live, not frozen; pre-change backup /workspace/sneak_n2_backups_rebuilt/pre_seedguard2/)
+live /workspace/sneak_n2: 533/533 passed, 0 failed, 27 skipped (about 12 min, 09:38-09:50; honest_verification/test_run_final.txt)
+  the 27 skips are the same historical /tmp checks lost in the Nov 14 21:17 reboot
+sneak_n2.py SHA-256: 476f8a8b1a4e924d302401e42d5914f882b5dfbc0ac961cc656902548f4496e3 (was 21213355...)
+EXPECTED_MIX_SHA256: 2bc45b7785ef96f5aeed181bb24180fa87bdfe9152e072570d056406dc6010a9 (was e41a177c...); core / KEY_SIG_PIN[0] e48c68782f5280a199f9a62b3f066d01ac2a53ac2c3d82d1d80fd353027c7dab (was 43cd3014...)
+EXPECTED_REHEARSAL_SHA256: 8987bf9fd0129d440cdc90e26e7fe71a995bc76bf5b9dce7b531949bcbda2785 (was 40a58c01...); core / REHEARSAL_SIG_PIN[0] 0d6d9122ce920a2e31cf588a5dc3c2052f82a08a0bae61edc18e80717798d04b (was e4dc803c...)
+EXPECTED_SEED_POLICY_SHA256: 0fc482e65533814588ade098f6c8d5e68693aca76e6a1232f76466b5e609cd5e (was 612ff6ce...)
+key_sig 340dc1e062502bb13462a94ba490c3dc and rehearsal_sig 07172e74d02a04a42ea0a51b8e69cbf1 unchanged; signature halves of both pins unchanged
+score: score_version 10 kept; all 79 vectors byte-identical, header identifiers only; generate_score.py --check-sha exits 0
+L1/L2 re-check (honest_verification/recheck_l1_l2_output.txt, copies under /workspace/seedguard2_work): seedguard w01 verbatim and 4 variants refused at import (module bindings); w02 verbatim and a subclass-in-tuple variant refused at import (exact-type lint); all with zero re-pins; Fake(16) canon spoof -> TypeError
+reminder: the import self-checks are not a tamper guard; compare the file SHA-256 with the score and a trusted copy
+
+rehearsal-seedguard revision test results (2026-11-15, America/New_York; live, not frozen; pre-change backup /workspace/sneak_n2_backups_rebuilt/pre_chainfix2/)
+live /workspace/sneak_n2: 523/523 passed, 0 failed, 27 skipped (about 20 min, 08:48-09:08; seedguard_verification/test_run_final.txt)
+  the first full run was 522/523: the one failure was the module-data count check (64 -> 70: the policy lint adds five _POLICY_* constants and SEED_POLICY_NAMES); a test-only fix, no cipher change (seedguard_verification/test_run_first_522of523.txt)
+  the 27 skips are the same historical /tmp checks lost in the Nov 14 21:17 reboot
+sneak_n2.py SHA-256: 21213355199f45c934358a83a2a49c230068129d80195c238e9a8b490e97c42c (was 48d261e3...)
+EXPECTED_MIX_SHA256: e41a177c2ee6b15d55122eb2f360a70d12536047997309d7420f3696983836b6 (was b6e0fa2a...); core / KEY_SIG_PIN[0] 43cd301469d5ea3fd6c62882a1d216fc58d72aee0f3beb20f6e66e68870c14dc (was a4b54e7e...)
+EXPECTED_REHEARSAL_SHA256: 40a58c015443c7bd6ccb386247b30b9514f6bc3330321977fa5377f5935d6cdb (was d0550f7f...); core / REHEARSAL_SIG_PIN[0] e4dc803c5921f20ee753e5934008289ea4678bdf30c6d0908a17598d88519939 (was f1e21f50...)
+EXPECTED_SEED_POLICY_SHA256: 612ff6ce280d48e4b4ea888414f63eed41157e2f040ff4fc427b91b0e983bc24 (was ab5cdce4...)
+key_sig 340dc1e062502bb13462a94ba490c3dc and rehearsal_sig 07172e74d02a04a42ea0a51b8e69cbf1 unchanged; signature halves of both pins unchanged
+score: score_version 10 kept; all 79 vectors byte-identical, header identifiers only
+T1/T2 re-check (seedguard_verification/recheck_t1_t2_output.txt, copies under /workspace/chainfix2_work/work): T1 verbatim refused at import (policy lint); __import__ variant refused at import; lint-clean policy returning a key refused on every call (RuntimeError); T2 verbatim refused at import (core attestation mismatch); T2 with core pins also re-pinned moves key_sig, rehearsal_sig and every score vector
+
 rehearsal-chainfix revision test results (2026-11-14, America/New_York; live, not frozen; pre-change backup /workspace/sneak_n2_backups_rebuilt/pre_chainfix/)
 fresh copy of the final tree: 516/516 passed, 0 failed, 27 skipped (about 17 min, 23:29-23:46; chainfix_verification/test_run_final.txt)
   the earlier in-place live run was 515/516: the one failure was the new L4 docs test missing a line-wrapped "real protection" (test bug, fixed by normalising whitespace; no cipher change) - chainfix_verification/test_run_live_prefix_515.txt

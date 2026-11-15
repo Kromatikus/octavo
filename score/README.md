@@ -5,22 +5,33 @@ and for the sealed modes, together with a generator that rebuilds them.
 
 Homemade. **Not for real secrets.** Use AES-GCM-SIV, age or libsodium.
 
-The current score is **version 10** (revision `rehearsal-chainfix`,
-2026-11-14). It holds **79 vectors**: the 72 vectors of score version 9,
-byte-identical, plus 7 new vectors under a published non-demo test seed.
-The JSON also records the live `sneak_n2.py` SHA-256 (`48d261e3…`),
-`EXPECTED_MIX_SHA256` (`b6e0fa2a…`), `EXPECTED_REHEARSAL_SHA256`
-(`d0550f7f…`), `EXPECTED_SEED_POLICY_SHA256` (`ab5cdce4…`), and, for the
+The current score is **version 11** (revision `rehearsal-honest2`,
+2026-11-15). It holds **79 vectors**, all byte-identical to score version 10
+(the 72 vectors of score version 9 plus 7 under a published non-demo test
+seed). The header adds published SHAs for `etudes.py` and `generate_score.py`.
+The JSON also records the live `sneak_n2.py` SHA-256 (`19181bc1…`),
+`etudes_sha256`, `generate_score_sha256`,
+`EXPECTED_MIX_SHA256` (`1fafb4ad…`), `EXPECTED_REHEARSAL_SHA256`
+(`44ad0a4a…`), `EXPECTED_SEED_POLICY_SHA256` (`0fc482e6…`), and, for the
 demo seed, `key_sig` (`340dc1e0…`) and `rehearsal_sig` (`07172e74…`).
+
+**Tamper check:** `python3 score/generate_score.py --check-sha` compares
+`sha256(sneak_n2.py)`, `sha256(etudes.py)` and `sha256(score/generate_score.py)`
+with the values recorded here, and never writes the score. Compare those values
+with a trusted copy too; the import self-checks in `sneak_n2.py` are not a
+tamper guard. Regeneration requires `python3 score/generate_score.py --write`.
+Unknown arguments exit 2 without writing.
 
 ## Files
 
 - `vectors.json` — the committed score.
 - `generate_score.py` — rebuilds `vectors.json` from the live code and the
-  fixed inputs below. Run `python3 score/generate_score.py` from this tree
-  (or invoke the script by path). This overwrites `vectors.json`. The test
-  suite regenerates the vectors in memory (`build_vectors()`) and compares
-  them to this file.
+  fixed inputs below. Run `python3 score/generate_score.py --write` from this
+  tree (or invoke the script by path) to overwrite `vectors.json`. With no
+  arguments, or with an unknown argument, the script exits 2 and writes
+  nothing. `--check-sha` verifies the published file SHAs and never writes.
+  The test suite regenerates the vectors in memory (`build_vectors()`) and
+  compares them to this file.
 - `nondemo-test-seed.txt` — the published non-demo test seed (128 bytes).
 
 Legacy format-version-8 rehearsal vectors live next to this folder, in
@@ -84,7 +95,9 @@ the demo-seed vectors. All seven blobs are given in hex. They exist so a
 change that affects only non-demo keys is visible in the score
 (rehearsal-chain attack L1). The generator documents that they were made
 by the rehearsal-chain code and reproduce byte for byte on
-rehearsal-chainfix.
+rehearsal-chainfix and rehearsal-seedguard. The non-demo seed is read
+through the explicit-path `load_seed`, which is cipher-core code since
+rehearsal-seedguard.
 
 ## Études, not the normal APIs
 
@@ -148,16 +161,16 @@ rehearsal set). They open only through
 
 From this tree:
 
-    python3 score/generate_score.py
+    python3 score/generate_score.py --write
 
 rebuilds and overwrites `score/vectors.json` from the live code and the
 fixed inputs above. The test suite (`python3 test_sneak_n2.py`)
 regenerates the score in memory with `score.generate_score.build_vectors()`
-and requires it to equal the committed file, including `score_version == 10`
+and requires it to equal the committed file, including `score_version == 11`
 and counts `{block_cipher: 16, aead: 24, movements: 24, rehearsal: 8,
-nondemo: 7, total: 79}`. `python3 quick_check.py` decrypts the published
-v6 and v9 samples and checks that the committed score is version 10 with
-79 vectors; it does not regenerate the file.
+nondemo: 7, total: 79}`. `python3 quick_check.py` (in the repo clone) decrypts the published v6
+and v9 samples and checks that the committed score is version 11 with 79
+vectors and revision `rehearsal-honest2`; it does not regenerate the file.
 
 `load_seed` on `score/nondemo-test-seed.txt` must match the SHAKE-256
 definition above, or the generator raises.
@@ -184,4 +197,9 @@ definition above, or the generator raises.
   ciphertext blocks and tags all changed. The 64 étude vectors were
   unchanged. Total: 72 vectors.
 - **Version 10** (rehearsal-chainfix) adds the 7 non-demo vectors. The 72
-  version-9 vectors are byte-identical. Total: 79 vectors.
+  version-9 vectors are byte-identical. Total: 79 vectors. Rehearsal-seedguard
+  and rehearsal-honest regenerated the header (revision, file SHA, `EXPECTED_*`
+  digests); all 79 vectors are byte-identical, so the version stayed 10.
+- **Version 11** (rehearsal-honest2) keeps all 79 vectors byte-identical and
+  adds `etudes_sha256` and `generate_score_sha256`. `--check-sha` verifies
+  those files as well as `sneak_n2.py`.

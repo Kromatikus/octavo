@@ -1,4 +1,48 @@
-# Live tree note — rehearsal-chainfix (2026-11-14, live, not frozen)
+# Live tree note — rehearsal-honest2 (2026-11-15, live, not frozen)
+
+Live `/workspace/sneak_n2` is rehearsal-honest plus fixes for `/workspace/attacks_octavo_honest/REPORT.md` (L1, L2, I1–I6).
+No ciphertext, key_sig or rehearsal_sig changed; all 79 vectors are byte-identical. The score is now version 11
+(header adds `etudes_sha256` and `generate_score_sha256`; `--check-sha` verifies all three files; regeneration needs `--write`).
+
+- sneak_n2.py SHA-256: 19181bc1623115c075dc5dee25edec388f5413466777d47b7f19fa66d1e71eee (was 476f8a8b…)
+- EXPECTED_MIX_SHA256: 1fafb4adc1cae574a1158fc19695b5a7c354e405666278ab5f66444122f8f34a (was 2bc45b77…); core 9b8ac067676c92f2150d897c7ea9fa1021952ee6c728269ba9bdecf6a4b1efb1 (was e48c6878…)
+- EXPECTED_REHEARSAL_SHA256: 44ad0a4a2eb86b7b98ff147ecf0374552e16bd9fe031fbe32b6b7ed0b1f67737 (was 8987bf9f…); core 636d48eea97eb29449fbd0270d41d75826d6b9cab6a743e19e5cbb3a8319da72 (was 0d6d9122…)
+- EXPECTED_SEED_POLICY_SHA256: 0fc482e65533814588ade098f6c8d5e68693aca76e6a1232f76466b5e609cd5e (unchanged)
+- key_sig 340dc1e062502bb13462a94ba490c3dc, rehearsal_sig 07172e74d02a04a42ea0a51b8e69cbf1 (both unchanged)
+- Tests: 544/544 passed, 27 skipped (about 13 min, 11:17–11:30 AM ET; honest2_verification/test_run_final.txt)
+- Pre-change backup: /workspace/sneak_n2_backups_rebuilt/pre_honest2/. Work: /workspace/honest2_work/. Verification: honest2_verification/. Witness re-check: /workspace/honest2_work/witness_recheck/closed_results.json.
+
+# Previous live tree note — rehearsal-honest (backup pre_honest2; attacked in attacks_octavo_honest/)
+
+
+
+Live `/workspace/sneak_n2` is rehearsal-seedguard plus fixes for `/workspace/attacks_octavo_seedguard/REPORT.md` (L1, L2, I1–I6)
+and a plain statement that the import self-checks are not a tamper guard (SECURITY.md). No ciphertext, key_sig or
+rehearsal_sig changed; score version 10 regenerates byte for byte (header identifiers only).
+
+- sneak_n2.py SHA-256: 476f8a8b1a4e924d302401e42d5914f882b5dfbc0ac961cc656902548f4496e3 (was 21213355…)
+- EXPECTED_MIX_SHA256: 2bc45b7785ef96f5aeed181bb24180fa87bdfe9152e072570d056406dc6010a9 (was e41a177c…); core e48c68782f5280a199f9a62b3f066d01ac2a53ac2c3d82d1d80fd353027c7dab (was 43cd3014…)
+- EXPECTED_REHEARSAL_SHA256: 8987bf9fd0129d440cdc90e26e7fe71a995bc76bf5b9dce7b531949bcbda2785 (was 40a58c01…); core 0d6d9122ce920a2e31cf588a5dc3c2052f82a08a0bae61edc18e80717798d04b (was e4dc803c…)
+- EXPECTED_SEED_POLICY_SHA256: 0fc482e65533814588ade098f6c8d5e68693aca76e6a1232f76466b5e609cd5e (was 612ff6ce…)
+- key_sig 340dc1e062502bb13462a94ba490c3dc, rehearsal_sig 07172e74d02a04a42ea0a51b8e69cbf1 (both unchanged)
+- Tests: 533/533 passed, 27 skipped (honest_verification/test_run_final.txt)
+- Pre-change backup: /workspace/sneak_n2_backups_rebuilt/pre_seedguard2/. Work: /workspace/seedguard2_work/. Verification: honest_verification/.
+
+# Previous live tree note — rehearsal-seedguard (backup pre_seedguard2)
+
+Live `/workspace/sneak_n2` is the rehearsal-seedguard revision: rehearsal-chainfix (frozen as /workspace/octavo015)
+plus fixes for every finding of `/workspace/attacks_octavo_chainfix/REPORT.md` (L1, I1–I6). No ciphertext, key_sig
+or rehearsal_sig changed; score version 10 regenerates byte for byte (header identifiers only).
+
+- sneak_n2.py SHA-256: 21213355199f45c934358a83a2a49c230068129d80195c238e9a8b490e97c42c
+- EXPECTED_MIX_SHA256: e41a177c2ee6b15d55122eb2f360a70d12536047997309d7420f3696983836b6 (was b6e0fa2a…); core 43cd301469d5ea3fd6c62882a1d216fc58d72aee0f3beb20f6e66e68870c14dc (was a4b54e7e…)
+- EXPECTED_REHEARSAL_SHA256: 40a58c015443c7bd6ccb386247b30b9514f6bc3330321977fa5377f5935d6cdb (was d0550f7f…); core e4dc803c5921f20ee753e5934008289ea4678bdf30c6d0908a17598d88519939 (was f1e21f50…)
+- EXPECTED_SEED_POLICY_SHA256: 612ff6ce280d48e4b4ea888414f63eed41157e2f040ff4fc427b91b0e983bc24 (was ab5cdce4…); a change to it needs the same review as a core-pin change
+- key_sig 340dc1e062502bb13462a94ba490c3dc, rehearsal_sig 07172e74d02a04a42ea0a51b8e69cbf1 (both unchanged)
+- Tests: 523/523 passed, 0 failed, 27 skipped (about 20 min, 08:48-09:08 ET; seedguard_verification/test_run_final.txt)
+- Pre-change backup: /workspace/sneak_n2_backups_rebuilt/pre_chainfix2/ (full rehearsal-chainfix tree). Work notes and the T1/T2 re-check: /workspace/chainfix2_work/. Verification: seedguard_verification/.
+
+# Previous live tree note — rehearsal-chainfix (frozen as /workspace/octavo015)
 
 Live `/workspace/sneak_n2` is the rehearsal-chainfix revision: rehearsal-chain plus fixes for every finding of
 `/workspace/attacks_octavo_rehearsalchain/` (L1–L4, I1–I7). No ciphertext changed: v6/v7/v9 blobs, key_sig and
