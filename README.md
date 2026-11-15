@@ -1,7 +1,241 @@
 <p align="center"><img src="sneak-staff-n2.png" alt="Octavo dual-octahedra picture" width="720"></p>
 <p align="center"><img src="logo.png" alt="Octavo logo" width="120"></p>
 
-## Current live revision — rehearsal-curtain (2026-11-14, not frozen)
+## Current live revision — rehearsal-chainfix (2026-11-14, not frozen)
+
+Rehearsal-chainfix fixes every finding of the in-house attack on
+rehearsal-chain (`/workspace/attacks_octavo_rehearsalchain/REPORT.md`: L1–L4
+and I1–I7). **No ciphertext changed:** v6, v7 and v9 blobs are byte-identical
+to rehearsal-chain for the same seed, pickup and nonce, `key_sig` (demo seed
+`340dc1e062502bb13462a94ba490c3dc`) and `rehearsal_sig` (demo seed
+`07172e74d02a04a42ea0a51b8e69cbf1`) did not move, and all 72 score-version-9
+vectors are byte-identical. v8 streams still open only through
+`decrypt_rehearsal_legacy(..., allow_unchained=True)`. Still homemade, **not
+for real secrets** (use AES-GCM-SIV, age or libsodium). This revision has not
+been attacked yet.
+
+- **L1, the digest-exclusion blind spot.** The seed policy is now a pure
+  accept-or-reject check. `_seed_bytes` moved into the cipher core. It
+  normalises the seed itself and then calls the excluded
+  `_seed_policy_check(bytes(s))`, ignoring anything it returns. So an edit to
+  excluded code can refuse keys or let weak ones through, but it can no longer
+  change which key is used. Editing `_seed_bytes` (or `_DerivedKey`, also core
+  now) moves the core digest, and therefore `key_sig` and every tag, unless
+  `KEY_SIG_PIN` is deliberately re-pinned. The report's w07 T1 tamper
+  ("keep 2 bytes of every non-demo key") now has to live in the core, and
+  re-pinning only `EXPECTED_*` no longer keeps `key_sig`. **Score version 10**
+  adds 7 vectors under a published **non-demo** test seed
+  (`score/nondemo-test-seed.txt` = SHAKE-256("Octavo published non-demo test
+  seed v1", 128 bytes); it is public, so it is not a key). They cover live v6 ×2, v7 ×2,
+  v9 ×2 and one 4-round étude block, plus that seed's `key_sig` / `rehearsal_sig`.
+  They were made by the rehearsal-chain code and reproduce byte for byte
+  (`chainfix_verification/nondemo_pre.json`). A test checks
+  `_seed_bytes(x) == x` for random `x` (bytes, bytearray, memoryview, int).
+  The policy also has its own pinned digest, **`EXPECTED_SEED_POLICY_SHA256`**
+  (`ab5cdce45c3078c80a0fd0af3ca573bd5d73267cea8ef81d7cc8bb2db272a2a0`), which is checked at import and shown in the score. A policy
+  change therefore shows up as its own line.
+- **L2, unattested key tools.** `keygen`, `save_seed` (and its `_fsync_dir`)
+  and `SeedWarning` are in `MIX_CODE_FUNCS` (import check) and in
+  `SEED_POLICY_NAMES` (seed-policy digest), but not in the core. Tampering with
+  them now fails the import unless the digests are re-pinned.
+- **L3, partial seed file.** `save_seed` writes to a private dot-temp file in
+  the same directory (`O_CREAT | O_EXCL | O_NOFOLLOW`, 0600), fsyncs it,
+  publishes it with `link()` (which never clobbers: an existing file, a live or dangling
+  symlink, a directory or a FIFO all give `FileExistsError`), removes the temp
+  name and fsyncs the directory. On any error the temp file is removed. Under
+  a 100-byte file-size limit it now raises `OSError` and leaves nothing behind,
+  and the retry works.
+- **L4, weak-seed bypasses.** Documented. The weak-seed rule is a **sanity
+  check** against obvious structure, not an entropy test. Hashed passphrases,
+  `random.Random(k)` output, small-generator powers, structured halves, and
+  trivial variants of a listed constant or of the demo seed all pass it.
+  **`keygen()` is the real protection.** No new rejection rules were added (no
+  ciphertext or accepted-seed change).
+- **I1.** `LegacyFormatWarning` now shows on every call under Python's default
+  filters (an appended `always` filter, as for `UnfinalizedStreamWarning`;
+  your own `-W` / `simplefilter` settings still win).
+- **I2.** The private `_RehearsalDecryptorV8` is gated. It raises `ValueError`
+  unless `allow_unchained=True` (exactly True) and warns on construction, so
+  `update()` / `finalize()` on a v8 stream is never silent.
+- **I3.** The seed is checked first in every public entry point: v6/v7
+  encrypt/decrypt/siv_nonce, the v2/v3 legacy helpers (after their flag
+  gate), the rehearsal classes and `decrypt_rehearsal_legacy`, and every étude
+  method. So `seed=None` with a malformed blob raises
+  `TypeError("seed is required…")`. Études now also raise `TypeError` for a
+  missing seed (was `ValueError`). `bool`, `str`, `float` and list seeds raise
+  `TypeError`. Negative or ≥ 2^1024 ints raise `ValueError` (was
+  `OverflowError`). `StaffSponge` is documented as a low-level primitive with
+  no seed policy.
+- **I4.** `load_seed(path)` warns (`SeedWarning`, a `UserWarning`) when the path is a
+  symlink, the file is readable or writable by group/others, or characters
+  other than hex digits and whitespace were dropped (for example dash-decorated
+  hex). It still reads the file, and the public demo seed never warns. It now
+  closes its file handle. `save_seed()` warns when asked to store the public
+  demo seed.
+- **I5.** The pin logic (`_core_digest`, `_seed_policy_digest`,
+  `_signature_nonce`, the three `_init_*` functions, `_verify_executed_code`,
+  `_executed_pyc_code`, `_module_source_snapshot`) and the helpers
+  (`encrypt_hello`, `grid_rows`, `ddt_max`, `lat_max`) are attested
+  (`MIX_CODE_FUNCS`) but not core. Every module function or class is now
+  covered by the mix or rehearsal digest. The import checks run as the
+  module's last statements. The core digest also hashes its own exclusion
+  list, so moving a function out of the core moves the core.
+- **I6.** The seed memo is gone. Every public call runs the weak-seed rule
+  once (about 0.2 ms; a v6 encrypt is about 25 ms), and helpers inside that
+  call reuse the result through the private `_CheckedSeed` marker. There is no
+  cross-call cache, so timing no longer shows whether a seed was used recently.
+- **I7.** The test suite installs a `sys.excepthook` that reports any
+  uncaught exception as a FAIL plus the totals so far. The octavo014
+  cross-check is wrapped, so a mismatch reports FAIL instead of aborting.
+- **Identifiers.** sneak_n2.py SHA-256 `48d261e36671a35b15000e68dbd82469e631be14cc77a3f391e115d19e8b9786`;
+  `EXPECTED_MIX_SHA256` `b6e0fa2a5852a1bddb2aa407101080f989fb1efe1e4ddc590a58c8cdfe261991` (was `8b2c59fa…`), core `a4b54e7e2ac6d311ed461235b02a91472dd411ddaf2c0db332bc83fcc14202ff`
+  (was `4947e89d…`); `EXPECTED_REHEARSAL_SHA256` `d0550f7fdb09d4f823c27f2497f40b30dd1f31627b643089af555c435bd6a491` (was `a21cf6e7…`),
+  core `f1e21f5006a27ff5b19f352ce17c2d24c042252586c515dd99763b1934cd5432` (was `5e91e290…`); new `EXPECTED_SEED_POLICY_SHA256`
+  `ab5cdce45c3078c80a0fd0af3ca573bd5d73267cea8ef81d7cc8bb2db272a2a0`. Only the **core half** of `KEY_SIG_PIN` / `REHEARSAL_SIG_PIN`
+  was re-pinned, to the new cores. The signature halves (`fe939969…`,
+  `a21cf6e7…`) are unchanged, which is why `key_sig` and `rehearsal_sig` did
+  not move. Score version 10 (79 vectors). `REVISION` = "rehearsal-chainfix".
+  FEATURES unchanged.
+- Tests: 516/516 passed, 0 failed, 27 skipped (new chainfix block; older checks updated for the intended
+  changes: no seed memo, études `TypeError`, coverage lists, score version 10,
+  rehearsal pin). The attack's `run_all.py`, run against a copy of this tree,
+  shows the L1–L4 witnesses failing (`chainfix_verification/`). The picture
+  was re-rendered. Pre-change backup:
+  `/workspace/sneak_n2_backups_rebuilt/pre_chainfix/` (the full rehearsal-chain
+  tree).
+
+## Previous revision — rehearsal-chain (2026-11-14, not frozen; attacked in `attacks_octavo_rehearsalchain/`; full tree backed up in /workspace/sneak_n2_backups_rebuilt/pre_chainfix/)
+
+Rehearsal-chain answers the tester's claim 1 (`review_tester_claims/`): under a
+forced repeated pickup and stream nonce (same seed, AD and chunk size), v8
+chunks with the same index could be swapped between two streams, and all 14
+splices of two 4-chunk streams opened. The new **rehearsal format version 9**
+chains the chunk tags. It builds on key-fix (below). The round function, key
+schedule, constants and the v6/v7 formats are unchanged: **v6 and v7 blobs are
+byte-identical** to key-fix and octavo014, and `EXPECTED_MIX_SHA256`
+(`8b2c59fa…`) and `key_sig` (demo seed `340dc1e062502bb13462a94ba490c3dc`) did
+not move. Still homemade, **not for real secrets** (use AES-GCM-SIV, age or
+libsodium). This change has not been attacked yet.
+
+- **Chained tags.** In v9 every chunk tag also covers the previous chunk's
+  tag: `tag_i = HMAC(K_i, clef || rehearsal_sig || 9 || SN2 || pickup ||
+  nonce || commit || chunk_size32 || index64 || final8 || ad_digest ||
+  tag_{i-1} || ct_i)`, with `tag_{-1}` = 32 zero bytes. The stream (pickup,
+  nonce, commitment), the chunk index and the final flag were already bound;
+  the chain makes the tag of chunk *i* authenticate the whole stream up to *i*,
+  and the final tag authenticate the whole stream, so no separate whole-stream
+  tag is needed. The v9 sponge labels carry the version byte (`sched‖9`,
+  `chunk‖9`) and the commitment binds it, so v9 keys, tweaks, blocks and
+  commitments are unrelated to v8's. Same 72-byte header (version byte 9),
+  same chunk layout and sizes, same release rule. Blocks are still encrypted
+  in parallel with `workers`; only the tags run in order, and output stays
+  byte-identical to `workers=1`.
+- **The w1 witness now fails.** Re-run on v9 (`rehearsalchain_verification/`,
+  and the tester's script in `/workspace/review_tester_claims_rerun_chain/`):
+  0 of 14 splices open (v8: 14 of 14), P2 chunk 0 + P1 rest is rejected, and
+  dropped, cut, reordered, duplicated and cross-index chunks are rejected. Of
+  all 111,110 streams assembled from 1–5 chunks of four forced-reuse streams,
+  none opened except the four genuine ones. Two things are unchanged and
+  documented: equal plaintext chunks at equal positions still give equal
+  ciphertext under a repeated nonce (an equality leak), and a stream that is
+  byte-identical to another genuine stream (e.g. its shorter sibling) still
+  opens, because it is that stream (replay is not detected).
+- **v8 is rejected by default.** `decrypt_rehearsal`, `RehearsalDecryptor`,
+  `iter_rehearsal` and `decrypt_rehearsal_file` raise `UnsupportedVersion` on
+  a version-8 stream. **Legacy opt-in:**
+  `decrypt_rehearsal_legacy(blob, seed, ad, allow_unchained=True)` opens one
+  (one-shot, all-or-nothing, version 8 only, under the frozen rehearsal-curtain
+  digest `REHEARSAL_V8_SHA256` = `50c077f3…`). Without the flag it raises
+  `ValueError`; every call emits `LegacyFormatWarning`. Open old streams once
+  and re-encrypt them as v9. The 8 published score-version-8 rehearsal vectors
+  and the old `rehearsal-demo.txt` are kept in `legacy_v8/` and open this way.
+  v6/v7 and the v2/v3 legacy helpers are unchanged.
+- **Identifiers.** sneak_n2.py SHA-256
+  `b0e25f4d3bcb31eae7a64413376ab23f34665f97316876746f57642a1dd0c0d7`;
+  `EXPECTED_REHEARSAL_SHA256`
+  `a21cf6e768a88cc21b4698b54426cf2d1527936f101f783862a609efa8bbad45` (key-fix
+  `efd31092…`), core `5e91e290…`; `REHEARSAL_SIG_PIN` re-pinned to these, so
+  `rehearsal_sig` (demo seed) is now `07172e74d02a04a42ea0a51b8e69cbf1` (was
+  `7ea74c1e…`). `EXPECTED_MIX_SHA256`, its core and `key_sig` unchanged.
+  `FMT_REHEARSAL` = 9, `FMT_REHEARSAL_V8` = 8. FEATURES: "rehearsal v9
+  chained stream".
+- **Score version 9.** The 8 rehearsal vectors were regenerated as v9 (headers,
+  blocks and tags all change); the 16 permute, 24 AEAD and 24 movements
+  vectors and the étude keys are byte-identical. `rehearsal-demo.txt` was
+  re-sealed as v9 with the same pickup and nonce as the v8 sample
+  (`rehearsalchain_verification/make_rehearsal_demo.py`). hello-world and
+  movements-demo blobs are unchanged (labels updated). The picture was
+  re-rendered (footer now shows "previous tag"). Pre-change backup:
+  `/workspace/sneak_n2_backups_rebuilt/keyfix/` (the key-fix files; the /tmp backup was lost in a box reboot and rebuilt, sneak_n2.py SHA-verified).
+
+## Previous revision — key-fix (2026-11-14, not frozen; backup /workspace/sneak_n2_backups_rebuilt/keyfix/)
+
+Key-fix changes only how seeds are made and checked. The round function, key
+schedule, constants and all wire formats are unchanged, and **v6, v7 and v8
+blobs are byte-identical to rehearsal-curtain** (octavo014) for the same seed,
+pickup and nonce: `key_sig` (demo seed `340dc1e062502bb13462a94ba490c3dc`) and
+`rehearsal_sig` (demo seed `7ea74c1edbfe3c7eee503d04c2ff6391`) did not move,
+and all 72 score vectors are byte-identical (score version 8; only the
+metadata SHA labels changed). Still homemade, **not for real secrets** (use
+AES-GCM-SIV, age or libsodium).
+
+- **`keygen()`** returns a fresh 128-byte (1024-bit) seed from `os.urandom`,
+  checked by the weak-seed rule below (redrawn up to 16 times; a generator
+  that fails all 16 raises `RuntimeError`). **`save_seed(path, seed)`** writes
+  it as hex to a new file: mode 0600, `O_CREAT | O_EXCL | O_NOFOLLOW` (never
+  overwrites, never follows a symlink), fsynced. It refuses weak seeds.
+- **`seed=None` is refused.** Every API that takes a seed now raises
+  `TypeError("seed is required: use keygen() ... or load_seed() for the PUBLIC
+  demo seed ...")` when it is missing; it used to mean the public demo seed.
+  The demo seed is reached only through an explicit `load_seed()`. Études keep
+  their `lab_seed=True` opt-in (which now calls `load_seed()` itself). Caveat:
+  the decrypt functions check blob structure first, so a malformed blob still
+  raises `Rejected` / `UnsupportedVersion` before the missing seed is noticed.
+- **Weak seeds are rejected** with `ValueError("weak seed: <reason>")`. On
+  top of the old rule (at least 32 distinct nonzero bytes) a seed is refused
+  when: any one byte value occurs more than 11 times (catches half-zero and
+  zero-padded seeds); its Hamming weight is outside 384..640 of 1024 bits;
+  every byte is printable ASCII or below 0x80 (passphrases, text); more than
+  13 bytes equal the byte k places on, k = 1..64 (repeated patterns, period
+  up to 64); more than 13 neighbours at distance 1, 2, 3, 4, 8, 16, 32 or 64
+  share one difference mod 256 or one XOR (incrementing / arithmetic
+  sequences, interleaved counters); a strictly rising or falling run is longer
+  than 15 bytes; or its SHA-256 is one of 16 known constants
+  (`KNOWN_CONSTANT_SEEDS`: first 1024 bits of pi, e, sqrt 2, sqrt 3, sqrt 5,
+  the golden ratio and ln 2; SHA-256 K and H, SHA-512 K and H; the SM4 and
+  AES S-box halves). The public demo seed passes the rule.
+- **False-reject rate, measured:** 0 of 1,000,000 `os.urandom(128)` seeds
+  rejected (`SPEC.md`). The closest any random seed came: 82 distinct nonzero
+  bytes (limit 32), a byte count of 9 (limit 11), weight 512 ± 77 (limit
+  ± 128), 8 lag-equal (limit 13), 9 lag-differences (limit 13), a monotone run
+  of 11 (limit 15). A union bound over the tests gives about 6e-11 per seed
+  (byte count 5.0e-11, monotone run 1.1e-11, the rest below 1e-12), so
+  `keygen()` practically never redraws. A check costs about 185 µs, once per
+  distinct seed (memoised).
+- **Identifiers.** Because the seed rule lives in attested code,
+  `EXPECTED_MIX_SHA256` is now `8b2c59fa8756e269ad11c35d6e812bdea7b83ea36c2c4be39a9c4257dd85bee5`
+  (was `fe939969…`) and `EXPECTED_REHEARSAL_SHA256` is
+  `efd31092b9c98cf6419cebe66cbc65ed9ae28322e49576b85ca1d704e5b2bae4` (was
+  `50c077f3…`). To keep every existing blob valid, the value that goes into
+  `key_sig` / `rehearsal_sig` is **pinned**: a second digest, the *core*
+  digest (`EXPECTED_MIX_CORE_SHA256` `4947e89d…`,
+  `EXPECTED_REHEARSAL_CORE_SHA256` `59ff3036…`), hashes the same closure
+  minus the seed-policy code (`SEED_POLICY_NAMES`: `_seed_bytes`,
+  `load_seed`, `_DerivedKey`). While the core equals the rehearsal-curtain
+  core, the signatures use the rehearsal-curtain digests (`KEY_SIG_PIN`,
+  `REHEARSAL_SIG_PIN`); any change to the round function, schedule, formats
+  or v8 API code changes the core and therefore the signatures, exactly as
+  before. Trade-off: edits to the seed-policy functions now move only the
+  attestation, not the signatures. The full attestation is still checked at
+  import and still covers those functions.
+- Tests: 495/495 (new key-fix block: seed=None across the APIs, keygen,
+  save_seed, 33 weak seeds, 5000 random seeds, thresholds, byte identity with
+  octavo014). Tests and études that used structured seeds such as
+  `bytes(range(...))` now use SHA-512-derived seeds. The picture was
+  re-rendered (file SHA and attestation labels). Pre-change backup:
+  `/tmp/sneak_n2_pre_keyfix` (lost in a box reboot; the module is byte-identical to frozen octavo014).
+
+## Previous revision — rehearsal-curtain (2026-11-14, frozen as octavo014)
 
 Rehearsal-curtain applies the fixes suggested by the fourth rehearsal attack
 (`attacks_octavo_rehearsalfinale/REPORT.md`: 0 High, 0 Medium, 1 Low, 7 Info,
@@ -1622,8 +1856,11 @@ Only sneak_n2.py, test_sneak_n2.py, SPEC.md, README.md, hello-world.txt and
 
 ```python
 import sneak_n2 as N
-blob = N.encrypt(b"hello world")
-assert N.decrypt(blob) == b"hello world"
+key = N.keygen()                       # fresh 1024-bit seed; N.save_seed("my.key", key) stores it 0600
+blob = N.encrypt(b"hello world", key)
+assert N.decrypt(blob, key) == b"hello world"
+demo = N.load_seed()                   # the PUBLIC demo seed: samples and tests only
+# N.encrypt(b"x") raises TypeError: seed=None no longer means the demo seed
 ```
 
 Detailed historical tables remain in SPEC.md, explicitly superseded by its current

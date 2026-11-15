@@ -54,7 +54,7 @@ Seed gate. lab_seed is fixed when the handle is made and is read-only
 afterwards (conductor-polish I6). etude_key(seed, r) is the deliberate,
 documented ungated low-level path (no demo-seed check). Étude keys K_e are
 _DerivedKey values: checked by the weak-seed rule on every use and never
-put in the live seed memo (conductor-polish I5).
+remembered (there is no live seed memo since the chainfix revision).
 
 Lab hook: encrypt and encrypt_movements accept an optional fixed `pickup` so
 published score vectors are deterministic. The normal APIs have no such
@@ -119,8 +119,8 @@ def etude_key(seed, rounds) -> bytes:
 
     Squeezes the next 128 bytes if a candidate fails the weak-seed rule
     (probability far below 2^-100). Low-level and deliberately UNGATED: no
-    demo-seed check here (the Etude handles add it). Returns a _DerivedKey,
-    which the live seed memo never stores (conductor-polish I5)."""
+    demo-seed check here (the Etude handles add it). Returns a _DerivedKey
+    (since the chainfix revision there is no live seed memo at all)."""
     seed = N._seed_bytes(seed)
     sp = N.StaffSponge(ETUDE_KEY_DOMAIN, seed, bytes([_check_rounds(rounds)]) + bytes(N.NONCE_LEN - 1))
     while True:
@@ -153,7 +153,11 @@ class Etude:
     def _seed(self, seed) -> bytes:
         """Refuse seed=None and the public demo seed unless lab_seed=True."""
         if seed is None and not self.lab_seed:
-            raise ValueError("études need an explicit seed; seed=None (the public demo seed) requires etude(r, lab_seed=True)")
+            # chainfix I3: TypeError, like every live API (was ValueError before the chainfix revision)
+            raise TypeError("seed is required: études need an explicit seed; seed=None (the public demo seed) "
+                            "requires etude(r, lab_seed=True)")
+        if seed is None:
+            seed = N.load_seed()       # key-fix: the live API refuses seed=None; lab_seed=True is the explicit demo opt-in here
         s = N._seed_bytes(seed)
         if not self.lab_seed and hashlib.sha256(s).hexdigest() == DEMO_SEED_SHA256:
             raise ValueError("the public demo seed requires etude(r, lab_seed=True)")
@@ -179,6 +183,7 @@ class Etude:
         encrypt_grid under Schedule(etude_key(seed, 16), nonce), NOT under
         Schedule(seed, nonce): an étude cannot touch live round material.
         """
+        seed = self._seed(seed)          # chainfix I3: the seed is checked first
         block = N._as_bytes("block", block)
         nonce = N._as_bytes("nonce", nonce)
         if len(block) != N.BLOCK_LEN:
@@ -190,6 +195,7 @@ class Etude:
 
     def unpermute(self, block, seed=None, nonce=None) -> bytes:
         """Inverse of permute for the same seed, nonce and round count (étude key, unauthenticated)."""
+        seed = self._seed(seed)          # chainfix I3: the seed is checked first
         block = N._as_bytes("block", block)
         nonce = N._as_bytes("nonce", nonce)
         if len(block) != N.BLOCK_LEN:
@@ -202,6 +208,7 @@ class Etude:
     # ---------------------------------------------------------------- single-block
     def siv_nonce(self, msg, pickup, seed=None, ad=b"") -> bytes:
         """SHA-256(clef_e || version || pickup || encode_block(msg) || encode_ad(ad))[:16]."""
+        seed = self._seed(seed)          # chainfix I3: the seed is checked first
         msg = N._as_bytes("msg", msg)
         pickup = N._as_bytes("pickup", pickup)
         if len(pickup) != N.PICKUP_LEN:
@@ -217,6 +224,7 @@ class Etude:
         étude flag (0x82/0x84/0x86/0x90). A caller nonce must equal the SIV
         nonce. Normal decrypt rejects the result as UnsupportedVersion.
         """
+        seed = self._seed(seed)          # chainfix I3: the seed is checked first
         msg = N._as_bytes("msg", msg)
         ad = N._normalize_ad(ad)
         k = self.key(seed)
@@ -249,6 +257,7 @@ class Etude:
         UnsupportedVersion. Use decrypt_legacy(..., allow_noncommitting=True)
         for published octavo009 étude blobs.
         """
+        seed = self._seed(seed)          # chainfix I3: the seed is checked first
         blob = N._as_bytes("blob", blob)
         ad = N._normalize_ad(ad)
         if len(blob) < 1:
@@ -287,6 +296,7 @@ class Etude:
         decrypt() rejects these blobs with UnsupportedVersion.
         """
         N._require_noncommitting(allow_noncommitting, "Etude.decrypt_legacy", warn=False)
+        seed = self._seed(seed)          # chainfix I3: the seed is checked first
         blob = N._as_bytes("blob", blob)
         ad = N._normalize_ad(ad)
         if len(blob) < 1:
@@ -334,6 +344,7 @@ class Etude:
         étude flag (0x83/0x85/0x87/0x91). Normal decrypt_movements rejects
         the result as UnsupportedVersion.
         """
+        seed = self._seed(seed)          # chainfix I3: the seed is checked first
         msg = N._as_bytes("msg", msg)
         ad = N._normalize_ad(ad)
         k = self.key(seed)
@@ -379,6 +390,7 @@ class Etude:
         every cadence; the Schedule is built only after all pass. Live v7 blobs and the tuning-fix / tuning /
         legacy étude bytes raise UnsupportedVersion.
         """
+        seed = self._seed(seed)          # chainfix I3: the seed is checked first
         blob = N._as_bytes("blob", blob)
         ad = N._normalize_ad(ad)
         if len(blob) < 1:
@@ -462,6 +474,7 @@ class Etude:
         and emits LegacyFormatWarning.
         """
         N._require_noncommitting(allow_noncommitting, "Etude.decrypt_movements_legacy", warn=False)
+        seed = self._seed(seed)          # chainfix I3: the seed is checked first
         blob = N._as_bytes("blob", blob)
         ad = N._normalize_ad(ad)
         if len(blob) < 1:

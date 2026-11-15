@@ -22,18 +22,19 @@ They are not selectable from encrypt / decrypt, and since the conductor
 revision they run under their own derived key (never the live round
 material). Published test vectors are in score/vectors.json.
 
-Rehearsal (format version 8) is a STREAM-style chunked mode with no 1 MB cap:
+Rehearsal (format version 9, chained chunk tags since rehearsal-chain) is a STREAM-style chunked mode with no 1 MB cap:
 RehearsalEncryptor / RehearsalDecryptor (update / finalize), encrypt_rehearsal /
 decrypt_rehearsal, iter_rehearsal (safe reader that always finalizes) and the
 *_rehearsal_file helpers (private 0600 O_TMPFILE / O_EXCL temp files, published by a
 no-follow hard link and checked to be the inode written; no clobber by default). Every chunk is
-verified before any of its plaintext is released. Études have no streaming mode.
+verified before any of its plaintext is released. Format version 8 streams (rehearsal-curtain, unchained tags)
+open only through decrypt_rehearsal_legacy(..., allow_unchained=True). Études have no streaming mode.
 
 The default seed file sneak1024-seed.txt is a PUBLIC DEMO SEED: its full
-hex is published in score/vectors.json, so any blob made with seed=None
-is readable by anyone.
+hex is published in score/vectors.json, so any blob made with it (load_seed(), or seed=None
+before key-fix) is readable by anyone. Make real keys with keygen(); seed=None raises TypeError.
 """
-import hashlib, hmac, os, json, inspect, ast, textwrap, types, time, warnings, collections
+import hashlib, hmac, os, json, inspect, ast, textwrap, types, time, warnings, collections, operator
 import errno, pickle, subprocess, sys, tempfile
 import io, linecache, selectors, stat
 
@@ -103,15 +104,34 @@ LEGACY_MIX_SHA256 = "4e9a7ded574924fe9635e2b7b908ba7c5fa5c489062137203d3ce03341a
 SEED_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sneak1024-seed.txt")
 # sha256(mix_description()) hex; used as the StaffSponge nonce for key_signature.
 # Excluded from attestation so this constant is not part of what it names (chicken-and-egg).
-EXPECTED_MIX_SHA256 = "fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6"
-# sha256(rehearsal_description()) hex (rehearsal, format version 8); sponge nonce for rehearsal_signature.
+EXPECTED_MIX_SHA256 = "b6e0fa2a5852a1bddb2aa407101080f989fb1efe1e4ddc590a58c8cdfe261991"
+# sha256(rehearsal_description()) hex (rehearsal, format version 9); sponge nonce for rehearsal_signature.
 # Excluded from both attestations for the same chicken-and-egg reason. The live mix digest above is
 # unchanged by rehearsal, so key_sig and every v6/v7 blob stay byte-identical.
-EXPECTED_REHEARSAL_SHA256 = "50c077f3b2105b36e027bf0c94770dcad64f7242974c4b7e67d3f0226810a4a8"
+EXPECTED_REHEARSAL_SHA256 = "d0550f7fdb09d4f823c27f2497f40b30dd1f31627b643089af555c435bd6a491"
+# key-fix: the import attestation (EXPECTED_*_SHA256 above) covers ALL code, the seed-input policy
+# included. What the tags bind is a separate "signature nonce": the pinned rehearsal-curtain digest for
+# as long as the cipher CORE (everything reachable from the roots except the seed policy, see
+# _core_digest) is unchanged, otherwise the live attestation digest. So the key-fix seed policy moved
+# EXPECTED_MIX_SHA256 / EXPECTED_REHEARSAL_SHA256 but not key_sig, rehearsal_sig or any blob, and any
+# real core change still moves the signatures on its own (no pin to forget).
+EXPECTED_MIX_CORE_SHA256 = "a4b54e7e2ac6d311ed461235b02a91472dd411ddaf2c0db332bc83fcc14202ff"
+EXPECTED_REHEARSAL_CORE_SHA256 = "f1e21f5006a27ff5b19f352ce17c2d24c042252586c515dd99763b1934cd5432"
+# chainfix re-pinned the CORE half of both pins (the seed normaliser moved into the core, chainfix L1; the
+# second half, the signature nonce, is unchanged, so key_sig, rehearsal_sig and every blob are unchanged).
+# Previous core pins: mix 4947e89d… (rehearsal-curtain .. rehearsal-chain), rehearsal 5e91e290… (rehearsal-chain).
+KEY_SIG_PIN = ("a4b54e7e2ac6d311ed461235b02a91472dd411ddaf2c0db332bc83fcc14202ff",        # mix core at chainfix
+               "fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6")        # its EXPECTED_MIX_SHA256
+# rehearsal-chain re-pinned the rehearsal signature to the v9 code (it was the rehearsal-curtain pair
+# 59ff3036…/50c077f3…; v8 now uses the frozen REHEARSAL_V8_SHA256 directly).
+REHEARSAL_SIG_PIN = ("f1e21f5006a27ff5b19f352ce17c2d24c042252586c515dd99763b1934cd5432",  # rehearsal core at chainfix
+                     "a21cf6e768a88cc21b4698b54426cf2d1527936f101f783862a609efa8bbad45")  # its EXPECTED_REHEARSAL_SHA256
+# chainfix L1: digest of the seed-input policy alone (_seed_policy_digest); checked at import.
+EXPECTED_SEED_POLICY_SHA256 = "ab5cdce45c3078c80a0fd0af3ca573bd5d73267cea8ef81d7cc8bb2db272a2a0"
 
 # Picture / documentation metadata. Not part of the mix or tag; excluded from
 # attestation so a label or feature-list edit does not change key_sig or ciphertext.
-REVISION = "rehearsal-curtain"
+REVISION = "rehearsal-chainfix"
 REVISION_DATE = "2026-11-14"
 FEATURES = (
     "keyed SM4 S-boxes",
@@ -122,7 +142,7 @@ FEATURES = (
     "cross-staff mix",
     "open 8-beat staffs",
     "SIV nonce SHA-256(clef‖pickup‖enc(msg)‖enc(AD))[:16]",
-    "rehearsal v8 chunked stream",
+    "rehearsal v9 chained stream",
     "HMAC tag over clef‖key_sig‖version‖SN2‖pickup‖nonce‖tuning‖ct‖AD",
     "movements: theme T; cadence HMAC-D over theme‖index‖ct; coda HMAC-O over header‖count‖ct‖cadences‖AD",
     "tuning: HMAC-U commitment over version‖SN2‖pickup‖nonce‖AD (and nmov)",
@@ -173,71 +193,260 @@ class UnsupportedVersion(Rejected):
     `except AuthError:` handler can never drift into a legacy fallback.
     It is a Rejected (conductor-polish), so `except Rejected:` catches it."""
 class LegacyFormatWarning(UserWarning):
-    """Emitted by every non-committing legacy helper (decrypt_legacy, decrypt_movements_legacy, étude equivalents).
-    A UserWarning (conductor-polish L2), so Python's default filters SHOW it, including
-    when a library module (not __main__) calls the helper."""
+    """Emitted by every non-committing legacy helper (decrypt_legacy, decrypt_movements_legacy, étude equivalents)
+    and by the legacy v8 rehearsal reader. A UserWarning (conductor-polish L2), so Python's default filters SHOW
+    it, including when a library module (not __main__) calls the helper. chainfix I1: an appended "always"
+    filter (below, next to UnfinalizedStreamWarning's) makes it show on EVERY call, not once per call site;
+    filters the user sets (-W, PYTHONWARNINGS, simplefilter) come first and still win."""
+class SeedWarning(UserWarning):
+    """chainfix I4: load_seed(path) read a seed file that is a symlink, readable by group/others, or held
+    characters other than hex digits and whitespace; or save_seed() was asked to store the PUBLIC demo seed."""
 
 # ---------------------------------------------------------------- seed
+# sha256 of the PUBLIC demo seed (sneak1024-seed.txt; its hex is in score/vectors.json). Used only to warn.
+DEMO_SEED_SHA256 = "8d1f7c16876c149c2d445c2817a230ffaaec9d8a2fc9769e2f3aae155e3b8e24"
+
 def load_seed(path=None) -> bytes:
     """Same file and parsing as N1 (256 hex digits = 1024 bits), returned as 128 big-endian bytes.
     Default: sneak1024-seed.txt next to this module. No other location is read.
     That default file is a PUBLIC DEMO SEED (published in score/vectors.json); never use it for anything real.
     The default file is parsed once and cached. The cache key is (path, st_dev, st_ino, st_size,
     st_mtime_ns, st_ctime_ns) (conductor-polish I4): replacing the file (new inode) or rewriting it
-    in place (new ctime, which cp -p, rsync -t and touch -r cannot set back) forces a re-read."""
+    in place (new ctime, which cp -p, rsync -t and touch -r cannot set back) forces a re-read.
+    chainfix I4: for an explicit path (a real key), SeedWarning is emitted if the path is a symlink, if the
+    file is readable or writable by group/others (save_seed creates 0600), or if characters other than hex
+    digits and whitespace were dropped while parsing (for example dash-decorated hex). The file is still
+    read: these are warnings, not refusals, and they are skipped for the public demo seed itself. The returned bytes are NOT checked here; every API that takes
+    the seed checks it (_seed_bytes)."""
     key = None
+    explicit = path is not None
     if path is None:
         path = SEED_PATH
         st = os.stat(path)
         key = (path, st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns, st.st_ctime_ns)
         if load_seed.cache is not None and load_seed.cache[0] == key:
             return load_seed.cache[1]
-    h = "".join(c for c in open(path).read().lower() if c in "0123456789abcdef")
+    problems = []
+    if explicit and os.path.islink(path):
+        problems.append("is a symlink")
+    with open(path) as f:
+        if explicit and os.fstat(f.fileno()).st_mode & 0o077:
+            problems.append("is readable or writable by group/others (chmod 600 it)")
+        text = f.read()
+    h = "".join(c for c in text.lower() if c in "0123456789abcdef")
+    if explicit and any(not (c.isspace() or c in "0123456789abcdef") for c in text.lower()):
+        problems.append("contains characters other than hex digits and whitespace (they were ignored)")
     if len(h) != 256: raise ValueError(f"seed must be 256 hex digits, got {len(h)}")
     seed = bytes.fromhex(h)
+    if problems and hashlib.sha256(seed).hexdigest() != DEMO_SEED_SHA256:     # the demo seed is public anyway
+        warnings.warn("seed file %r %s" % (os.fspath(path), "; ".join(problems)), SeedWarning, stacklevel=2)
     if key is not None:
         load_seed.cache = (key, seed)
     return seed
 load_seed.cache = None
 
 class _DerivedKey(bytes):
-    """Marker for a key derived inside this package (étude keys K_e). _seed_bytes runs the
-    weak-seed rule on it every time and never puts it in the seed memo (conductor-polish I5)."""
+    """Marker for a key derived inside this package (étude keys K_e). Carries no special treatment since
+    chainfix (the seed memo it stayed out of is gone); kept so étude code and pickles stay valid.
+    chainfix L1: part of the cipher core (not the excluded seed-input policy)."""
+    __slots__ = ()
+
+class _CheckedSeed(bytes):
+    """chainfix: a 128-byte seed that _seed_bytes already normalised and checked during THIS call chain.
+    _seed_bytes returns it as is, so one public call runs the weak-seed rule once, not once per helper.
+    There is no cross-call cache (chainfix I6). Private: constructing one by hand skips the rule."""
     __slots__ = ()
 
 def _seed_bytes(seed) -> bytes:
-    """Normalize and check a seed. A caller seed that already passed the weak-seed rule is
-    remembered in a small LRU (at most _seed_bytes.size = 16 entries; the least recently used
-    entry is dropped, never the whole memo) so the per-call cost does not depend on the seed's
-    byte distribution (conductor I3, conductor-polish I5). Derived étude keys (_DerivedKey) are
-    checked on every use and never remembered."""
-    remember = type(seed) is not _DerivedKey
-    if seed is None: seed = load_seed()
-    elif isinstance(seed, int): seed = seed.to_bytes(128, "big")          # N1-style integer key
-    else: seed = bytes(seed)
-    if len(seed) != 128: raise ValueError("seed must be 128 bytes (1024 bits)")
-    memo = _seed_bytes.ok
-    if remember and seed in memo:
-        memo.move_to_end(seed)
+    """Normalise and check a seed. CIPHER CORE (chainfix L1): this function, not the excluded seed policy,
+    decides which 128 bytes are the key, so any edit to it moves the core digest (and key_sig) unless
+    KEY_SIG_PIN is deliberately re-pinned. The excluded policy (_seed_policy_check) is only asked
+    accept-or-reject; its return value is ignored and it only ever sees an immutable copy.
+    seed=None is REFUSED (TypeError; key-fix: it used to mean the public demo seed). bool and other
+    non-bytes, non-int types: TypeError. Ints must be 0 <= seed < 2**1024 (ValueError otherwise), encoded
+    as 128 big-endian bytes (N1 style). Bytes-like values are copied raw (memoryview), never via __bytes__.
+    Pass keygen() output for a real key, or load_seed() explicitly for the public demo seed (samples,
+    tests and the published score only)."""
+    if type(seed) is _CheckedSeed:
         return seed
-    # Weak-seed rule: at least 32 distinct nonzero bytes (rejects all-zero, seed=1, repeated-byte keys).
-    nonzero = [b for b in seed if b]
-    if len(set(nonzero)) < 32:
-        raise ValueError("weak seed: need at least 32 distinct nonzero bytes")
-    if remember:
-        memo[seed] = True
-        while len(memo) > _seed_bytes.size:
-            memo.popitem(last=False)
-    return seed
-_seed_bytes.ok = collections.OrderedDict()
-_seed_bytes.size = 16
+    if seed is None:
+        raise TypeError("seed is required: use keygen() for a new key, or load_seed() for the PUBLIC demo seed "
+                        "(samples and tests only); seed=None no longer means the demo seed")
+    if isinstance(seed, bool):
+        raise TypeError("seed must be 128 bytes or an int, not bool")
+    if isinstance(seed, int):
+        if not 0 <= seed < 1 << 1024:
+            raise ValueError("integer seed must be in 0 .. 2**1024 - 1")
+        s = int(seed).to_bytes(128, "big")
+    elif isinstance(seed, (bytes, bytearray, memoryview)):
+        s = memoryview(seed).tobytes()
+    else:
+        raise TypeError("seed must be 128 bytes (bytes, bytearray, memoryview) or an int, not " + type(seed).__name__)
+    if len(s) != 128: raise ValueError("seed must be 128 bytes (1024 bits)")
+    _seed_policy_check(bytes(s))           # accept or raise; the return value is deliberately ignored
+    return _CheckedSeed(s)
+
+def _seed_policy_check(seed: bytes) -> None:
+    """Seed-INPUT policy (chainfix L1: a pure predicate). Raises ValueError("weak seed: ...") if the
+    128-byte seed fails the weak-seed rule; otherwise returns None. It cannot change the key: _seed_bytes
+    (core) ignores anything it returns. Excluded from the cipher-core digest (SEED_POLICY_NAMES), so
+    tightening it moves no ciphertext; it is in the import attestation and has its own pinned digest
+    (EXPECTED_SEED_POLICY_SHA256). No memo (chainfix I6): every call runs the full rule."""
+    reason = _weak_seed_reason(seed)
+    if reason is not None:
+        raise ValueError("weak seed: " + reason)
+
+# key-fix (review_tester_claims claim 2): the weak-seed rule. chainfix L4: it is a SANITY CHECK that catches
+# guessable STRUCTURE (zero padding, text, counters, repeats, a few listed constants), not guessable SECRETS.
+# Many low-entropy seeds pass it: hashed passphrases, random.Random(k) output, small-generator powers,
+# Fibonacci-like or structured halves, and any trivial variant (shift, complement, one flipped byte) of a
+# listed constant or of the demo seed. keygen() is the real protection; never derive a seed from anything
+# someone else could guess or reproduce.
+# Thresholds were set so os.urandom(128) essentially never fails (key-fix measurement: 0 rejects in
+# 1,000,000 random seeds; the per-check tail estimates are all below 1e-9; SPEC.md "key-fix").
+SEED_MIN_DISTINCT_NONZERO = 32     # distinct nonzero byte values (random: about 100)
+SEED_MAX_BYTE_COUNT = 11           # any one byte value, 0x00 included (random: mean 0.5 per value)
+SEED_WEIGHT_RANGE = (384, 640)     # set bits of 1024 (random: 512 +- 16, so +-8 sd)
+SEED_MAX_LAG_EQUAL = 13            # equal bytes at distance k = 1..64 (repeated pattern / period k)
+SEED_MAX_LAG_DIFF = 13             # one difference (mod 256 or XOR) at distance k in SEED_DIFF_LAGS
+SEED_DIFF_LAGS = (1, 2, 3, 4, 8, 16, 32, 64)
+SEED_MAX_MONOTONE_RUN = 15         # strictly rising or falling bytes in a row
+# SHA-256 of 128-byte public constants that look random but are guessable: hex fractions of pi, e,
+# sqrt(2), sqrt(3), sqrt(5), the golden ratio and ln 2; the SHA-256 K table (two halves), SHA-512 K[0:16],
+# SHA-512 H0..7 twice, SHA-256 H0..7 four times; both halves of the SM4 and AES S-boxes. A test
+# recomputes every entry from its formula or table. The public demo seed is NOT listed: it stays
+# usable when passed explicitly (load_seed()) so the published samples and score reproduce.
+KNOWN_CONSTANT_SEEDS = ('pi', 'e', 'sqrt2', 'sqrt3', 'sqrt5', 'golden ratio', 'ln2', 'SHA-256 K[0:32]', 'SHA-256 K[32:64]', 'SHA-512 K[0:16]', 'SHA-512 H0..7 x2', 'SHA-256 H0..7 x4', 'SM4 S-box[0:128]', 'SM4 S-box[128:256]', 'AES S-box[0:128]', 'AES S-box[128:256]')
+KNOWN_CONSTANT_SEEDS_SHA256 = frozenset((
+    "03c50285b60e6a6dbadb58aaf888d50c1600651f7d1efbc85babf115955a9d82",
+    "0ce7c215e60878a317417033e689573e817b94fa7ff54f17dc67451c86192cf2",
+    "34be65dcec3623805ccd321f2334b175695f0baac6e68686c1282accdfda7066",
+    "466b9a4c5f07776366b1b8344bcecfb535d3f625f39d4aee789321b40b9997bd",
+    "55744ff6cd524c2f7c027e7d3135124c9ebe735528f5089701be4a7d8f8bcac4",
+    "59f02e0b558821a9e0754a16238042dae0a8e160f399d0433891ee5f3206d3d8",
+    "66c7cb6724de8cdb002eab74a963da538a43f82981614568842a188ac30c5cac",
+    "6bc97b996e75d9740ce3a50f3c98f0a5d7c4e6a7d19f8247e6527f1e54b81743",
+    "7869fb9100d9b0d0d92bf2bbcfb52265c57f47737d8244af09bec87a35214752",
+    "9b218780eb7e2b53d8bff225e502fae6292f53fa494fa4008e97094e81f3f23f",
+    "9f8873c9039f794c5b67cee5de3694ee5b0424230d8d40b42ca4fa7ba1a51ee4",
+    "ac8042d65d6f9dca088981a6e585ce8b8b2ca4b690a5979a2440b5296f0e51c8",
+    "d2c917c55c86db7769a169d0ee5b8bf63428307d11168effdb4ddb27a0fa1cd3",
+    "d47ef496a677ab86f1766c679017b62da575fc4fc945ebbeb8eb185f1225392c",
+    "e0f509b5d111471aecae1f40c18db29d1e1c5d05f42db79db4bae260706e856d",
+    "f9922e9a37f3a9ac7ee1c689396035b9460d2d89f03e950692be336959dcc08c",
+))
+
+def _weak_seed_reason(seed: bytes):
+    """None if a 128-byte seed passes the weak-seed rule, else a short reason (key-fix). A sanity check
+    against obvious structure, not an entropy test (chainfix L4): passing it does NOT make a seed secret.
+    Rejects: fewer than 32 distinct nonzero bytes (the original rule); any byte value more than 11
+    times (zero padding, text); Hamming weight outside 384..640; all printable ASCII (a password or a
+    hex string); all bytes below 0x80; more than 13 equal bytes at some distance 1..64 (repeated
+    pattern); more than 13 equal differences (mod 256 or XOR) at distance 1, 2, 3, 4, 8, 16, 32 or 64
+    (counters, arithmetic sequences, complemented halves); a strictly rising or falling run of 16; a
+    listed public constant."""
+    if len({b for b in seed if b}) < SEED_MIN_DISTINCT_NONZERO:
+        return "need at least 32 distinct nonzero bytes"
+    counts = [0] * 256
+    for b in seed: counts[b] += 1
+    if max(counts) > SEED_MAX_BYTE_COUNT:
+        return "one byte value repeats too often (zero padding or low entropy)"
+    weight = bin(int.from_bytes(seed, "big")).count("1")
+    if not SEED_WEIGHT_RANGE[0] <= weight <= SEED_WEIGHT_RANGE[1]:
+        return "Hamming weight %d of 1024 is far from 512" % weight
+    if all(0x20 <= b <= 0x7E for b in seed):
+        return "all printable ASCII (a password or hex text, not 1024 random bits)"
+    if max(seed) < 0x80:
+        return "every byte is below 0x80"
+    for k in range(1, 65):
+        if sum(map(operator.eq, seed, seed[k:])) > SEED_MAX_LAG_EQUAL:
+            return "repeated pattern (period %d)" % k
+    for k in SEED_DIFF_LAGS:
+        for op in (operator.sub, operator.xor):
+            c = [0] * 256
+            for d in map(op, seed[k:], seed): c[d & 255] += 1
+            if max(c) > SEED_MAX_LAG_DIFF:
+                return "counter or arithmetic sequence (stride %d)" % k
+    up = down = 1
+    for a, b in zip(seed, seed[1:]):
+        up = up + 1 if b > a else 1
+        down = down + 1 if b < a else 1
+        if up > SEED_MAX_MONOTONE_RUN or down > SEED_MAX_MONOTONE_RUN:
+            return "long monotone run"
+    if hashlib.sha256(seed).hexdigest() in KNOWN_CONSTANT_SEEDS_SHA256:
+        return "a published constant"
+    return None
+
+def keygen() -> bytes:
+    """key-fix: a fresh 1024-bit seed, os.urandom(128), redrawn if it fails the weak-seed rule (key-fix
+    measured 0 in 1,000,000; a redraw is expected far less than once in 10^9 calls). THIS is the real
+    protection (chainfix L4); the weak-seed rule is only a sanity check. Keep it secret: save it with
+    save_seed(path, seed) (0600, new file only) and read it back with load_seed(path).
+    Raises RuntimeError if 16 draws in a row are weak (the system RNG is broken).
+    chainfix L2: attested at import and in EXPECTED_SEED_POLICY_SHA256 (not in the cipher core)."""
+    for _ in range(16):
+        seed = os.urandom(128)
+        if _weak_seed_reason(seed) is None:
+            return seed
+    raise RuntimeError("os.urandom(128) failed the weak-seed rule 16 times in a row; the system RNG looks broken")
+
+def save_seed(path, seed) -> None:
+    """key-fix: write seed as 256 hex digits (the load_seed format) to a NEW file (an existing path,
+    symlink, directory or FIFO raises FileExistsError and is left untouched). The seed is checked first.
+    chainfix L3: atomic. The hex goes to a private dot-temp file in the same directory (O_CREAT | O_EXCL |
+    O_NOFOLLOW, 0600), is fsync'd, then published with link() (never clobbers), the temp name is removed
+    and the directory is fsync'd. On ANY error the temp file is removed, so a failed write (disk full, a
+    file-size limit) leaves nothing behind and a retry works. chainfix I4: storing the PUBLIC demo seed
+    emits SeedWarning (it is not a key). chainfix L2: attested (import check and EXPECTED_SEED_POLICY_SHA256)."""
+    seed = bytes(_seed_bytes(seed))
+    if hashlib.sha256(seed).hexdigest() == DEMO_SEED_SHA256:
+        warnings.warn("save_seed: this is the PUBLIC demo seed (published in score/vectors.json), not a key; "
+                      "use keygen() for a real key", SeedWarning, stacklevel=2)
+    path = os.fspath(path)
+    folder = os.path.dirname(os.path.abspath(path))
+    data = (seed.hex() + "\n").encode("ascii")
+    tmp = os.path.join(folder, ".%s.%s.tmp" % (os.path.basename(path), os.urandom(8).hex()))
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0), 0o600)
+    try:
+        try:
+            view = memoryview(data)
+            while view:
+                view = view[os.write(fd, view):]
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+        os.link(tmp, path, follow_symlinks=False)
+    finally:
+        try:
+            os.unlink(tmp)
+        except FileNotFoundError:
+            pass
+    _fsync_dir(folder)
+
+def _fsync_dir(folder) -> None:
+    """chainfix L3: fsync a directory so a just-linked name survives a crash (best effort where the OS
+    cannot open directories)."""
+    try:
+        dfd = os.open(folder, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    except OSError:
+        return
+    try:
+        os.fsync(dfd)
+    except OSError:
+        pass
+    finally:
+        os.close(dfd)
 
 # ---------------------------------------------------------------- staff sponge (SHA-256 underneath)
 class StaffSponge:
     """Squeezes SHA-256(b"SN2/" || domain || counter32 || seed || nonce) blocks, counter = 0,1,2,...
     Distinct one-byte domains separate the MAC key (b"M") from the round schedule (b"K").
     One-way: from squeezed output (round keys) + public nonce you cannot solve back for the seed
-    without inverting SHA-256 (N1's schedule was a linear rotate/XOR map and was solved directly)."""
+    without inverting SHA-256 (N1's schedule was a linear rotate/XOR map and was solved directly).
+    chainfix I3: a LOW-LEVEL primitive. It takes key material that its callers already passed through
+    _seed_bytes (Schedule, key_signature, staff_clef, ...) and applies no seed policy itself, so
+    StaffSponge(b"K", bytes(128), n) is accepted here although Schedule refuses that seed. Do not key
+    anything with it directly; use encrypt / encrypt_movements / encrypt_rehearsal."""
     def __init__(self, domain: bytes, seed: bytes, nonce: bytes):
         self.d, self.s, self.n, self.ctr, self.buf = domain, seed, nonce, 0, b""
     def _more(self):
@@ -657,6 +866,14 @@ MIX_CODE_FUNCS = (
     "_unpad_block", "_require_noncommitting", "LegacyFormatWarning",
     # added 2026-11-11 (conductor-polish): shared reject parent, derived-key marker.
     "Rejected", "_DerivedKey",
+    # added 2026-11-14 (chainfix L1): the core seed marker and the excluded accept/reject predicate + rule.
+    "_CheckedSeed", "_seed_policy_check", "_weak_seed_reason",
+    # added 2026-11-14 (chainfix L2/I4/I5): ATTESTATION ONLY (ATTEST_ONLY_NAMES keeps them out of the
+    # cipher core): key tools, seed-file warning class, the pin logic itself and the sample/analysis helpers.
+    "keygen", "save_seed", "_fsync_dir", "SeedWarning",
+    "_core_digest", "_seed_policy_digest", "_signature_nonce", "_init_attestation", "_init_rehearsal_attestation",
+    "_init_seed_policy_attestation", "_executed_pyc_code", "_verify_executed_code", "_module_source_snapshot",
+    "encrypt_hello", "grid_rows", "ddt_max", "lat_max",
 )
 
 def _referenced_globals(obj):
@@ -672,7 +889,10 @@ _ATTEST_SKIP = frozenset({
     "SEED_PATH",
     "REVISION", "REVISION_DATE", "FEATURES", "WARNING_LINE",
     "EXPECTED_REHEARSAL_SHA256", "_REHEARSAL_SHA256",
+    "EXPECTED_MIX_CORE_SHA256", "EXPECTED_REHEARSAL_CORE_SHA256", "KEY_SIG_PIN", "REHEARSAL_SIG_PIN",
+    "_MIX_ATTEST_SHA256", "_MIX_CORE_SHA256", "_REHEARSAL_ATTEST_SHA256", "_REHEARSAL_CORE_SHA256",
     "_MODULE_SOURCE", "_MODULE_SOURCE_SHA256",
+    "EXPECTED_SEED_POLICY_SHA256", "_SEED_POLICY_SHA256",
 })
 
 def mix_code_closure(roots=None):
@@ -755,6 +975,84 @@ def mix_description():
                  beats="matching-beats-0..7", operation="mix2",
                  placement="after-mid-rehair-before-S2;after-encore-rehair")),
         sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("ascii")
+
+# key-fix / chainfix: names that are ATTESTED at import (MIX_CODE_FUNCS, so EXPECTED_MIX_SHA256 covers their
+# source) but are NOT part of the cipher core that decides key_sig / rehearsal_sig (_core_digest skips them).
+# SEED_POLICY_NAMES is the seed-input policy plus the key tools (chainfix L1/L2). Since chainfix the policy is
+# a pure accept/reject predicate: _seed_bytes (CORE) normalises the seed and ignores what the policy returns,
+# so editing excluded code can refuse keys or let weak ones through but cannot change a key. The policy has
+# its own pinned digest, EXPECTED_SEED_POLICY_SHA256 (_seed_policy_digest), shown in the score and README.
+SEED_POLICY_NAMES = frozenset({"_seed_policy_check", "_weak_seed_reason", "load_seed", "keygen", "save_seed",
+                               "_fsync_dir", "SeedWarning"})
+# chainfix I5: the pin logic and the sample/analysis helpers are attested too (MIX_CODE_FUNCS), not core.
+PIN_LOGIC_NAMES = frozenset({"_core_digest", "_seed_policy_digest", "_signature_nonce", "_init_attestation",
+                             "_init_rehearsal_attestation", "_init_seed_policy_attestation", "_executed_pyc_code",
+                             "_verify_executed_code", "_module_source_snapshot"})
+HELPER_NAMES = frozenset({"encrypt_hello", "grid_rows", "ddt_max", "lat_max"})
+ATTEST_ONLY_NAMES = SEED_POLICY_NAMES | PIN_LOGIC_NAMES | HELPER_NAMES
+
+def _core_digest(roots, listed=(), extra: bytes = b"") -> str:
+    """key-fix: SHA-256 over the source, defaults and data of everything reachable from roots and listed
+    EXCEPT the attestation-only names (ATTEST_ONLY_NAMES and whatever only they reach), plus extra. Same walk
+    and canonical encoding as mix_code_closure / mix_description. chainfix: the excluded-name list itself is
+    hashed in too, so moving a function out of the core moves the core digest. It decides whether a
+    signature keeps its pinned nonce (_signature_nonce)."""
+    g = globals(); code, data = set(), set()
+    todo = list(roots) + list(listed)
+    while todo:
+        name = todo.pop()
+        if name in _ATTEST_SKIP or name in ATTEST_ONLY_NAMES: continue
+        if name in code or name in data or name not in g: continue
+        obj = g[name]
+        if isinstance(obj, types.ModuleType): continue
+        if isinstance(obj, (types.FunctionType, type)):
+            code.add(name); todo.extend(sorted(_referenced_globals(obj)))
+        else:
+            data.add(name)
+    h = hashlib.sha256()
+    def put(*parts):
+        for part in parts:
+            h.update(len(part).to_bytes(8, "big")); h.update(part)
+    put(b"octavo-core-v1", bytes(extra))
+    put(b"excluded", _canon_data(ATTEST_ONLY_NAMES).encode("utf-8"))
+    for name in sorted(code):
+        obj = g[name]
+        defaults = _canon_data((getattr(obj, "__defaults__", None), getattr(obj, "__kwdefaults__", None)))
+        put(b"code", name.encode("utf-8"), inspect.getsource(obj).encode("utf-8"), defaults.encode("utf-8"))
+    for name in sorted(data):
+        put(b"data", name.encode("utf-8"), _canon_data(g[name]).encode("utf-8"))
+    return h.hexdigest()
+
+def _seed_policy_digest() -> str:
+    """chainfix L1 (optional item 3): SHA-256 over the seed-input policy alone: the source and defaults of
+    every SEED_POLICY_NAMES function/class and the module data they name (thresholds, constant table,
+    DEMO_SEED_SHA256), plus the name list. Core functions they call (_seed_bytes) are not followed here;
+    the core digest covers them. Pinned as EXPECTED_SEED_POLICY_SHA256, so a policy change shows up as its
+    own line in the score and README even though it moves no ciphertext."""
+    g = globals(); code, data = set(), set()
+    todo = sorted(SEED_POLICY_NAMES)
+    while todo:
+        name = todo.pop()
+        if name in _ATTEST_SKIP or name in code or name in data or name not in g: continue
+        obj = g[name]
+        if isinstance(obj, types.ModuleType): continue
+        if isinstance(obj, (types.FunctionType, type)):
+            if name in SEED_POLICY_NAMES:
+                code.add(name); todo.extend(sorted(_referenced_globals(obj)))
+        else:
+            data.add(name)
+    h = hashlib.sha256()
+    def put(*parts):
+        for part in parts:
+            h.update(len(part).to_bytes(8, "big")); h.update(part)
+    put(b"octavo-seed-policy-v1", _canon_data(SEED_POLICY_NAMES).encode("utf-8"))
+    for name in sorted(code):
+        obj = g[name]
+        defaults = _canon_data((getattr(obj, "__defaults__", None), getattr(obj, "__kwdefaults__", None)))
+        put(b"code", name.encode("utf-8"), inspect.getsource(obj).encode("utf-8"), defaults.encode("utf-8"))
+    for name in sorted(data):
+        put(b"data", name.encode("utf-8"), _canon_data(g[name]).encode("utf-8"))
+    return h.hexdigest()
 
 def key_signature(seed=None):
     """Seed-keyed commitment to this revision's attested mix_description digest.
@@ -901,6 +1199,7 @@ _fresh_pickup.n = 0
 
 def siv_nonce(msg: bytes, pickup: bytes, seed=None, ad: bytes = b"") -> bytes:
     """homemade SIV-style nonce = SHA-256(clef || pickup || encode_block(msg) || encode_ad(ad))[:16]"""
+    seed = _seed_bytes(seed)                   # chainfix I3: the seed is checked first, before the blob
     msg = _as_bytes("msg", msg)
     pickup = _as_bytes("pickup", pickup)
     ad = _normalize_ad(ad)
@@ -944,6 +1243,7 @@ def encrypt(msg: bytes, seed=None, nonce: bytes = None, ad: bytes = b"") -> byte
     ad is authenticated and not stored in the blob; empty and omitted AD are the same.
     msg and ad must be bytes-like (bytes, bytearray, memoryview); other types raise TypeError.
     Associated data longer than MAX_AD_LEN raises ValueError."""
+    seed = _seed_bytes(seed)                   # chainfix I3: the seed is checked first, before the blob
     msg = _as_bytes("msg", msg); ad = _normalize_ad(ad); block = encode_block(msg); adb = _encode_ad(ad); clef = staff_clef(seed)
     pickup = _fresh_pickup()
     syn = hashlib.sha256(clef + pickup + block + adb).digest()[:NONCE_LEN]
@@ -975,6 +1275,7 @@ def decrypt(blob: bytes, seed=None, ad: bytes = b"") -> bytes:
     The same associated data supplied to encrypt must be supplied here; it is not in the blob.
     blob and ad must be bytes-like; other types raise TypeError. AD longer than MAX_AD_LEN raises ValueError.
     The HMAC is verified from the MAC key alone; the full round Schedule is built only after the tag passes."""
+    seed = _seed_bytes(seed)                   # chainfix I3: the seed is checked first, before the blob
     blob = _as_bytes("blob", blob); ad = _normalize_ad(ad)
     if len(blob) < 1: raise AuthError("bad blob length")
     if blob[0] != FMT_VERSION: raise UnsupportedVersion("unsupported version")
@@ -1018,6 +1319,7 @@ def decrypt_legacy(blob: bytes, seed=None, ad: bytes = b"", *, allow_noncommitti
     Unpublished v4 (tuning) blobs are also rejected.
     """
     _require_noncommitting(allow_noncommitting, "decrypt_legacy", warn=False)
+    seed = _seed_bytes(seed)                   # chainfix I3: the seed is checked first, before the blob
     blob = _as_bytes("blob", blob); ad = _normalize_ad(ad)
     if len(blob) < 1: raise AuthError("bad blob length")
     if blob[0] != FMT_VERSION_V2:
@@ -1030,6 +1332,7 @@ def _decrypt_legacy_v2(blob: bytes, seed, ad: bytes, *, allow_noncommitting=Fals
     Gated and version-pinned here too (conductor-polish I2): needs
     allow_noncommitting=True, emits LegacyFormatWarning, and opens only blob[0] == 2."""
     _require_noncommitting(allow_noncommitting, "decrypt_legacy")
+    seed = _seed_bytes(seed)                   # chainfix I3: the seed is checked first, before the blob
     blob = _as_bytes("blob", blob); ad = _normalize_ad(ad)
     if len(blob) < 1: raise AuthError("bad blob length")
     if blob[0] != FMT_VERSION_V2: raise UnsupportedVersion("unsupported version")
@@ -1066,6 +1369,7 @@ def _chunk_movements(msg: bytes):
 def siv_nonce_movements(msg: bytes, pickup: bytes, seed=None, ad: bytes = b"") -> bytes:
     """SIV-style nonce = SHA-256(clef || pickup || uint64be(len(msg)) || msg || encode_ad(ad))[:16].
     Length-prefixed so the framing is unambiguous for any payload up to MAX_MOVEMENTS_MSG."""
+    seed = _seed_bytes(seed)                   # chainfix I3: the seed is checked first, before the blob
     msg = _as_bytes("msg", msg)
     pickup = _as_bytes("pickup", pickup)
     ad = _normalize_ad(ad)
@@ -1117,6 +1421,7 @@ def encrypt_movements(msg: bytes, seed=None, ad: bytes = b"", nonce: bytes = Non
     authenticates the header, commitment, count, every ciphertext, every cadence and the associated data.
     msg and ad must be bytes-like; associated data longer than MAX_AD_LEN or a message longer
     than MAX_MOVEMENTS_MSG raises ValueError. A caller nonce must equal the synthetic one."""
+    seed = _seed_bytes(seed)                   # chainfix I3: the seed is checked first, before the blob
     msg = _as_bytes("msg", msg); ad = _normalize_ad(ad)
     chunks = _chunk_movements(msg)
     nmov = len(chunks)
@@ -1171,6 +1476,7 @@ def decrypt_movements(blob: bytes, seed=None, ad: bytes = b"") -> bytes:
     the same blob size (the size is public). Before conductor-polish the
     commitment was checked first, so timing revealed which stage failed.
     blob and ad must be bytes-like; AD longer than MAX_AD_LEN raises ValueError."""
+    seed = _seed_bytes(seed)                   # chainfix I3: the seed is checked first, before the blob
     blob = _as_bytes("blob", blob); ad = _normalize_ad(ad)
     if len(blob) < 1: raise AuthError("bad blob length")
     if blob[0] != FMT_MOVEMENTS: raise UnsupportedVersion("unsupported version")
@@ -1236,6 +1542,7 @@ def decrypt_movements_legacy(blob: bytes, seed=None, ad: bytes = b"", *, allow_n
     Unpublished v5 (tuning) blobs are also rejected.
     """
     _require_noncommitting(allow_noncommitting, "decrypt_movements_legacy", warn=False)
+    seed = _seed_bytes(seed)                   # chainfix I3: the seed is checked first, before the blob
     blob = _as_bytes("blob", blob); ad = _normalize_ad(ad)
     if len(blob) < 1: raise AuthError("bad blob length")
     if blob[0] != FMT_MOVEMENTS_V3:
@@ -1248,6 +1555,7 @@ def _decrypt_legacy_v3(blob: bytes, seed, ad: bytes, *, allow_noncommitting=Fals
     here too (conductor-polish I2): needs allow_noncommitting=True, emits
     LegacyFormatWarning, and opens only blob[0] == 3."""
     _require_noncommitting(allow_noncommitting, "decrypt_movements_legacy")
+    seed = _seed_bytes(seed)                   # chainfix I3: the seed is checked first, before the blob
     blob = _as_bytes("blob", blob); ad = _normalize_ad(ad)
     if len(blob) < 1: raise AuthError("bad blob length")
     if blob[0] != FMT_MOVEMENTS_V3: raise UnsupportedVersion("unsupported version")
@@ -1298,16 +1606,24 @@ def _decrypt_legacy_v3(blob: bytes, seed, ad: bytes, *, allow_noncommitting=Fals
         raise AuthError("SIV nonce mismatch")
     return msg
 
-# ---------------------------------------------------------------- rehearsal: chunked streaming AEAD (format version 8)
+# ---------------------------------------------------------------- rehearsal: chunked streaming AEAD (format version 9, chained)
 # STREAM-style online AE (in the spirit of Hoang, Reyhanitabar, Rogaway and Vizar, "Online
 # Authenticated-Encryption and its Nonce-Reuse Misuse-Resistance", CRYPTO 2015). Homemade.
+# rehearsal-chain (format version 9): every chunk tag also covers the PREVIOUS chunk's tag
+# (tag_{-1} = 32 zero bytes), so the tag of chunk i authenticates the whole stream up to i, and
+# the final chunk's tag (final flag set) authenticates the whole stream. Even under a repeated
+# pickup and nonce (same seed and AD), a reordered, dropped, truncated or cross-stream-spliced
+# stream fails: a stream that opens is byte-identical to a stream the sender made. v9 sponge
+# labels carry the version byte (b"sched" 9, b"chunk" 9), so v9 keys, tweaks and blocks are
+# unrelated to v8's. Format version 8 (rehearsal-curtain, unchained tags) opens only through
+# decrypt_rehearsal_legacy(..., allow_unchained=True), under its frozen digest REHEARSAL_V8_SHA256.
 # Wire:   header(72) || chunk_0 || ... || chunk_{n-1}
-# header: version(1)=8 || SN2(3) || pickup(16) || nonce(16) || commit(32) || chunk_size(4, uint32be)
+# header: version(1)=9 || SN2(3) || pickup(16) || nonce(16) || commit(32) || chunk_size(4, uint32be)
 # chunk i < n-1 (non-final): ct(chunk_size) || tag(32), carrying exactly chunk_size plaintext bytes
 # chunk n-1 (final):         ct(128*k) || tag(32), carrying L in 0..chunk_size-1 bytes, padded
 #                            msg || 0x80 || zeros to the next multiple of 128 (so 128*k <= chunk_size)
 # Every stream has exactly one final chunk (an empty stream is one 128-byte final chunk).
-# Per-chunk material comes from the sponge domain R over
+# Per-chunk material comes from the sponge domain R over (v9: b"chunk" || 9; v8: b"chunk")
 #   b"chunk" || pickup || nonce || chunk_size32 || index64 || final8 || ad_digest32
 # (first 32 bytes = chunk MAC key, then one 128-byte tweak per block), and one per-stream
 # Schedule(seed, StaffSponge(R, seed, b"sched" || pickup || nonce || chunk_size32 || ad_digest32).take(16)),
@@ -1317,7 +1633,11 @@ def _decrypt_legacy_v3(blob: bytes, seed, ad: bytes, *, allow_noncommitting=Fals
 # unrelated blocks. This changed every v8 ciphertext; v8 was never published, so there is no
 # legacy v8 path.
 # The nonce is a fresh random per-stream value (no SIV: a stream cannot be hashed before it is sent).
-FMT_REHEARSAL = 8                  # rehearsal stream; never confused with v6/v7 or étude bytes
+FMT_REHEARSAL = 9                  # rehearsal-chain stream (chained tags); never confused with v6/v7/v8 or étude bytes
+FMT_REHEARSAL_V8 = 8               # rehearsal-curtain stream (unchained tags); decrypt_rehearsal_legacy(allow_unchained=True) only
+# Frozen rehearsal-curtain rehearsal digest: the rehearsal_sig nonce of every published v8 stream.
+REHEARSAL_V8_SHA256 = "50c077f3b2105b36e027bf0c94770dcad64f7242974c4b7e67d3f0226810a4a8"
+REHEARSAL_CHAIN_IV = bytes(TAG_LEN)  # "tag_{-1}": what chunk 0's tag chains to in v9
 REHEARSAL_DOMAIN = b"R"            # sponge domain: per-stream schedule nonce, per-chunk MAC key and tweaks
 REHEARSAL_SIG_DOMAIN = b"H"        # sponge domain: rehearsal signature (rehearsal hall); sponge nonce = rehearsal digest
 REHEARSAL_AD_PREFIX = b"SN2/A"     # raw SHA-256 prefix for the per-stream AD digest (A is not a sponge domain)
@@ -1399,45 +1719,65 @@ class UnfinalizedStreamWarning(UserWarning):
     vanishing; a destructor can never make the program fail, so the exit code is unchanged."""
 
 warnings.filterwarnings("always", category=UnfinalizedStreamWarning, append=True)
+# chainfix I1: LegacyFormatWarning on EVERY legacy call too (appended, so user filters still win).
+warnings.filterwarnings("always", category=LegacyFormatWarning, append=True)
 
 def _rehearsal_ad_digest(ad: bytes = b"") -> bytes:
     """SHA-256(b"SN2/A" || encode_ad(ad)); bound into every chunk tag and (rehearsal-fix I1) into the
     R-sponge inputs for the schedule nonce, chunk keys and tweaks. AD itself is in the commitment."""
     return hashlib.sha256(REHEARSAL_AD_PREFIX + _encode_ad(ad)).digest()
 
-def _rehearsal_commitment(commit_key, pickup, nonce, ad, chunk_size) -> bytes:
-    """HMAC-SHA256(K_commit, b"U" || 8 || SN2 || pickup || nonce || encode_ad(ad) || chunk_size32).
-    Same seed-only K_commit and domain-U pattern as v6/v7; the version byte 8 keeps it apart from
-    v7's nmov32 commitment, and the chunk size is bound so a rewritten size fails here."""
-    data = (COMMIT_DOMAIN + bytes([FMT_REHEARSAL]) + VERSION + pickup + nonce + _encode_ad(ad)
+def _rehearsal_fmt(fmt) -> int:
+    """rehearsal-chain: the stream formats this code speaks (9 live, 8 legacy reader only)."""
+    if fmt not in (FMT_REHEARSAL, FMT_REHEARSAL_V8):
+        raise ValueError("rehearsal format must be 9 or 8")
+    return fmt
+
+def _rehearsal_label(label: bytes, fmt) -> bytes:
+    """Sponge label: v8 keeps b"sched" / b"chunk"; v9 appends its version byte (format domain separation)."""
+    return label if _rehearsal_fmt(fmt) == FMT_REHEARSAL_V8 else label + bytes([fmt])
+
+def _rehearsal_commitment(commit_key, pickup, nonce, ad, chunk_size, fmt=FMT_REHEARSAL) -> bytes:
+    """HMAC-SHA256(K_commit, b"U" || fmt || SN2 || pickup || nonce || encode_ad(ad) || chunk_size32).
+    Same seed-only K_commit and domain-U pattern as v6/v7; the version byte (9, or 8 for legacy) keeps
+    it apart from v7's nmov32 commitment, and the chunk size is bound so a rewritten size fails here."""
+    data = (COMMIT_DOMAIN + bytes([_rehearsal_fmt(fmt)]) + VERSION + pickup + nonce + _encode_ad(ad)
             + chunk_size.to_bytes(4, "big"))
     return hmac.new(commit_key, data, hashlib.sha256).digest()
 
-def _rehearsal_schedule_nonce(seed, pickup, nonce, chunk_size, ad_digest) -> bytes:
-    """Per-stream schedule nonce: StaffSponge(R, seed, b"sched" || pickup || nonce || chunk_size32 || ad_digest).take(16)."""
+def _rehearsal_schedule_nonce(seed, pickup, nonce, chunk_size, ad_digest, fmt=FMT_REHEARSAL) -> bytes:
+    """Per-stream schedule nonce: StaffSponge(R, seed, label("sched") || pickup || nonce || chunk_size32 || ad_digest).take(16)."""
     return StaffSponge(REHEARSAL_DOMAIN, _seed_bytes(seed),
-                       b"sched" + pickup + nonce + chunk_size.to_bytes(4, "big") + ad_digest).take(NONCE_LEN)
+                       _rehearsal_label(b"sched", fmt) + pickup + nonce + chunk_size.to_bytes(4, "big") + ad_digest).take(NONCE_LEN)
 
-def _rehearsal_chunk_sponge(seed, pickup, nonce, chunk_size, index, final, ad_digest) -> StaffSponge:
-    """Per-chunk sponge, domain R, over b"chunk" || pickup || nonce || chunk_size32 || index64 || final8 || ad_digest.
+def _rehearsal_chunk_sponge(seed, pickup, nonce, chunk_size, index, final, ad_digest, fmt=FMT_REHEARSAL) -> StaffSponge:
+    """Per-chunk sponge, domain R, over label("chunk") || pickup || nonce || chunk_size32 || index64 || final8 || ad_digest.
     First 32 bytes: the chunk MAC key. Then one 128-byte XEX tweak per block."""
     return StaffSponge(REHEARSAL_DOMAIN, _seed_bytes(seed),
-                       b"chunk" + pickup + nonce + chunk_size.to_bytes(4, "big")
+                       _rehearsal_label(b"chunk", fmt) + pickup + nonce + chunk_size.to_bytes(4, "big")
                        + index.to_bytes(8, "big") + _final_flag(final) + ad_digest)
 
-def _rehearsal_chunk_key(seed, pickup, nonce, chunk_size, index, final, ad_digest) -> bytes:
-    return _rehearsal_chunk_sponge(seed, pickup, nonce, chunk_size, index, final, ad_digest).take(32)
+def _rehearsal_chunk_key(seed, pickup, nonce, chunk_size, index, final, ad_digest, fmt=FMT_REHEARSAL) -> bytes:
+    return _rehearsal_chunk_sponge(seed, pickup, nonce, chunk_size, index, final, ad_digest, fmt).take(32)
 
-def _rehearsal_tag(chunk_key, clef, rsig, pickup, nonce, commit, chunk_size, index, final, ad_digest, ct) -> bytes:
-    """HMAC-SHA256(K_chunk, clef || rehearsal_sig || 8 || SN2 || pickup || nonce || commit || chunk_size32
-    || index64 || final8 || ad_digest || ct). Everything before ct is fixed-length."""
-    return hmac.new(chunk_key, clef + rsig + bytes([FMT_REHEARSAL]) + VERSION + pickup + nonce + commit
+def _rehearsal_tag(chunk_key, clef, rsig, pickup, nonce, commit, chunk_size, index, final, ad_digest, ct,
+                   fmt=FMT_REHEARSAL, prev=REHEARSAL_CHAIN_IV) -> bytes:
+    """v9: HMAC-SHA256(K_chunk, clef || rehearsal_sig || 9 || SN2 || pickup || nonce || commit || chunk_size32
+    || index64 || final8 || ad_digest || prev_tag(32) || ct), prev_tag = the previous chunk's tag
+    (REHEARSAL_CHAIN_IV for chunk 0). v8 (legacy): the same without prev_tag. Everything before ct is fixed-length."""
+    if _rehearsal_fmt(fmt) == FMT_REHEARSAL_V8:
+        chain = b""
+    else:
+        chain = bytes(prev)
+        if len(chain) != TAG_LEN:
+            raise ValueError("chain value must be 32 bytes")
+    return hmac.new(chunk_key, clef + rsig + bytes([fmt]) + VERSION + pickup + nonce + commit
                     + chunk_size.to_bytes(4, "big") + index.to_bytes(8, "big") + _final_flag(final)
-                    + ad_digest + ct, hashlib.sha256).digest()
+                    + ad_digest + chain + ct, hashlib.sha256).digest()
 
-def _rehearsal_tweaks(seed, pickup, nonce, chunk_size, index, final, ad_digest, nblocks) -> list:
+def _rehearsal_tweaks(seed, pickup, nonce, chunk_size, index, final, ad_digest, nblocks, fmt=FMT_REHEARSAL) -> list:
     """The chunk's XEX tweaks: the chunk sponge's output after its 32-byte MAC key, 128 bytes per block."""
-    sp = _rehearsal_chunk_sponge(seed, pickup, nonce, chunk_size, index, final, ad_digest)
+    sp = _rehearsal_chunk_sponge(seed, pickup, nonce, chunk_size, index, final, ad_digest, fmt)
     sp.take(32)
     return [sp.take(BLOCK_LEN) for _ in range(nblocks)]
 
@@ -1453,10 +1793,10 @@ def _rehearsal_blocks(sch, data, decrypt) -> bytes:
         out.append(grid_to_bytes(decrypt_grid(g, sch) if decrypt else encrypt_grid(g, sch)))
     return b"".join(out)
 
-def _rehearsal_crypt_chunk(seed, sch, pickup, nonce, chunk_size, index, final, ad_digest, data, decrypt) -> bytes:
+def _rehearsal_crypt_chunk(seed, sch, pickup, nonce, chunk_size, index, final, ad_digest, data, decrypt, fmt=FMT_REHEARSAL) -> bytes:
     """XEX every 128-byte block of one chunk under the stream Schedule: ct = E(P ^ T) ^ T, with
     T the chunk's tweaks (_rehearsal_tweaks). len(data) % 128 == 0."""
-    tw = _rehearsal_tweaks(seed, pickup, nonce, chunk_size, index, final, ad_digest, len(data) // BLOCK_LEN)
+    tw = _rehearsal_tweaks(seed, pickup, nonce, chunk_size, index, final, ad_digest, len(data) // BLOCK_LEN, fmt)
     return _rehearsal_mask(_rehearsal_blocks(sch, _rehearsal_mask(data, tw), decrypt), tw)
 
 # Worker body for workers > 1 (rehearsal-fix I2, rehearsal-polish I1/I2, rehearsal-finale I6). Runs in
@@ -1501,7 +1841,7 @@ class _RehearsalWorkers:
     """Spawn-style worker processes for one stream (rehearsal-fix I2). Each worker is a fresh
     interpreter started with subprocess, not multiprocessing: multiprocessing's spawn and forkserver
     start methods re-run the caller's __main__ in every worker unless it is guarded, and fork copies
-    the whole parent memory (other seeds in the seed memo, unrelated secrets). Workers are started
+    the whole parent memory (other seeds, unrelated secrets). Workers are started
     lazily, at most min(workers, chunks in the batch), and each one gets only the module source this
     process imported, the stream's Schedule round material and masked blocks (rehearsal-polish I1:
     a file replaced on disk after import is never run; the hello is only a pipe/version sanity check).
@@ -1684,11 +2024,11 @@ class _RehearsalBase:
         if self._workers > 1 and len(jobs) > 1:
             if self._pool is None:
                 self._pool = _RehearsalWorkers(self._workers, self._sch, self._worker_timeout)
-            tws = [_rehearsal_tweaks(self._seed, self._pickup, self._nonce, self._cs, i, f, self._adh, len(d) // BLOCK_LEN)
+            tws = [_rehearsal_tweaks(self._seed, self._pickup, self._nonce, self._cs, i, f, self._adh, len(d) // BLOCK_LEN, self._fmt)
                    for i, f, d in jobs]
             outs = self._pool.run([_rehearsal_mask(d, tw) for (i, f, d), tw in zip(jobs, tws)], decrypt)
             return [_rehearsal_mask(o, tw) for o, tw in zip(outs, tws)]
-        return [_rehearsal_crypt_chunk(self._seed, self._sch, self._pickup, self._nonce, self._cs, i, f, self._adh, d, decrypt)
+        return [_rehearsal_crypt_chunk(self._seed, self._sch, self._pickup, self._nonce, self._cs, i, f, self._adh, d, decrypt, self._fmt)
                 for i, f, d in jobs]
     def _close_pool(self):
         pool = getattr(self, "_pool", None)
@@ -1708,16 +2048,17 @@ class _RehearsalBase:
         except Exception: pass
 
 class RehearsalEncryptor(_RehearsalBase):
-    """Incremental rehearsal (format version 8) encryptor.
+    """Incremental rehearsal (format version 9, chained tags) encryptor.
 
         enc = RehearsalEncryptor(seed, ad=b"...", chunk_size=65536)
         out = enc.update(part1) + enc.update(part2) + ... + enc.finalize()
 
     The first bytes returned (by update() or finalize()) are the 72-byte header
-    version(1)=8 || SN2 || pickup(16) || nonce(16) || commit(32) || chunk_size(4).
+    version(1)=9 || SN2 || pickup(16) || nonce(16) || commit(32) || chunk_size(4).
     A non-final chunk is sealed and returned as soon as chunk_size plaintext bytes
     are buffered; finalize() seals the remaining 0..chunk_size-1 bytes as the final
-    chunk (always present). pickup and nonce are fresh for every stream; there is no
+    chunk (always present). Every chunk tag covers the previous chunk's tag (rehearsal-chain), so
+    the final tag authenticates the whole stream. pickup and nonce are fresh for every stream; there is no
     public nonce argument. workers > 1 encrypts batches of chunks in fresh worker
     interpreters (never fork; capped at min(32, os.cpu_count())); the output is
     byte-identical to workers=1. worker_timeout (seconds per worker frame, default
@@ -1726,21 +2067,23 @@ class RehearsalEncryptor(_RehearsalBase):
     chunk_size in 128..1 MiB (multiple of 128), MAX_REHEARSAL_CHUNKS chunks (ValueError beyond)."""
     def __init__(self, seed=None, ad: bytes = b"", chunk_size: int = REHEARSAL_CHUNK_DEFAULT, *, workers: int = 1,
                  worker_timeout: float = None):
-        ad = _normalize_ad(ad)
         self._pool = None
+        self._seed = _seed_bytes(seed)                 # chainfix I3: the seed is checked first
+        ad = _normalize_ad(ad)
+        self._fmt = FMT_REHEARSAL
+        self._prev = REHEARSAL_CHAIN_IV
         self._cs = _rehearsal_chunk_size(chunk_size)
         self._workers = _rehearsal_workers(workers)
         self._worker_timeout = _rehearsal_worker_timeout(worker_timeout)
-        self._seed = _seed_bytes(seed)
         self._pickup = _fresh_pickup()
         self._nonce = _fresh_stream_nonce()
-        self._commit = _rehearsal_commitment(_commit_key(self._seed), self._pickup, self._nonce, ad, self._cs)
-        self.header = (bytes([FMT_REHEARSAL]) + VERSION + self._pickup + self._nonce + self._commit
+        self._commit = _rehearsal_commitment(_commit_key(self._seed), self._pickup, self._nonce, ad, self._cs, self._fmt)
+        self.header = (bytes([self._fmt]) + VERSION + self._pickup + self._nonce + self._commit
                        + self._cs.to_bytes(4, "big"))
         self._clef = staff_clef(self._seed)
         self._rsig = rehearsal_signature(self._seed)
         self._adh = _rehearsal_ad_digest(ad)
-        self._sched_nonce = _rehearsal_schedule_nonce(self._seed, self._pickup, self._nonce, self._cs, self._adh)
+        self._sched_nonce = _rehearsal_schedule_nonce(self._seed, self._pickup, self._nonce, self._cs, self._adh, self._fmt)
         self._sch = None
         self._buf = bytearray()
         self._index = 0
@@ -1759,10 +2102,12 @@ class RehearsalEncryptor(_RehearsalBase):
     def _seal(self, jobs) -> bytes:
         cts = self._crypt_jobs(jobs, decrypt=False)
         out = []
-        for (i, final, _), ct in zip(jobs, cts):
-            key = _rehearsal_chunk_key(self._seed, self._pickup, self._nonce, self._cs, i, final, self._adh)
-            out.append(ct + _rehearsal_tag(key, self._clef, self._rsig, self._pickup, self._nonce, self._commit,
-                                           self._cs, i, final, self._adh, ct))
+        for (i, final, _), ct in zip(jobs, cts):       # blocks may be parallel; the tag chain is sequential
+            key = _rehearsal_chunk_key(self._seed, self._pickup, self._nonce, self._cs, i, final, self._adh, self._fmt)
+            tag = _rehearsal_tag(key, self._clef, self._rsig, self._pickup, self._nonce, self._commit,
+                                 self._cs, i, final, self._adh, ct, self._fmt, self._prev)
+            self._prev = tag
+            out.append(ct + tag)
         return b"".join(out)
 
     def _take_header(self) -> bytes:
@@ -1802,7 +2147,7 @@ class RehearsalEncryptor(_RehearsalBase):
         return out
 
 class RehearsalDecryptor(_RehearsalBase):
-    """Incremental rehearsal (format version 8) decryptor.
+    """Incremental rehearsal (format version 9, chained tags) decryptor.
 
         dec = RehearsalDecryptor(seed, ad=b"...")
         for piece in stream: out.write(dec.update(piece))   # verified plaintext only
@@ -1839,7 +2184,12 @@ class RehearsalDecryptor(_RehearsalBase):
     declares a larger chunk size is rejected at once (AuthError "chunk size above
     max_chunk_size"), before any chunk is buffered.
 
-    Rejects. Version byte != 8 raises UnsupportedVersion (like every other decrypt API).
+    Chunk i verifies only against the tag of the chunk before it (rehearsal-chain), so a stream that
+    opens is byte-identical to a stream the sender produced, even if a pickup and nonce were ever
+    repeated: no reordering, dropping, truncation or splicing between streams gets through.
+
+    Rejects. Version byte != 9 raises UnsupportedVersion (like every other decrypt API); a
+    rehearsal-curtain v8 stream opens only via decrypt_rehearsal_legacy(..., allow_unchained=True).
     Everything else raises AuthError: "bad version prefix", "bad chunk size",
     "chunk size above max_chunk_size", "bad stream length", "too many chunks" (public
     structure), and "authentication failed" for commitment, tag and final-padding
@@ -1851,13 +2201,15 @@ class RehearsalDecryptor(_RehearsalBase):
                  worker_timeout: float = None):
         self._pool = None
         self._state = "init"
+        self._seed = _seed_bytes(seed)                 # chainfix I3: the seed is checked first
         self._ad = _normalize_ad(ad)
         self._workers = _rehearsal_workers(workers)
         self._worker_timeout = _rehearsal_worker_timeout(worker_timeout)
         self._max_cs = _rehearsal_max_chunk_size(max_chunk_size)
-        self._seed = _seed_bytes(seed)
+        self._fmt = self._FMT
+        self._prev = REHEARSAL_CHAIN_IV
         self._clef = staff_clef(self._seed)
-        self._rsig = rehearsal_signature(self._seed)
+        self._rsig = self._signature()
         self._adh = _rehearsal_ad_digest(self._ad)
         self._hdr = None
         self._sch = None
@@ -1866,6 +2218,11 @@ class RehearsalDecryptor(_RehearsalBase):
         self._commit_ok = False
         self._seen = False
         self._state = "open"
+
+    _FMT = FMT_REHEARSAL
+
+    def _signature(self) -> bytes:
+        return rehearsal_signature(self._seed)
 
     @property
     def workers(self) -> int:
@@ -1884,7 +2241,7 @@ class RehearsalDecryptor(_RehearsalBase):
 
     def _parse_header(self) -> bool:
         b = self._buf
-        if len(b) >= 1 and b[0] != FMT_REHEARSAL:
+        if len(b) >= 1 and b[0] != self._fmt:
             raise UnsupportedVersion("unsupported version")
         if len(b) < REHEARSAL_HDR_LEN:
             return False
@@ -1899,16 +2256,18 @@ class RehearsalDecryptor(_RehearsalBase):
         self._commit, self._cs = bytes(b[CM0:CM1]), cs
         # Computed now, combined with chunk 0's tag later (no early reject on the commitment).
         self._commit_ok = hmac.compare_digest(self._commit, _rehearsal_commitment(
-            _commit_key(self._seed), self._pickup, self._nonce, self._ad, cs))
-        self._sched_nonce = _rehearsal_schedule_nonce(self._seed, self._pickup, self._nonce, cs, self._adh)
+            _commit_key(self._seed), self._pickup, self._nonce, self._ad, cs, self._fmt))
+        self._sched_nonce = _rehearsal_schedule_nonce(self._seed, self._pickup, self._nonce, cs, self._adh, self._fmt)
         self._hdr = bytes(b[:REHEARSAL_HDR_LEN])
         del self._buf[:REHEARSAL_HDR_LEN]
         return True
 
     def _verify(self, index, final, ct, tag) -> bool:
-        key = _rehearsal_chunk_key(self._seed, self._pickup, self._nonce, self._cs, index, final, self._adh)
+        key = _rehearsal_chunk_key(self._seed, self._pickup, self._nonce, self._cs, index, final, self._adh, self._fmt)
         ok = hmac.compare_digest(tag, _rehearsal_tag(key, self._clef, self._rsig, self._pickup, self._nonce,
-                                                     self._commit, self._cs, index, final, self._adh, ct))
+                                                     self._commit, self._cs, index, final, self._adh, ct,
+                                                     self._fmt, self._prev))
+        self._prev = tag                        # rehearsal-chain: a failed tag kills the stream, so no branch is needed
         if index == 0:
             ok = ok & self._commit_ok           # equal-time: both always computed, one reject
         return ok
@@ -2045,9 +2404,55 @@ class RehearsalDecryptor(_RehearsalBase):
                                    f.f_code.co_filename if f else "<octavo>", f.f_lineno if f else 0,
                                    module=(f.f_globals.get("__name__") if f else None) or type(self).__module__, registry=None)
 
+class _RehearsalDecryptorV8(RehearsalDecryptor):
+    """rehearsal-chain: reader for rehearsal-curtain format version 8 streams (UNCHAINED chunk tags,
+    rehearsal_sig under the frozen REHEARSAL_V8_SHA256). Reached only through decrypt_rehearsal_legacy."""
+    _FMT = FMT_REHEARSAL_V8
+
+    def __init__(self, seed=None, ad: bytes = b"", *, allow_unchained=False, workers: int = 1,
+                 max_chunk_size: int = None, worker_timeout: float = None):
+        """chainfix I2: gated like decrypt_rehearsal_legacy. Refuses (ValueError) unless allow_unchained is
+        exactly True and emits LegacyFormatWarning on every construction, so update()/finalize() on a v8
+        stream is never silent even through this private class."""
+        self._pool = None
+        self._state = "init"
+        _require_unchained(allow_unchained)
+        super().__init__(seed, ad, workers=workers, max_chunk_size=max_chunk_size, worker_timeout=worker_timeout)
+
+    def _signature(self) -> bytes:
+        return StaffSponge(REHEARSAL_SIG_DOMAIN, self._seed, bytes.fromhex(REHEARSAL_V8_SHA256)).take(16)
+
+def _require_unchained(allow, warn=True):
+    """rehearsal-chain: the legacy v8 gate. Refuse (ValueError) unless allow_unchained is exactly True,
+    and (warn=True) emit LegacyFormatWarning (like the non-committing v2/v3 helpers). chainfix: the public
+    reader checks the flag first with warn=False; _RehearsalDecryptorV8 checks it again and emits the one
+    warning, so constructing the private class directly is gated the same way (I2). The appended
+    "always" filter makes the warning show on every call (I1)."""
+    if allow is not True:
+        raise ValueError("format version 8 rehearsal streams have unchained chunk tags (chunks of two streams that "
+                         "share a pickup and nonce can be spliced); pass allow_unchained=True to open one anyway")
+    if warn:
+        warnings.warn("opening a legacy format version 8 rehearsal stream: unchained chunk tags (re-encrypt it as v9)",
+                      LegacyFormatWarning, stacklevel=4)
+
+def decrypt_rehearsal_legacy(blob: bytes, seed=None, ad: bytes = b"", *, allow_unchained=False, workers: int = 1,
+                             max_chunk_size: int = None, worker_timeout: float = None) -> bytes:
+    """rehearsal-chain: one-shot, all-or-nothing reader for rehearsal-curtain format version 8 streams
+    (published as score version 8 and the rehearsal-curtain rehearsal-demo.txt). v8 chunk tags are not
+    chained, so under a repeated pickup and nonce (never seen from this code's encryptors) same-index
+    chunks of two streams could be spliced; that is why it needs allow_unchained=True and warns
+    (LegacyFormatWarning) on every call. Accepts ONLY version 8 (anything else: UnsupportedVersion).
+    There is no streaming or file-helper legacy path: open the stream here and re-encrypt it as v9."""
+    _require_unchained(allow_unchained, warn=False)
+    seed = _seed_bytes(seed)                   # chainfix I3: the seed is checked before the blob
+    blob = _as_bytes("blob", blob)
+    dec = _RehearsalDecryptorV8(seed, ad, allow_unchained=allow_unchained, workers=workers,
+                                max_chunk_size=max_chunk_size, worker_timeout=worker_timeout)
+    return dec._open_all(blob)
+
 def encrypt_rehearsal(msg: bytes, seed=None, ad: bytes = b"", chunk_size: int = REHEARSAL_CHUNK_DEFAULT, *, workers: int = 1,
                       worker_timeout: float = None) -> bytes:
-    """One-shot rehearsal (v8) stream: RehearsalEncryptor(...).update(msg) + finalize(). No length cap
+    """One-shot rehearsal (v9, chained) stream: RehearsalEncryptor(...).update(msg) + finalize(). No length cap
     beyond MAX_REHEARSAL_CHUNKS chunks. Byte-identical to any incremental split for the same pickup/nonce.
     Memory (rehearsal-polish I8): the caller's msg plus about 2x its size while sealing (the
     plaintext copy buffered in the encryptor and the joined output); use RehearsalEncryptor or
@@ -2058,7 +2463,7 @@ def encrypt_rehearsal(msg: bytes, seed=None, ad: bytes = b"", chunk_size: int = 
 
 def decrypt_rehearsal(blob: bytes, seed=None, ad: bytes = b"", *, workers: int = 1, max_chunk_size: int = None,
                       worker_timeout: float = None) -> bytes:
-    """One-shot rehearsal (v8) decrypt: all-or-nothing. Every chunk tag, the final chunk's included,
+    """One-shot rehearsal (v9, chained) decrypt: all-or-nothing. Every chunk tag, the final chunk's included,
     is checked before any block is decrypted (rehearsal-fix I3). Returns the whole plaintext only if
     every chunk verified and the final padding is valid; otherwise raises (nothing is returned).
     Memory (rehearsal-polish I8): on top of the caller's blob, peak use is about 4x the blob for a
@@ -2681,11 +3086,11 @@ def decrypt_rehearsal_file(src, dst, seed=None, ad: bytes = b"", *, workers: int
 # seed-keyed rehearsal signature (domain H), bound into every chunk tag.
 REHEARSAL_CODE_ROOTS = ("RehearsalEncryptor", "RehearsalDecryptor", "encrypt_rehearsal", "decrypt_rehearsal",
                         "encrypt_rehearsal_file", "decrypt_rehearsal_file", "iter_rehearsal",
-                        "rehearsal_signature", "rehearsal_description")
+                        "rehearsal_signature", "rehearsal_description", "decrypt_rehearsal_legacy")
 
 def rehearsal_description():
     """Canonical ASCII JSON: the live mix digest, a framed hash of the source of every function/class
-    reachable from REHEARSAL_CODE_ROOTS, a framed hash of the module data they name, and the v8 layout."""
+    reachable from REHEARSAL_CODE_ROOTS, a framed hash of the module data they name, and the v9 layout."""
     reach, data_names = mix_code_closure(REHEARSAL_CODE_ROOTS)
     funcs = tuple(sorted(reach))
     code = hashlib.sha256()
@@ -2702,10 +3107,14 @@ def rehearsal_description():
         format=FMT_REHEARSAL, mix_sha256=_MIX_SHA256,
         code=dict(functions=funcs, roots=REHEARSAL_CODE_ROOTS, sha256=code.hexdigest()),
         data=dict(names=tuple(sorted(data_names)), sha256=data.hexdigest()),
-        header="version(1)=8||SN2(3)||pickup(16)||nonce(16)||commit(32)||chunk_size(4)",
+        header="version(1)=9||SN2(3)||pickup(16)||nonce(16)||commit(32)||chunk_size(4)",
         chunk="ct||tag(32); non-final ct=chunk_size; final ct=128*ceil((L+1)/128), msg||0x80||0*",
-        block=("E(P^T)^T under Schedule(seed, R-sponge(sched||pickup||nonce||cs32||ad_digest)[:16]); "
-               "T from R-sponge(chunk||pickup||nonce||cs32||index64||final8||ad_digest)"),
+        chain=("tag_i=HMAC(K_i, clef||rsig||9||SN2||pickup||nonce||commit||cs32||index64||final8||ad_digest||tag_{i-1}||ct_i); "
+               "tag_{-1}=32 zero bytes"),
+        block=("E(P^T)^T under Schedule(seed, R-sponge(sched||9||pickup||nonce||cs32||ad_digest)[:16]); "
+               "T from R-sponge(chunk||9||pickup||nonce||cs32||index64||final8||ad_digest)"),
+        legacy_v8=dict(reader="decrypt_rehearsal_legacy(allow_unchained=True)", rehearsal_sha256=REHEARSAL_V8_SHA256,
+                       tags="unchained", labels="sched,chunk"),
         ad_digest="SHA-256(SN2/A||encode_ad(ad))",
         domains=dict(chunk=REHEARSAL_DOMAIN.decode(), signature=REHEARSAL_SIG_DOMAIN.decode(), commit=COMMIT_DOMAIN.decode()),
         limits=dict(chunk_min=REHEARSAL_CHUNK_MIN, chunk_max=REHEARSAL_CHUNK_MAX, chunk_default=REHEARSAL_CHUNK_DEFAULT,
@@ -2723,39 +3132,65 @@ def encrypt_hello(seed=None):
     v, pk, n, commit, ct, tag = split_blob(blob); g = bytes_to_grid(ct)
     return dict(blob=blob, pickup=pk, nonce=n, commit=commit, ct=ct, tag=tag, grid=g, rows=grid_rows(g))
 
+def _signature_nonce(pin, core, digest) -> str:
+    """key-fix: the pinned digest while the core matches the pin, else the live attestation digest."""
+    return pin[1] if core == pin[0] else digest
+
 def _init_attestation():
-    """Compute mix_description() once from source and check it against EXPECTED_MIX_SHA256.
-    If inspect cannot read source (a .pyc-only install), use the embedded digest."""
-    global _MIX_SHA256, _SOURCE_AVAILABLE
+    """Compute mix_description() and the mix core digest once from source and check them against
+    EXPECTED_MIX_SHA256 / EXPECTED_MIX_CORE_SHA256. If inspect cannot read source (a .pyc-only
+    install), use the embedded digests. _MIX_ATTEST_SHA256 is the full attestation digest;
+    _MIX_SHA256 is the key_sig nonce (key-fix: KEY_SIG_PIN while the core is unchanged)."""
+    global _MIX_SHA256, _MIX_ATTEST_SHA256, _MIX_CORE_SHA256, _SOURCE_AVAILABLE
     try:
         digest = hashlib.sha256(mix_description()).hexdigest()
+        core = _core_digest(MIX_CODE_ROOTS, MIX_CODE_FUNCS)
         _SOURCE_AVAILABLE = True
         if EXPECTED_MIX_SHA256 != "TO_BE_FILLED" and digest != EXPECTED_MIX_SHA256:
             raise RuntimeError("embedded mix attestation mismatch: computed %s != %s" % (digest, EXPECTED_MIX_SHA256))
-        _MIX_SHA256 = digest
+        if EXPECTED_MIX_CORE_SHA256 != "TO_BE_FILLED" and core != EXPECTED_MIX_CORE_SHA256:
+            raise RuntimeError("embedded mix core attestation mismatch: computed %s != %s" % (core, EXPECTED_MIX_CORE_SHA256))
     except OSError:
-        if EXPECTED_MIX_SHA256 == "TO_BE_FILLED":
+        if "TO_BE_FILLED" in (EXPECTED_MIX_SHA256, EXPECTED_MIX_CORE_SHA256):
             raise RuntimeError("no source and no embedded mix attestation")
         _SOURCE_AVAILABLE = False
-        _MIX_SHA256 = EXPECTED_MIX_SHA256
+        digest, core = EXPECTED_MIX_SHA256, EXPECTED_MIX_CORE_SHA256
+    _MIX_ATTEST_SHA256, _MIX_CORE_SHA256 = digest, core
+    _MIX_SHA256 = _signature_nonce(KEY_SIG_PIN, core, digest)
 
-_init_attestation()
 
 def _init_rehearsal_attestation():
     """Compute sha256(rehearsal_description()) once and check it against EXPECTED_REHEARSAL_SHA256.
     Without source (a .pyc-only install) the embedded digest is used, as for the mix digest."""
-    global _REHEARSAL_SHA256
+    global _REHEARSAL_SHA256, _REHEARSAL_ATTEST_SHA256, _REHEARSAL_CORE_SHA256
     try:
         digest = hashlib.sha256(rehearsal_description()).hexdigest()
+        core = _core_digest(REHEARSAL_CODE_ROOTS, (), bytes.fromhex(_MIX_SHA256))
         if EXPECTED_REHEARSAL_SHA256 != "TO_BE_FILLED" and digest != EXPECTED_REHEARSAL_SHA256:
             raise RuntimeError("embedded rehearsal attestation mismatch: computed %s != %s" % (digest, EXPECTED_REHEARSAL_SHA256))
-        _REHEARSAL_SHA256 = digest
+        if EXPECTED_REHEARSAL_CORE_SHA256 != "TO_BE_FILLED" and core != EXPECTED_REHEARSAL_CORE_SHA256:
+            raise RuntimeError("embedded rehearsal core attestation mismatch: computed %s != %s" % (core, EXPECTED_REHEARSAL_CORE_SHA256))
     except OSError:
-        if EXPECTED_REHEARSAL_SHA256 == "TO_BE_FILLED":
+        if "TO_BE_FILLED" in (EXPECTED_REHEARSAL_SHA256, EXPECTED_REHEARSAL_CORE_SHA256):
             raise RuntimeError("no source and no embedded rehearsal attestation")
-        _REHEARSAL_SHA256 = EXPECTED_REHEARSAL_SHA256
+        digest, core = EXPECTED_REHEARSAL_SHA256, EXPECTED_REHEARSAL_CORE_SHA256
+    _REHEARSAL_ATTEST_SHA256, _REHEARSAL_CORE_SHA256 = digest, core
+    _REHEARSAL_SHA256 = _signature_nonce(REHEARSAL_SIG_PIN, core, digest)
 
-_init_rehearsal_attestation()
+
+def _init_seed_policy_attestation():
+    """chainfix L1: compute _seed_policy_digest() once and check it against EXPECTED_SEED_POLICY_SHA256
+    (embedded digest when there is no source, as for the other two)."""
+    global _SEED_POLICY_SHA256
+    try:
+        digest = _seed_policy_digest()
+        if EXPECTED_SEED_POLICY_SHA256 != "TO_BE_FILLED" and digest != EXPECTED_SEED_POLICY_SHA256:
+            raise RuntimeError("embedded seed-policy attestation mismatch: computed %s != %s" % (digest, EXPECTED_SEED_POLICY_SHA256))
+    except OSError:
+        if EXPECTED_SEED_POLICY_SHA256 == "TO_BE_FILLED":
+            raise RuntimeError("no source and no embedded seed-policy attestation")
+        digest = EXPECTED_SEED_POLICY_SHA256
+    _SEED_POLICY_SHA256 = digest
 
 def _executed_pyc_code():
     """rehearsal-curtain L1: the code object of the cached .pyc Python would have executed for this
@@ -2845,4 +3280,8 @@ def _verify_executed_code():
     if not seen:
         raise RuntimeError("executed-code check found nothing to compare")
 
+# chainfix I5: the import checks run last, once every attested function (the pin logic included) exists.
+_init_attestation()
+_init_rehearsal_attestation()
+_init_seed_policy_attestation()
 _verify_executed_code()

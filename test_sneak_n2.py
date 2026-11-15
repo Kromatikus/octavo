@@ -8,6 +8,16 @@ def check(name, cond):
     global P, F
     if cond: P += 1; print("PASS", name)
     else: F += 1; print("FAIL", name)
+def _suite_abort_hook(tp, val, tb):
+    """chainfix I7: an uncaught exception anywhere in the suite is reported as one FAIL plus the totals so
+    far (exit 1), not just a traceback that hides how many checks ran."""
+    global F
+    import traceback; traceback.print_exception(tp, val, tb)
+    F += 1; print("FAIL suite aborted by uncaught %s: %s" % (tp.__name__, val))
+    print(f"\n{P}/{P+F} passed, {F} failed, {S} skipped (ABORTED)")
+    sys.stdout.flush()
+    os._exit(1)
+sys.excepthook = _suite_abort_hook
 def skip(name):
     global S
     S += 1; print("SKIP", name)
@@ -27,6 +37,14 @@ def catch(f):
     try: f(); return None
     except Exception as e: return e
 rb = lambda n: bytes(R.randrange(256) for _ in range(n))
+def _loosen_all(src_text):
+    """key-fix: a modified copy must recompute every embedded digest (full and core, mix and rehearsal)."""
+    for name in ("EXPECTED_MIX_SHA256", "EXPECTED_REHEARSAL_SHA256", "EXPECTED_MIX_CORE_SHA256", "EXPECTED_REHEARSAL_CORE_SHA256",
+                 "EXPECTED_SEED_POLICY_SHA256"):
+        old = '%s = "%s"' % (name, getattr(N, name))
+        assert src_text.count(old) == 1, name
+        src_text = src_text.replace(old, '%s = "TO_BE_FILLED"' % name, 1)
+    return src_text
 rgrid = lambda: [[R.randrange(256) for _ in range(8)] for _ in range(16)]
 flip = lambda b, k: bytes(x ^ (1 << (k % 8)) if i == k // 8 else x for i, x in enumerate(b))
 hd = lambda a, b: sum(bin(x ^ y).count("1") for x, y in zip(a, b))
@@ -54,8 +72,9 @@ with tempfile.TemporaryDirectory(prefix="n2_noseed_") as _td:
     _e = catch(lambda: _alt.load_seed())
     check("load_seed() raises when the module-relative seed file is missing (no /workspace fallback)",
           isinstance(_e, FileNotFoundError) and _alt.SEED_PATH==os.path.join(_td, "sneak1024-seed.txt"))
-check("embedded mix digest matches a fresh sha256(mix_description())",
-      N.EXPECTED_MIX_SHA256==N._MIX_SHA256==hashlib.sha256(N.mix_description()).hexdigest() and N._SOURCE_AVAILABLE is True)
+check("embedded mix digest matches a fresh sha256(mix_description()) (key-fix: the full attestation digest is _MIX_ATTEST_SHA256)",
+      N.EXPECTED_MIX_SHA256==N._MIX_ATTEST_SHA256==hashlib.sha256(N.mix_description()).hexdigest() and N._SOURCE_AVAILABLE is True
+      and N.EXPECTED_MIX_CORE_SHA256==N._MIX_CORE_SHA256==N._core_digest(N.MIX_CODE_ROOTS, N.MIX_CODE_FUNCS))
 check("FMT_VERSION is 6 and is authenticated in the tag; legacy v2 is 2; unpublished v4 is 4", N.FMT_VERSION==6 and N.FMT_VERSION_V2==2 and N.FMT_VERSION_V4==4)
 old_style = b"SN2" + bytes(192)
 e_old = catch(lambda: N.decrypt(old_style, SEED))
@@ -474,7 +493,7 @@ else:
     check("triplet tables and integer arithmetic unchanged from pickup era", N.TRIPLETS == PICKUP_OLD.TRIPLETS
           and all(inspect.getsource(getattr(N,n)) == inspect.getsource(getattr(PICKUP_OLD,n)) for n in ("triplet_apply", "triplet_inv", "triplet_det", "triplet_mix", "triplet_unmix")))
 check("key signature uses domain G and sha256(mix_description()) as sponge nonce (independent hashlib)",
-      len(N.key_signature(SEED)) == 16 and N._MIX_SHA256 == N.EXPECTED_MIX_SHA256 == hashlib.sha256(N.mix_description()).hexdigest()
+      len(N.key_signature(SEED)) == 16 and N._MIX_SHA256 == N._signature_nonce(N.KEY_SIG_PIN, N._MIX_CORE_SHA256, N._MIX_ATTEST_SHA256)
       and N.key_signature(SEED) == hashlib.sha256(
           b"SN2/G" + bytes(4) + SEED + bytes.fromhex(N._MIX_SHA256)).digest()[:16])
 check("key signature has no public encrypt/decrypt override and no blob field", list(inspect.signature(N.encrypt).parameters) == ["msg","seed","nonce","ad"]
@@ -950,15 +969,15 @@ def indep_closure():
 reach,reach_data=indep_closure()
 IMPORT_TIME_BUILDERS={"_gf_mul_raw","bar_det","bar_inv","triplet_det","triplet_inv"}
 print("reachable functions/classes:",len(reach),"; reachable module data:",sorted(reach_data))
-check("nothing reachable from MIX_CODE_ROOTS is missing from MIX_CODE_FUNCS; listed extras are only the import-time table builders",
-      reach <= set(N.MIX_CODE_FUNCS) and set(N.MIX_CODE_FUNCS)-reach==IMPORT_TIME_BUILDERS
+check("MIX_CODE_FUNCS covers the whole closure (chainfix: _weak_seed_reason is listed); listed extras are the import-time table builders and the attestation-only names that no root reaches (load_seed, key tools, pin logic, helpers)",
+      reach-set(N.MIX_CODE_FUNCS)==set() and set(N.MIX_CODE_FUNCS)-reach==IMPORT_TIME_BUILDERS|{"_DerivedKey"}|(N.ATTEST_ONLY_NAMES-{"_seed_policy_check","_weak_seed_reason"})
       and (reach,reach_data)==N.mix_code_closure() and len(N.MIX_CODE_FUNCS)==len(set(N.MIX_CODE_FUNCS)))
 mod_defs={n for n,o in vars(N).items() if (inspect.isfunction(o) or inspect.isclass(o)) and getattr(o,"__module__",None)==N.__name__}
 print("module functions/classes NOT in coverage:",sorted(mod_defs-set(N.MIX_CODE_FUNCS)))
 _rh_only = N.mix_code_closure(N.REHEARSAL_CODE_ROOTS)[0]-set(N.MIX_CODE_FUNCS)
-check("only non-cipher helpers are outside mix coverage (ddt_max, lat_max, grid_rows, encrypt_hello, import attestations incl. the import-time source snapshot) plus rehearsal code, which the rehearsal digest covers",
-      mod_defs-set(N.MIX_CODE_FUNCS)=={"ddt_max","lat_max","grid_rows","encrypt_hello","_init_attestation","_init_rehearsal_attestation","_module_source_snapshot","_verify_executed_code","_executed_pyc_code"}|_rh_only
-      and all("rehearsal" in n.lower() or n in ("_fresh_stream_nonce","UnfinalizedStreamWarning") for n in _rh_only)
+check("chainfix I5/L2: every module function/class is attested: outside MIX_CODE_FUNCS is only rehearsal code, which the rehearsal digest covers (keygen, save_seed, the pin logic, ddt_max, lat_max, grid_rows, encrypt_hello are now listed)",
+      mod_defs-set(N.MIX_CODE_FUNCS)==_rh_only
+      and all("rehearsal" in n.lower() or n in ("_fresh_stream_nonce","UnfinalizedStreamWarning","_require_unchained") for n in _rh_only)
       and "UnfinalizedStreamWarning" in _rh_only and "_module_source_snapshot" not in _rh_only)
 check("closure includes staff_mix/staff_unmix/shell_mix/shell_unmix/weave/unweave/xor_grid/Schedule/keyed_sbox/encode_block/encrypt_grid/decrypt_grid",
       {"staff_mix","staff_unmix","shell_mix","shell_unmix","weave","unweave","xor_grid","Schedule","StaffSponge","keyed_sbox",
@@ -967,7 +986,7 @@ check("module data hashed includes BARS, BARS_INV, TRIPLETS(_INV), CROSS_*, BOW_
       {"BARS","BARS_INV","TRIPLETS","TRIPLETS_INV","CROSS_OPPOSITE","CROSS_RADIAL","CROSS_ADJACENT","CROSS_BRIDGE","CROSS_LAYERS",
        "BOW_STROKES","BOW_PRESSURE_ROT","BOW_ROT_BASE","BOW_ROT_MOD","BOW_R2_SHIFT","LAYERS","SM4_SBOX","_GF_MUL","MIX2_MATRIX","MIX2_INV","FIELD_POLY",
        "NF","NB","NR","BLOCK_LEN","VERSION","MAX_AD_LEN"} <= reach_data and json.loads(N.mix_description())["mix_data"]["names"]==sorted(reach_data)
-      and len(reach_data)==56)   # conductor-polish: + _UNPAD_TOP, _UNPAD_MASKS
+      and len(reach_data)==64)   # conductor-polish: + _UNPAD_TOP, _UNPAD_MASKS; key-fix: + SEED_* thresholds (7) and KNOWN_CONSTANT_SEEDS_SHA256
 def frame(h,parts):
     for part in parts: b=part.encode(); h.update(len(b).to_bytes(8,"big")); h.update(b)
 desc5=json.loads(N.mix_description())
@@ -992,10 +1011,9 @@ def modified_source(full, name):
 live_sig=N.key_signature(SEED); results={}
 def loosen_attest(src_text):
     # rehearsal: the rehearsal digest covers the staff-core too, so a modified copy loosens both embedded digests
-    return src_text.replace('EXPECTED_MIX_SHA256 = "'+N.EXPECTED_MIX_SHA256+'"', 'EXPECTED_MIX_SHA256 = "TO_BE_FILLED"', 1).replace(
-        'EXPECTED_REHEARSAL_SHA256 = "'+N.EXPECTED_REHEARSAL_SHA256+'"', 'EXPECTED_REHEARSAL_SHA256 = "TO_BE_FILLED"', 1)
+    return _loosen_all(src_text)
 with tempfile.TemporaryDirectory(prefix="n2_sig_gap_") as td:
-    for name in [n for n in N.MIX_CODE_FUNCS if n not in ("AuthError","DecodeError","UnsupportedVersion")]:
+    for name in [n for n in N.MIX_CODE_FUNCS if n not in ("AuthError","DecodeError","UnsupportedVersion")+tuple(N.ATTEST_ONLY_NAMES)]:
         path=os.path.join(td,"mod_"+name+".py"); open(path,"w").write(loosen_attest(modified_source(src,name)))
         alt=load("sig_gap_"+name,path)
         assert inspect.getsource(getattr(alt,name))!=inspect.getsource(getattr(N,name)), name
@@ -1007,7 +1025,22 @@ with tempfile.TemporaryDirectory(prefix="n2_sig_gap_") as td:
     for name in ("staff_mix","staff_unmix","shell_mix","shell_unmix","weave","unweave"):
         check("modified file of "+name+": key_sig changes and its blob fails live with AuthError authentication failed", results[name]==(True,True))
     check("modified file of EVERY covered function/class (all but the exception classes) changes key_sig and fails live on tag",
-          not bad and len(results)==len(N.MIX_CODE_FUNCS)-3)
+          not bad and len(results)==len(N.MIX_CODE_FUNCS)-3-len(N.ATTEST_ONLY_NAMES & set(N.MIX_CODE_FUNCS)) and "_seed_bytes" in results and "_CheckedSeed" in results)
+    # key-fix / chainfix: the seed-input policy, the key tools, the pin logic and the helpers are attested but
+    # NOT part of the core, so editing one moves the attestation digest (and, for the seed policy, its own
+    # EXPECTED_SEED_POLICY_SHA256) and nothing else. chainfix L1: _seed_bytes and _DerivedKey are core now
+    # (covered by the loop above: editing them moves key_sig).
+    for name in sorted(N.ATTEST_ONLY_NAMES):
+        path=os.path.join(td,"mod_policy_"+name+".py"); open(path,"w").write(_loosen_all(modified_source(src,name)))
+        alt=load("sig_gap_policy_"+name,path)
+        ab=alt.encrypt(b"hello world", SEED)
+        check("key-fix/chainfix: a modified "+name+" moves EXPECTED_MIX_SHA256"+(" and EXPECTED_SEED_POLICY_SHA256" if name in N.SEED_POLICY_NAMES else "")+" but not the core digests, key_sig, rehearsal_sig or any blob (live opens it)",
+              alt._MIX_ATTEST_SHA256!=N._MIX_ATTEST_SHA256 and alt._MIX_CORE_SHA256==N._MIX_CORE_SHA256
+              and alt._REHEARSAL_CORE_SHA256==N._REHEARSAL_CORE_SHA256
+              and (alt._SEED_POLICY_SHA256!=N._SEED_POLICY_SHA256)==(name in N.SEED_POLICY_NAMES)
+              and alt.key_signature(SEED)==live_sig and alt.rehearsal_signature(SEED)==N.rehearsal_signature(SEED)
+              and N.decrypt(ab,SEED)==b"hello world")
+        sys.modules.pop("sig_gap_policy_"+name,None)
     # Identity staff_mix as its own revision (file copy), not an in-process patch.
     idsrc=loosen_attest(src).replace("def staff_mix(g, sigma):", "def staff_mix(g, sigma):\n    return [row[:] for row in g]\n    # ", 1)
     idpath=os.path.join(td,"identity_staff_mix_rev.py"); open(idpath,"w").write(idsrc)
@@ -1301,8 +1334,8 @@ check("FEATURES mention the version byte and AD in the HMAC description, and AD 
       and any("tuning" in f and "HMAC" in f for f in N.FEATURES)
       and any("conductor" in f and "equal-time" in f for f in N.FEATURES)
       and any("conductor-polish" in f and "equal-time" in f for f in N.FEATURES)
-      and any("rehearsal" in f and "v8" in f for f in N.FEATURES)
-      and N.REVISION == "rehearsal-curtain" and N.REVISION_DATE == "2026-11-14")
+      and any("rehearsal" in f and "v9" in f and "chained" in f for f in N.FEATURES)
+      and N.REVISION == "rehearsal-chainfix" and N.REVISION_DATE == "2026-11-14")
 
 # ---- movements mode (format version 7; legacy version 3 only via decrypt_movements_legacy)
 check("FMT_MOVEMENTS is 7, distinct from single-block version 6, and the header/stride sizes match the layout",
@@ -1346,7 +1379,7 @@ check("movements oversize message and MAX_AD_LEN+1 are rejected",
       and isinstance(catch(lambda: N.encrypt_movements(b"x", SEED, ad=b"A" * (N.MAX_AD_LEN + 1))), ValueError)
       and isinstance(catch(lambda: N.decrypt_movements(_mv_ad_blob, SEED, ad=b"A" * (N.MAX_AD_LEN + 1))), ValueError))
 check("movements wrong seed, wrong AD, and empty-vs-absent AD mismatch fail closed",
-      isinstance(catch(lambda: N.decrypt_movements(_mv_ad_blob, bytes(range(128)))), N.AuthError)
+      isinstance(catch(lambda: N.decrypt_movements(_mv_ad_blob, hashlib.sha512(b"other/0").digest() + hashlib.sha512(b"other/1").digest())), N.AuthError)
       and isinstance(catch(lambda: N.decrypt_movements(_mv_ad_blob, SEED, ad=b"from:balcony")), N.AuthError)
       and isinstance(catch(lambda: N.decrypt_movements(_mv_ad_blob, SEED)), N.AuthError)
       and isinstance(catch(lambda: N.decrypt_movements(_mv_ad_blob, SEED, ad=b"")), N.AuthError))
@@ -1506,10 +1539,7 @@ check("movements cadence HMAC covers ct, theme, index and AD; coda HMAC covers h
 # dropping cadence bytes from the coda must fail these pins (and fail closed).
 def _mv_gap_mutants_caught():
     src = open(os.path.join(HERE, "sneak_n2.py")).read()
-    src = src.replace('EXPECTED_MIX_SHA256 = "' + N.EXPECTED_MIX_SHA256 + '"',
-                      'EXPECTED_MIX_SHA256 = "TO_BE_FILLED"', 1).replace(
-                      'EXPECTED_REHEARSAL_SHA256 = "' + N.EXPECTED_REHEARSAL_SHA256 + '"',
-                      'EXPECTED_REHEARSAL_SHA256 = "TO_BE_FILLED"', 1)
+    src = _loosen_all(src)
     cases = []
     mutants = {
         "theme domain T->M": ('StaffSponge(b"T", _seed_bytes(seed), nonce).take(BLOCK_LEN)',
@@ -1568,7 +1598,7 @@ else:
     check("movements-demo.txt is present beside the tests", False)
 
 # ---- tuning-fix (key commitment binds AD and nmov; unified auth error; legacy rejected)
-_SEED_B = bytes(range(16, 144))  # 128 distinct bytes, 127 nonzero; a second valid key
+_SEED_B = hashlib.sha512(b"octavo test seed B/0").digest() + hashlib.sha512(b"octavo test seed B/1").digest()  # a second valid key (key-fix: was bytes(range(16, 144)), now refused as a counter)
 assert len(set(b for b in _SEED_B if b)) >= 32
 _blob_a = N.encrypt(b"tuning probe", SEED)
 _blob_b = N.encrypt(b"tuning probe", _SEED_B)
@@ -1821,7 +1851,7 @@ else:
 
 # ---- conductor (equal-time single-block rejects, étude key separation, legacy opt-in, L4, I3)
 import warnings as _w, time as _time
-_cd_seed_b = bytes(range(16, 144))
+_cd_seed_b = _SEED_B
 _cd_blob = N.encrypt(b"conductor probe", SEED, ad=b"from:alice")
 def _cd_mut(b, off):
     x = bytearray(b); x[off] ^= 1; return bytes(x)
@@ -1912,11 +1942,12 @@ check("conductor: the étude version byte is hashed into the SIV nonce",
       _cd_ms[2][20:36] == _cd_n2 != _cd_n2_nov and etude(2).siv_nonce(b"hello world", HW_PICKUP, SEED) == _cd_n2)
 _cd_rs = os.urandom(128)
 while len(set(b for b in _cd_rs if b)) < 32: _cd_rs = os.urandom(128)
-check("conductor: études refuse seed=None and the public demo seed unless lab_seed=True; other seeds work",
+check("conductor: études refuse seed=None and the public demo seed unless lab_seed=True; other seeds work (chainfix I3: a missing seed is TypeError, the demo seed stays ValueError)",
       all(isinstance(catch(f), ValueError) and "lab_seed=True" in str(catch(f)) for f in (
-          lambda: E.etude(2).encrypt(b"x", None), lambda: E.etude(2).encrypt(b"x", SEED),
-          lambda: E.etude(4).permute(bytes(128), SEED, bytes(16)), lambda: E.etude(16).decrypt(_cd_ms[16], SEED),
-          lambda: E.etude(6).encrypt_movements(b"x", None)))
+          lambda: E.etude(2).encrypt(b"x", SEED),
+          lambda: E.etude(4).permute(bytes(128), SEED, bytes(16)), lambda: E.etude(16).decrypt(_cd_ms[16], SEED)))
+      and all(isinstance(catch(f), TypeError) and "lab_seed=True" in str(catch(f)) for f in (
+          lambda: E.etude(2).encrypt(b"x", None), lambda: E.etude(6).encrypt_movements(b"x", None)))
       and E.etude(2).decrypt(E.etude(2).encrypt(b"lab", _cd_rs), _cd_rs) == b"lab"
       and E.etude(2, lab_seed=True).encrypt(b"x", None, pickup=HW_PICKUP) == etude(2).encrypt(b"x", SEED, pickup=HW_PICKUP)
       and E.DEMO_SEED_SHA256 == hashlib.sha256(SEED).hexdigest())
@@ -2017,12 +2048,11 @@ check("conductor L4: movements decode every block before raising (one combined D
 
 # ---- I3 seed cache
 _cd_l1 = N.load_seed(); _cd_l2 = N.load_seed()
-for _ in range(40): N._seed_bytes(os.urandom(64) + bytes(range(64)))
-check("conductor I3: the default seed file is parsed once (cached by stat key) and validated seeds are remembered (bounded LRU)",
-      _cd_l1 is _cd_l2 and _cd_l1 == SEED and N.load_seed.cache[1] is _cd_l1 and len(N._seed_bytes.ok) <= 16
-      and N._seed_bytes(SEED) == SEED and SEED in N._seed_bytes.ok
-      and all(isinstance(catch(lambda s=s: N._seed_bytes(s)), ValueError) for s in (bytes(128), bytes(128), b"\x01" * 128))
-      and "_seed_bytes.ok" not in N.mix_code_closure()[1])
+check("conductor I3 (chainfix I6): the default seed file is parsed once (cached by stat key); validated seeds are NOT remembered across calls (no seed memo)",
+      _cd_l1 is _cd_l2 and _cd_l1 == SEED and N.load_seed.cache[1] is _cd_l1
+      and not hasattr(N._seed_bytes, "ok") and not hasattr(N._seed_policy_check, "ok")
+      and N._seed_bytes(SEED) == SEED and type(N._seed_bytes(SEED)) is N._CheckedSeed
+      and all(isinstance(catch(lambda s=s: N._seed_bytes(s)), ValueError) for s in (bytes(128), bytes(128), b"\x01" * 128)))
 
 # ---- port reference: masked xtime GF(2^8) multiply is bit-identical to the live table (not used live: ~3x slower)
 def _cd_gf_masked(a, b):
@@ -2043,7 +2073,7 @@ check("conductor docs: README and SECURITY say the default seed is a public demo
 
 # ---- conductor-polish (L1 movements equal-time, L2 warning class, L3 mask unpad, I1-I6)
 import collections as _cp_coll, subprocess as _cp_sp, shutil as _cp_sh, tempfile as _cp_tmp
-_cp_seed = bytes(range(16, 144))
+_cp_seed = _SEED_B
 _cp_mv = N.encrypt_movements(b"p" * 400, _cp_seed, ad=b"from:alice")
 _cp_cases = {
     "bad commit": (_cd_mut(_cp_mv, N.CM0 + 2), _cp_seed, b"from:alice"),
@@ -2108,7 +2138,7 @@ _cp_dir = _cp_tmp.mkdtemp(prefix="octavo_cp_")
 open(os.path.join(_cp_dir, "libcall.py"), "w").write(
     "import sneak_n2 as N\n"
     "def go():\n"
-    "    try: N.decrypt_legacy(bytes([2]) + b'SN2' + bytes(192), bytes(range(16, 144)), allow_noncommitting=True)\n"
+    "    try: N.decrypt_legacy(bytes([2]) + b'SN2' + bytes(192), N.load_seed(), allow_noncommitting=True)\n"
     "    except N.Rejected: pass\n")
 _cp_r = _cp_sp.run([sys.executable, "-B", "-c", "import libcall; libcall.go()"], cwd=_cp_dir, capture_output=True, text=True,
                    env=dict(os.environ, PYTHONPATH=HERE + os.pathsep + _cp_dir, PYTHONWARNINGS=""))
@@ -2215,23 +2245,23 @@ _cp_sh.rmtree(_cp_tree, ignore_errors=True)
 check("conductor-polish I4: replacing the seed file with a same-size, same-mtime seed is noticed (cache key has inode + ctime)",
       _cp_r.stdout.split() == ["True", "True", "6"])
 
-# I5: LRU memo; étude keys never memoized
-N._seed_bytes(SEED)
-for _ in range(15): N._seed_bytes(os.urandom(64) + bytes(range(64)))
-N._seed_bytes(SEED)                          # hit -> most recent
-for _ in range(15): N._seed_bytes(os.urandom(64) + bytes(range(64)))
-_cp_lru_kept = SEED in N._seed_bytes.ok
-for _ in range(16): N._seed_bytes(os.urandom(64) + bytes(range(64)))
-_cp_lru_dropped = SEED not in N._seed_bytes.ok
-_cp_before = len(N._seed_bytes.ok)
+# I5 (chainfix I6): no cross-call seed memo; within one public call the rule runs once (the _CheckedSeed marker)
+_cp_calls = []
+_cp_orig_rule = N._weak_seed_reason
+N._weak_seed_reason = lambda b: (_cp_calls.append(1), _cp_orig_rule(b))[1]
+try:
+    N.encrypt(b"x", SEED); _cp_one = len(_cp_calls)
+    N.encrypt(b"x", SEED); _cp_two = len(_cp_calls)
+    N.decrypt_movements(N.encrypt_movements(b"m" * 600, SEED), SEED); _cp_mv = len(_cp_calls) - _cp_two
+finally:
+    N._weak_seed_reason = _cp_orig_rule
 _cp_ks = [E.etude_key(SEED, r) for r in (2, 4, 6, 16)]
 etude(4).decrypt(etude(4).encrypt(b"lru", SEED), SEED)
-check("conductor-polish I5: the seed memo is a bounded LRU (no clear-all), and étude keys K_e are never memoized",
-      isinstance(N._seed_bytes.ok, _cp_coll.OrderedDict) and N._seed_bytes.size == 16 and len(N._seed_bytes.ok) <= 16
-      and _cp_lru_kept and _cp_lru_dropped and _cp_before == 16
-      and all(type(k) is N._DerivedKey for k in _cp_ks) and not any(bytes(k) in N._seed_bytes.ok for k in _cp_ks)
-      and "clear()" not in inspect.getsource(N._seed_bytes))
-check("conductor-polish I5: a weak value wrapped as _DerivedKey is still rejected (marker skips the memo, never the rule)",
+check("chainfix I6: no seed memo (a repeat call runs the full weak-seed rule again, so timing does not reveal recent use); one public call runs it once",
+      _cp_one == 1 and _cp_two == 2 and _cp_mv == 2 and not hasattr(N._seed_bytes, "ok")
+      and all(type(k) is N._DerivedKey for k in _cp_ks)
+      and "memo" not in inspect.getsource(N._seed_policy_check).split('"""')[2])
+check("conductor-polish I5: a weak value wrapped as _DerivedKey is still rejected (the marker never skips the rule)",
       isinstance(catch(lambda: N._seed_bytes(N._DerivedKey(bytes(128)))), ValueError)
       and N._seed_bytes(N._DerivedKey(_cp_ks[0])) == _cp_ks[0])
 
@@ -2270,12 +2300,12 @@ def _rh_chunks(blob, cs):
     out.append(body); return blob[:72], out
 _rh_msgs = {n: bytes((i * 31 + n) % 256 for i in range(n)) for n in (0, 1, 127, 128, 129, 255, 256, 257, 383, 384, 1000)}
 
-check("rehearsal constants: FMT_REHEARSAL 8, 72-byte header, chunk 128..1 MiB (default 64 KiB), 2^24 chunks, domains R/H",
-      N.FMT_REHEARSAL == 8 and N.REHEARSAL_HDR_LEN == 72 == 1 + 3 + 16 + 16 + 32 + 4 and N.RH_CS0 == 68
+check("rehearsal constants: FMT_REHEARSAL 9 (FMT_REHEARSAL_V8 8 legacy), 72-byte header, chunk 128..1 MiB (default 64 KiB), 2^24 chunks, domains R/H",
+      N.FMT_REHEARSAL == 9 and N.FMT_REHEARSAL_V8 == 8 and N.REHEARSAL_CHAIN_IV == bytes(32) and N.REHEARSAL_HDR_LEN == 72 == 1 + 3 + 16 + 16 + 32 + 4 and N.RH_CS0 == 68
       and (N.REHEARSAL_CHUNK_MIN, N.REHEARSAL_CHUNK_MAX, N.REHEARSAL_CHUNK_DEFAULT) == (128, 1 << 20, 65536)
       and N.MAX_REHEARSAL_CHUNKS == 1 << 24 and N.REHEARSAL_DOMAIN == b"R" and N.REHEARSAL_SIG_DOMAIN == b"H"
-      and N.FMT_REHEARSAL not in (N.FMT_VERSION, N.FMT_MOVEMENTS, N.FMT_VERSION_V2, N.FMT_VERSION_V4, N.FMT_MOVEMENTS_V3, N.FMT_MOVEMENTS_V5)
-      and N.FMT_REHEARSAL not in tuple(E.ETUDE_FMT_BLOCK.values()) + tuple(E.ETUDE_FMT_MOVEMENTS.values()))
+      and all(_f not in (N.FMT_VERSION, N.FMT_MOVEMENTS, N.FMT_VERSION_V2, N.FMT_VERSION_V4, N.FMT_MOVEMENTS_V3, N.FMT_MOVEMENTS_V5)
+              and _f not in tuple(E.ETUDE_FMT_BLOCK.values()) + tuple(E.ETUDE_FMT_MOVEMENTS.values()) for _f in (N.FMT_REHEARSAL, N.FMT_REHEARSAL_V8)))
 _rh_used = {b"C", b"G", b"K", b"M", b"U", b"T", b"W", b"D", b"O", b"E"}
 check("rehearsal domains are new: R and H are not existing sponge letters; raw prefixes SN2/A and SN2/Q avoid every sponge letter and P/T/I",
       N.REHEARSAL_DOMAIN not in _rh_used and N.REHEARSAL_SIG_DOMAIN not in _rh_used and N.REHEARSAL_DOMAIN != N.REHEARSAL_SIG_DOMAIN
@@ -2288,7 +2318,7 @@ for _cs in (128, 256, 384):
     for _n, _m in _rh_msgs.items():
         _b = N.encrypt_rehearsal(_m, SEED, b"rt", _cs)
         _rh_rt.append(N.decrypt_rehearsal(_b, SEED, b"rt") == _m and len(_b) == _rh_len(_n, _cs)
-                      and _b[:4] == b"\x08SN2" and int.from_bytes(_b[68:72], "big") == _cs)
+                      and _b[:4] == b"\x09SN2" and int.from_bytes(_b[68:72], "big") == _cs)
 check("rehearsal round trip for 0,1,127,128,129,255,256,257,383,384,1000 bytes at chunk sizes 128/256/384, exact stream lengths",
       all(_rh_rt) and len(_rh_rt) == 33)
 _rh_e0 = N.encrypt_rehearsal(b"", SEED)
@@ -2412,27 +2442,27 @@ check("wrong AD, missing AD, wrong seed all raise the same AuthError('authentica
 
 # commitment and tag formulas
 _rh_kc = N._commit_key(SEED)
-_rh_cm = _rh_hmac.new(_rh_kc, b"U" + b"\x08" + b"SN2" + _RH_PK + _RH_NC + len(b"from:alice").to_bytes(8, "big") + b"from:alice"
+_rh_cm = _rh_hmac.new(_rh_kc, b"U" + b"\x09" + b"SN2" + _RH_PK + _RH_NC + len(b"from:alice").to_bytes(8, "big") + b"from:alice"
                       + (128).to_bytes(4, "big"), hashlib.sha256).digest()
 _rh_adh = hashlib.sha256(b"SN2/A" + len(b"from:alice").to_bytes(8, "big") + b"from:alice").digest()
-_rh_k0 = N.StaffSponge(b"R", SEED, b"chunk" + _RH_PK + _RH_NC + (128).to_bytes(4, "big") + (0).to_bytes(8, "big") + b"\x00" + _rh_adh).take(32)
-_rh_t0 = _rh_hmac.new(_rh_k0, N.staff_clef(SEED) + N.rehearsal_signature(SEED) + b"\x08SN2" + _RH_PK + _RH_NC + _rh_cm
+_rh_k0 = N.StaffSponge(b"R", SEED, b"chunk\x09" + _RH_PK + _RH_NC + (128).to_bytes(4, "big") + (0).to_bytes(8, "big") + b"\x00" + _rh_adh).take(32)
+_rh_t0 = _rh_hmac.new(_rh_k0, N.staff_clef(SEED) + N.rehearsal_signature(SEED) + b"\x09SN2" + _RH_PK + _RH_NC + _rh_cm
                       + (128).to_bytes(4, "big") + (0).to_bytes(8, "big") + b"\x00"
-                      + _rh_adh + _rh_ch[0][:128], hashlib.sha256).digest()
-check("v8 header = 8 || SN2 || pickup || nonce || commit || chunk_size32, commit = HMAC(K_commit, U || 8 || SN2 || pickup || nonce || encode_ad(ad) || cs32)",
-      _rh_hdr == b"\x08SN2" + _RH_PK + _RH_NC + _rh_cm + (128).to_bytes(4, "big")
+                      + _rh_adh + bytes(32) + _rh_ch[0][:128], hashlib.sha256).digest()
+check("v9 header = 9 || SN2 || pickup || nonce || commit || chunk_size32, commit = HMAC(K_commit, U || 9 || SN2 || pickup || nonce || encode_ad(ad) || cs32)",
+      _rh_hdr == b"\x09SN2" + _RH_PK + _RH_NC + _rh_cm + (128).to_bytes(4, "big")
       and _rh_cm == N._rehearsal_commitment(_rh_kc, _RH_PK, _RH_NC, b"from:alice", 128)
       and _rh_cm != N._commitment(_rh_kc, N.FMT_MOVEMENTS, _RH_PK, _RH_NC, b"from:alice", nmov=128)
       and N._rehearsal_commitment(_rh_kc, _RH_PK, _RH_NC, b"from:alice", 256) != _rh_cm
       and N._rehearsal_commitment(_rh_kc, _RH_PK, _RH_NC, b"", 128) != _rh_cm)
-check("chunk tag = HMAC(R-sponge(chunk||pickup||nonce||cs32||index64||final8||ad_digest)[:32], clef || rehearsal_sig || 8 || SN2 || pickup || nonce || commit || cs32 || index64 || final8 || SHA-256(SN2/A || encode_ad) || ct)",
+check("chunk 0 tag = HMAC(R-sponge(chunk||9||pickup||nonce||cs32||index64||final8||ad_digest)[:32], clef || rehearsal_sig || 9 || SN2 || pickup || nonce || commit || cs32 || index64 || final8 || SHA-256(SN2/A || encode_ad) || tag_{-1}=0^32 || ct)",
       _rh_ch[0][128:] == _rh_t0
       and N._rehearsal_chunk_key(SEED, _RH_PK, _RH_NC, 128, 0, False, _rh_adh) == _rh_k0
       and N._rehearsal_chunk_key(SEED, _RH_PK, _RH_NC, 128, 0, False, _rh_adh) != N._rehearsal_chunk_key(SEED, _RH_PK, _RH_NC, 128, 0, True, _rh_adh)
       and N._rehearsal_chunk_key(SEED, _RH_PK, _RH_NC, 128, 0, False, _rh_adh) != N._rehearsal_chunk_key(SEED, _RH_PK, _RH_NC, 128, 1, False, _rh_adh)
       and N._rehearsal_chunk_key(SEED, _RH_PK, _RH_NC, 128, 0, False, _rh_adh) != N._rehearsal_chunk_key(SEED, _RH_PK, _RH_NC, 128, 0, False, N._rehearsal_ad_digest(b"")))
-_rh_sn = N.StaffSponge(b"R", SEED, b"sched" + _RH_PK + _RH_NC + (128).to_bytes(4, "big") + _rh_adh).take(16)
-_rh_sp = N.StaffSponge(b"R", SEED, b"chunk" + _RH_PK + _RH_NC + (128).to_bytes(4, "big") + (0).to_bytes(8, "big") + b"\x00" + _rh_adh); _rh_sp.take(32)
+_rh_sn = N.StaffSponge(b"R", SEED, b"sched\x09" + _RH_PK + _RH_NC + (128).to_bytes(4, "big") + _rh_adh).take(16)
+_rh_sp = N.StaffSponge(b"R", SEED, b"chunk\x09" + _RH_PK + _RH_NC + (128).to_bytes(4, "big") + (0).to_bytes(8, "big") + b"\x00" + _rh_adh); _rh_sp.take(32)
 _rh_T = _rh_sp.take(128)
 _rh_x0 = N.grid_to_bytes(N.encrypt_grid(N.bytes_to_grid(bytes(a ^ b for a, b in zip(_rh_s[:128], _rh_T))), N.Schedule(SEED, _rh_sn)))
 check("each block is XEX under the unchanged staff-core: ct = encrypt_grid(P ^ T, Schedule(seed, R(sched||...||ad_digest)[:16])) ^ T, T from R(chunk||...||ad_digest)",
@@ -2530,7 +2560,9 @@ check("études get no streaming: no rehearsal API on Etude or in etudes.py, and 
 
 # rehearsal attestation (own digest; the live mix digest is untouched)
 check("rehearsal attestation: EXPECTED_REHEARSAL_SHA256 == sha256(rehearsal_description()); it embeds the live mix digest; closure covers the whole staff-core",
-      N.EXPECTED_REHEARSAL_SHA256 == N._REHEARSAL_SHA256 == hashlib.sha256(N.rehearsal_description()).hexdigest()
+      N.EXPECTED_REHEARSAL_SHA256 == N._REHEARSAL_ATTEST_SHA256 == hashlib.sha256(N.rehearsal_description()).hexdigest()
+      and N.EXPECTED_REHEARSAL_CORE_SHA256 == N._REHEARSAL_CORE_SHA256
+      and N._REHEARSAL_SHA256 == N._signature_nonce(N.REHEARSAL_SIG_PIN, N._REHEARSAL_CORE_SHA256, N._REHEARSAL_ATTEST_SHA256)
       and N._MIX_SHA256 in N.rehearsal_description().decode()
       and N.mix_code_closure(("encrypt_grid", "decrypt_grid", "Schedule", "staff_clef", "_commit_key"))[0] <= N.mix_code_closure(N.REHEARSAL_CODE_ROOTS)[0]
       and {"RehearsalEncryptor", "RehearsalDecryptor", "_RehearsalBase", "_rehearsal_tag", "_rehearsal_crypt_chunk", "_rehearsal_unpad",
@@ -2541,7 +2573,7 @@ check("rehearsal attestation: EXPECTED_REHEARSAL_SHA256 == sha256(rehearsal_desc
       and N.rehearsal_signature(SEED) != N.key_signature(SEED) and len(N.rehearsal_signature(SEED)) == 16)
 check("rehearsal code is invisible to the live mix closure (so key_sig and v6/v7 blobs are unchanged)",
       not any("rehearsal" in n.lower() for n in N.mix_code_closure()[0] | N.mix_code_closure()[1])
-      and not any("rehearsal" in n.lower() for n in N.MIX_CODE_FUNCS + N.MIX_CODE_ROOTS))
+      and not any("rehearsal" in n.lower() for n in tuple(set(N.MIX_CODE_FUNCS) - N.PIN_LOGIC_NAMES) + N.MIX_CODE_ROOTS))   # chainfix I5: the attestation-only pin logic (incl. _init_rehearsal_attestation) is listed, not core
 with _rh_tmp.TemporaryDirectory(prefix="octavo_rh_attest_") as _td:
     _src = open(os.path.join(HERE, "sneak_n2.py")).read()
     _mut = _src.replace('REHEARSAL_PAD = b"\\x80"', 'REHEARSAL_PAD = b"\\x81"', 1)
@@ -2575,7 +2607,7 @@ if os.path.isfile(os.path.join(_rh_o10, "sneak_n2.py")):
             for _msg, _ad in ((b"", b""), (bytes(range(128)), b""), (bytes(1000), b"from:alice")):
                 with _rh_fixed(pickup=_pk), _rh_fixed(pickup=_pk, mod=_O):
                     _rh_same.append(N.encrypt_movements(_msg, SEED, ad=_ad) == _O.encrypt_movements(_msg, SEED, ad=_ad))
-        _rh_o10_ids = (_O.EXPECTED_MIX_SHA256, _O.key_signature(SEED).hex(), _O.FMT_VERSION, _O.FMT_MOVEMENTS, _O.BLOB_LEN, _O.MOVEMENTS_HDR_LEN)
+        _rh_o10_ids = (_O._MIX_SHA256, _O.key_signature(SEED).hex(), _O.FMT_VERSION, _O.FMT_MOVEMENTS, _O.BLOB_LEN, _O.MOVEMENTS_HDR_LEN)
         _rh_cross = (_O.decrypt(N.encrypt(b"cross", SEED), SEED) == b"cross"
                      and _O.decrypt_movements(N.encrypt_movements(bytes(300), SEED, b"a"), SEED, b"a") == bytes(300)
                      and N.decrypt(_O.encrypt(b"cross", SEED), SEED) == b"cross")
@@ -2583,8 +2615,8 @@ if os.path.isfile(os.path.join(_rh_o10, "sneak_n2.py")):
     check("v6 and v7 are byte-identical to frozen octavo010: 18 fixed-pickup blobs (9 single-block, 9 movements) match exactly, and blobs cross-decrypt both ways",
           all(_rh_same) and len(_rh_same) == 18 and _rh_cross)
     check("live EXPECTED_MIX_SHA256, demo key_sig, FMT_VERSION 6, FMT_MOVEMENTS 7, 228-byte blob and 72-byte movements header equal octavo010's",
-          _rh_o10_ids == (N.EXPECTED_MIX_SHA256, N.key_signature(SEED).hex(), 6, 7, 228, 72)
-          and N.EXPECTED_MIX_SHA256 == "fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6"
+          _rh_o10_ids == (N._MIX_SHA256, N.key_signature(SEED).hex(), 6, 7, 228, 72)
+          and N._MIX_SHA256 == "fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6"
           and N.key_signature(SEED).hex() == "340dc1e062502bb13462a94ba490c3dc")
     _rh_o10_hw = [l for l in open(os.path.join(_rh_o10, "hello-world.txt")) if l.startswith("blob")]
     _rh_o10_mv = [l for l in open(os.path.join(_rh_o10, "movements-demo.txt")) if l.startswith("blob")]
@@ -2617,7 +2649,7 @@ try:
     _big_ct = open(_pct, "rb").read()
     check("5,255,225-byte stream (5x the movements cap) round-trips through encrypt_rehearsal_file / decrypt_rehearsal_file with workers=8",
           _rh_big_n > 5 * N.MAX_MOVEMENTS_MSG and _npt == _rh_big_n and open(_pout, "rb").read() == _rh_big
-          and _nct == len(_big_ct) == _rh_len(_rh_big_n, 65536) and _big_ct[:1] == b"\x08"
+          and _nct == len(_big_ct) == _rh_len(_rh_big_n, 65536) and _big_ct[:1] == b"\x09"
           and not os.path.exists(_pct + ".tmp") and not os.path.exists(_pout + ".partial"))
     # tail-cut of the big stream: verified prefix only, error at the end, nothing left behind
     _cut = _big_ct[:72 + 3 * (65536 + 32) + 1000]
@@ -2642,8 +2674,8 @@ _rh_demo = os.path.join(HERE, "rehearsal-demo.txt")
 if os.path.isfile(_rh_demo):
     _rd = {l.split()[0].rstrip(":"): l.split()[-1] for l in open(_rh_demo) if l.startswith(("blob", "plaintext_hex", "chunk_size"))}
     _rdb = bytes.fromhex(_rd.get("blob", ""))
-    check("rehearsal-demo.txt decrypts to its recorded plaintext (format version 8)",
-          _rdb[:4] == b"\x08SN2" and N.decrypt_rehearsal(_rdb, SEED, b"rehearsal-demo") == bytes.fromhex(_rd["plaintext_hex"])
+    check("rehearsal-demo.txt decrypts to its recorded plaintext (format version 9)",
+          _rdb[:4] == b"\x09SN2" and N.decrypt_rehearsal(_rdb, SEED, b"rehearsal-demo") == bytes.fromhex(_rd["plaintext_hex"])
           and int.from_bytes(_rdb[68:72], "big") == int(_rd["chunk_size"]))
 else:
     check("rehearsal-demo.txt is present beside the tests", False)
@@ -2885,9 +2917,9 @@ check("rehearsal-fix I1: same seed, pickup and nonce under two ADs: headers shar
       and N._rehearsal_schedule_nonce(SEED, _RH_PK, _RH_NC, 256, N._rehearsal_ad_digest(b"x")) != N._rehearsal_schedule_nonce(SEED, _RH_PK, _RH_NC, 256, N._rehearsal_ad_digest(b"other"))
       and isinstance(catch(lambda: N.decrypt_rehearsal(_rf_A2[:72] + _rf_A[72:], SEED, b"other")), N.AuthError)
       and N.decrypt_rehearsal(_rf_A2, SEED, b"other") == _rf_P1)
-check("rehearsal-fix I1: the per-stream AD digest is SHA-256(SN2/A || encode_ad(ad)) and empty AD == omitted AD (still one stream format, v8)",
+check("rehearsal-fix I1: the per-stream AD digest is SHA-256(SN2/A || encode_ad(ad)) and empty AD == omitted AD (still one stream format, v9)",
       N._rehearsal_ad_digest(b"x") == hashlib.sha256(b"SN2/A" + (1).to_bytes(8, "big") + b"x").digest()
-      and N._rehearsal_ad_digest(b"") == N._rehearsal_ad_digest() and _rf_A[0] == 8)
+      and N._rehearsal_ad_digest(b"") == N._rehearsal_ad_digest() and _rf_A[0] == 9)
 
 # I2 (w10): workers are capped, are fresh interpreters (never fork), get no seed/AD/keys, and never outlive the stream
 check("rehearsal-fix I2: workers are capped at min(32, os.cpu_count()); bad values still raise ValueError",
@@ -2902,7 +2934,7 @@ _rf_wo = N._RehearsalWorkers.run
 _rf_payloads = []
 def _rf_runw(self, datas, decrypt): _rf_payloads.extend(datas); return _rf_wo(self, datas, decrypt)
 N._RehearsalWorkers.run = _rf_runw
-_rf_seed2 = bytes(range(1, 129)); N._seed_bytes(_rf_seed2)                       # another seed sits in the parent's memo
+_rf_seed2 = hashlib.sha512(b"octavo test seed rf2/0").digest() + hashlib.sha512(b"octavo test seed rf2/1").digest(); N._seed_bytes(_rf_seed2)                       # another seed sits in the parent's memo
 _rf_secret_ad = b"unrelated-secret-AD-" + os.urandom(8).hex().encode()
 try:
     _rf_m2 = os.urandom(6 * 128 + 5)
@@ -2938,7 +2970,7 @@ check("rehearsal-fix I2: workers are started lazily (workers=12 on a 2-chunk bat
       _rf_n12 == 2 and _rf_alive(_rf_pids12) == [] and _rf_alive(_rf_pidsr) == [] and _rf_alive(_rf_pidsa) == [] and len(_rf_pidsr) == 3)
 
 # I4 (w03): optional receiver-side max_chunk_size
-_rf_hdr1m = bytes([8]) + N.VERSION + os.urandom(64) + (1 << 20).to_bytes(4, "big")
+_rf_hdr1m = bytes([N.FMT_REHEARSAL]) + N.VERSION + os.urandom(64) + (1 << 20).to_bytes(4, "big")
 _rf_d4 = N.RehearsalDecryptor(SEED, b"", max_chunk_size=65536)
 _rf_i4 = _rh_err(lambda: _rf_d4.update(_rf_hdr1m))
 _rf_ok4 = N.encrypt_rehearsal(b"x" * 300, SEED, b"", 256)
@@ -3617,8 +3649,8 @@ check("rehearsal-curtain I7 (held, no code change): truncations, a dropped / dup
       and N.decrypt_rehearsal(_cu_b7, SEED, b"i7", workers=2) == _cu_m7 and len(_cu_ch) == 6)
 
 # identifiers: the mix digest and key_sig are untouched by the polish; v8 ciphertext blocks are unchanged (only tags move)
-check("rehearsal-polish / rehearsal-finale: EXPECTED_MIX_SHA256 and key_sig are unchanged (fe939969… / 340dc1e0…); v6/v7 untouched",
-      N.EXPECTED_MIX_SHA256 == "fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6"
+check("rehearsal-polish / rehearsal-finale / key-fix: the key_sig nonce and key_sig are unchanged (fe939969… / 340dc1e0…); v6/v7 untouched",
+      N._MIX_SHA256 == "fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6"
       and N.key_signature(SEED).hex() == "340dc1e062502bb13462a94ba490c3dc")
 
 # published score: regenerate in memory and compare to score/vectors.json
@@ -3627,9 +3659,10 @@ import score.generate_score as _gen_score
 _score_path = os.path.join(HERE, "score", "vectors.json")
 _committed = _json_score.load(open(_score_path))
 _fresh = _gen_score.build_vectors()
-check("published score regenerates identically (72 vectors: 16 permute, 24 aead, 24 movements, 8 rehearsal)",
-      _fresh == _committed and _committed["counts"] == {"block_cipher": 16, "aead": 24, "movements": 24, "rehearsal": 8, "total": 72}
-      and _committed["revision"] == "rehearsal-curtain" and _committed.get("score_version") == 8
+check("published score regenerates identically (79 vectors: 16 permute, 24 aead, 24 movements, 8 rehearsal, 7 non-demo; score version 10)",
+      _fresh == _committed and _committed["counts"] == {"block_cipher": 16, "aead": 24, "movements": 24, "rehearsal": 8, "nondemo": 7, "total": 79}
+      and _committed["revision"] == N.REVISION and _committed.get("score_version") == 10
+      and _committed["EXPECTED_SEED_POLICY_SHA256"] == N.EXPECTED_SEED_POLICY_SHA256
       and _committed["format"]["etude_fmt_block"] == {"2": 0x82, "4": 0x84, "6": 0x86, "16": 0x90}
       and _committed["EXPECTED_MIX_SHA256"] == N.EXPECTED_MIX_SHA256
       and _committed["key_sig"] == N.key_signature(SEED).hex()
@@ -3644,8 +3677,8 @@ for _v in _committed["rehearsal"]:
     _pt = N.decrypt_rehearsal(_b, SEED, bytes.fromhex(_v["ad"]))
     _rh_vec_ok.append(hashlib.sha256(_b).hexdigest() == _v["blob_sha256"] and len(_b) == _v["blob_len"]
                       and hashlib.sha256(_pt).hexdigest() == _v["msg_sha256"] and len(_pt) == _v["msg_len"]
-                      and _b[0] == 8 and int.from_bytes(_b[68:72], "big") == _v["chunk_size"])
-check("every published rehearsal vector (live v8, demo seed) decrypts to its recorded plaintext hash and length",
+                      and _b[0] == 9 and int.from_bytes(_b[68:72], "big") == _v["chunk_size"])
+check("every published rehearsal vector (live v9, demo seed) decrypts to its recorded plaintext hash and length",
       all(_rh_vec_ok) and len(_rh_vec_ok) == 8)
 
 # ---- picture header stays in sync with the live module and hello-world sample
@@ -3658,7 +3691,7 @@ if os.path.isfile(_pic_json) and os.path.isfile(_pic_png):
     import json as _json
     _meta = _json.load(open(_pic_json))
     _live_sha = hashlib.sha256(open(os.path.join(HERE, "sneak_n2.py"), "rb").read()).hexdigest()
-    _live_sig = N.key_signature().hex()
+    _live_sig = N.key_signature(SEED).hex()
     check("sneak-staff-n2.json matches live sneak_n2.py SHA, key_sig, and hello-world pickup/nonce/tag",
           _meta.get("file_sha256")==_live_sha and _meta.get("key_sig")==_live_sig
           and _meta.get("pickup")==HW_PICKUP.hex() and _meta.get("nonce")==hw_field("nonce").hex()
@@ -3719,6 +3752,522 @@ def _et_overwrite():
 check("overwrite=True replaces an existing dst with the new stream; overwrite=False refuses and keeps the old file", _et_overwrite())
 
 # ---- frozen trees untouched (sha256 baselines taken before N2 was written)
+# ---- key-fix (review_tester_claims claim 2): keygen(), seed=None refused, stricter weak-seed rule
+import operator as _kf_op, stat as _kf_stat
+from math import isqrt as _kf_isqrt
+_kf_none_calls = {
+    "encrypt": lambda: N.encrypt(b"x"), "decrypt": lambda: N.decrypt(HW_BLOB),
+    "encrypt_movements": lambda: N.encrypt_movements(b"x"), "decrypt_movements": lambda: N.decrypt_movements(N.encrypt_movements(b"x", SEED)),
+    "decrypt_legacy": lambda: N.decrypt_legacy(bytes([2]) + b"SN2" + bytes(192), allow_noncommitting=True),
+    "decrypt_movements_legacy": lambda: N.decrypt_movements_legacy(bytes([3]) + b"SN2" + bytes(32) + (1).to_bytes(4, "big") + bytes(192), allow_noncommitting=True),
+    "siv_nonce": lambda: N.siv_nonce(b"x", bytes(16)), "siv_nonce_movements": lambda: N.siv_nonce_movements(b"x", bytes(16)),
+    "key_signature": lambda: N.key_signature(), "staff_clef": lambda: N.staff_clef(), "rehearsal_signature": lambda: N.rehearsal_signature(),
+    "encrypt_rehearsal": lambda: N.encrypt_rehearsal(b"x"), "decrypt_rehearsal": lambda: N.decrypt_rehearsal(bytes(300)),
+    "RehearsalEncryptor": lambda: N.RehearsalEncryptor(), "RehearsalDecryptor": lambda: N.RehearsalDecryptor(),
+    "iter_rehearsal": lambda: list(N.iter_rehearsal(bytes(300))),
+    "Schedule": lambda: N.Schedule(None, bytes(16)), "save_seed": lambda: N.save_seed("/nonexistent/x", None),
+}
+_kf_none = {k: catch(f) for k, f in _kf_none_calls.items()}
+# (decrypt APIs check public structure -- length, version byte -- first, so a well-formed blob is used for each)
+check("key-fix: seed=None raises TypeError('seed is required ...') in every public API (v6, v7, legacy, v8 one-shot/streaming/iter, signatures, Schedule)",
+      all(isinstance(e, TypeError) and "seed is required" in str(e) for e in _kf_none.values()) and len(_kf_none) == 18)
+with tempfile.TemporaryDirectory(prefix="n2_kf_files_") as _kf_td:
+    _kf_src = os.path.join(_kf_td, "in"); open(_kf_src, "wb").write(b"abc")
+    _kf_e1 = catch(lambda: N.encrypt_rehearsal_file(_kf_src, os.path.join(_kf_td, "out")))
+    _kf_e2 = catch(lambda: N.decrypt_rehearsal_file(_kf_src, os.path.join(_kf_td, "out2")))
+    check("key-fix: the rehearsal file helpers refuse seed=None too, and create no output",
+          isinstance(_kf_e1, TypeError) and isinstance(_kf_e2, TypeError) and sorted(os.listdir(_kf_td)) == ["in"])
+check("key-fix: an explicit load_seed() (the public demo seed) still works and opens the published hello-world blob",
+      N.decrypt(HW_BLOB, N.load_seed()) == b"hello world" and N.key_signature(N.load_seed()).hex() == "340dc1e062502bb13462a94ba490c3dc")
+_kf_keys = [N.keygen() for _ in range(64)]
+check("key-fix: keygen() returns fresh 128-byte seeds that pass the rule, never repeat, and round-trip in v6/v7/v8",
+      all(type(k) is bytes and len(k) == 128 and N._weak_seed_reason(k) is None for k in _kf_keys) and len(set(_kf_keys)) == 64
+      and N.decrypt(N.encrypt(b"kg", _kf_keys[0]), _kf_keys[0]) == b"kg"
+      and N.decrypt_movements(N.encrypt_movements(bytes(300), _kf_keys[1]), _kf_keys[1]) == bytes(300)
+      and N.decrypt_rehearsal(N.encrypt_rehearsal(bytes(300), _kf_keys[2], b"a", 128), _kf_keys[2], b"a") == bytes(300)
+      and isinstance(catch(lambda: N.decrypt(N.encrypt(b"kg", _kf_keys[0]), _kf_keys[3])), N.AuthError))
+with patch.object(N.os, "urandom", lambda n: bytes(n)):
+    _kf_bad_rng = catch(N.keygen)
+_kf_draws = iter([bytes(range(128)), bytes(128)] + [_kf_keys[5]])
+with patch.object(N.os, "urandom", lambda n: next(_kf_draws)):
+    _kf_redraw = N.keygen()
+check("key-fix: keygen() redraws a weak draw and raises RuntimeError if the RNG only gives weak seeds",
+      _kf_redraw == _kf_keys[5] and isinstance(_kf_bad_rng, RuntimeError) and "RNG" in str(_kf_bad_rng))
+with tempfile.TemporaryDirectory(prefix="n2_kf_save_") as _kf_td:
+    _kf_p = os.path.join(_kf_td, "my.seed"); N.save_seed(_kf_p, _kf_keys[6])
+    _kf_mode = _kf_stat.S_IMODE(os.stat(_kf_p).st_mode)
+    _kf_again = catch(lambda: N.save_seed(_kf_p, _kf_keys[7]))
+    _kf_weak = catch(lambda: N.save_seed(os.path.join(_kf_td, "weak.seed"), bytes(range(128))))
+    os.symlink(os.path.join(_kf_td, "target"), os.path.join(_kf_td, "link"))
+    _kf_link = catch(lambda: N.save_seed(os.path.join(_kf_td, "link"), _kf_keys[8]))
+    check("key-fix: save_seed writes 256 hex digits 0600 that load_seed(path) reads back; refuses an existing path, a symlink and a weak seed",
+          N.load_seed(_kf_p) == _kf_keys[6] and _kf_mode == 0o600 and isinstance(_kf_again, FileExistsError)
+          and isinstance(_kf_weak, ValueError) and not os.path.exists(os.path.join(_kf_td, "weak.seed"))
+          and isinstance(_kf_link, FileExistsError) and not os.path.exists(os.path.join(_kf_td, "target")))
+# the tester's accepted-weak seeds (review_tester_claims/witnesses/w2_weak_seeds.py), each now refused with a reason
+def _kf_pad(b): return (b * (128 // len(b) + 1))[:128]
+_kf_P = 1024 + 64; _kf_one = 1 << _kf_P
+def _kf_frac(x): return ((x & (_kf_one - 1)) >> 64).to_bytes(128, "big")
+def _kf_atan(n):
+    s_ = 0; t = _kf_one // n; k = 1; sg = 1
+    while t: s_ += sg * (t // k); t //= n * n; k += 2; sg = -sg
+    return s_
+def _kf_primes(n):
+    out = []; c = 2
+    while len(out) < n:
+        if all(c % q for q in out if q * q <= c): out.append(c)
+        c += 1
+    return out
+def _kf_icbrt(n):
+    x = 1 << ((n.bit_length() + 2) // 3)
+    while True:
+        y = (2 * x + n // (x * x)) // 3
+        if y >= x: return x
+        x = y
+def _kf_root(q, r, bits): return (_kf_isqrt(q << (2 * bits)) if r == 2 else _kf_icbrt(q << (3 * bits))) & ((1 << bits) - 1)
+_kf_e = 0; _kf_t = _kf_one; _kf_k = 0
+while _kf_t: _kf_e += _kf_t; _kf_k += 1; _kf_t //= _kf_k
+_kf_ln2 = sum(_kf_one // (k << k) for k in range(1, _kf_P + 2))
+_kf_s5 = _kf_isqrt(5 << (2 * _kf_P))
+_kf_k256 = b"".join(_kf_root(q, 3, 32).to_bytes(4, "big") for q in _kf_primes(64))
+_kf_aes = bytes.fromhex("637c777bf26b6fc53001672bfed7ab76ca82c97dfa5947f0add4a2af9ca472c0b7fd9326363ff7cc34a5e5f171d8311504c723c31896059a071280e2eb27b27509832c1a1b6e5aa0523bd6b329e32f8453d100ed20fcb15b6acbbe394a4c58cfd0efaafb434d338545f9027f503c9fa851a3408f929d38f5bcb6da2110fff3d2cd0c13ec5f974417c4a77e3d645d197360814fdc222a908846eeb814de5e0bdbe0323a0a4906245cc2d3ac629195e479e7c8376d8dd54ea96c56f4ea657aae08ba78252e1ca6b4c6e8dd741f4bbd8b8a703eb5664803f60e613557b986c11d9ee1f8981169d98e949b1e87e9ce5528df8ca1890dbfe6426841992d0fb054bb16")
+_kf_consts = {
+    "pi": _kf_frac(16 * _kf_atan(5) - 4 * _kf_atan(239)), "e": _kf_frac(_kf_e),
+    "sqrt2": _kf_frac(_kf_isqrt(2 << (2 * _kf_P))), "sqrt3": _kf_frac(_kf_isqrt(3 << (2 * _kf_P))), "sqrt5": _kf_frac(_kf_s5),
+    "golden ratio": _kf_frac((_kf_one + _kf_s5) // 2), "ln2": _kf_frac(_kf_ln2),
+    "SHA-256 K[0:32]": _kf_k256[:128], "SHA-256 K[32:64]": _kf_k256[128:],
+    "SHA-512 K[0:16]": b"".join(_kf_root(q, 3, 64).to_bytes(8, "big") for q in _kf_primes(80))[:128],
+    "SHA-512 H0..7 x2": b"".join(_kf_root(q, 2, 64).to_bytes(8, "big") for q in _kf_primes(8)) * 2,
+    "SHA-256 H0..7 x4": b"".join(_kf_root(q, 2, 32).to_bytes(4, "big") for q in _kf_primes(8)) * 4,
+    "SM4 S-box[0:128]": N.SM4_SBOX[:128], "SM4 S-box[128:256]": N.SM4_SBOX[128:],
+    "AES S-box[0:128]": _kf_aes[:128], "AES S-box[128:256]": _kf_aes[128:],
+}
+check("key-fix: KNOWN_CONSTANT_SEEDS_SHA256 is exactly the 16 constants recomputed from their formulas / tables (pi starts 243f6a88, e b7e15162, golden ratio 9e3779b9)",
+      N.KNOWN_CONSTANT_SEEDS == tuple(_kf_consts) and N.KNOWN_CONSTANT_SEEDS_SHA256 == frozenset(hashlib.sha256(v).hexdigest() for v in _kf_consts.values())
+      and _kf_consts["pi"][:4].hex() == "243f6a88" and _kf_consts["e"][:4].hex() == "b7e15162" and _kf_consts["golden ratio"][:4].hex() == "9e3779b9"
+      and _kf_consts["SHA-256 K[0:32]"][:4].hex() == "428a2f98")
+_kf_weak = {
+    "incrementing 00..7F": bytes(range(128)), "decrementing FF..80": bytes(range(255, 127, -1)),
+    "32-byte pattern 01..20 x4": _kf_pad(bytes(range(1, 33))), "96 zero bytes + 01..20": bytes(96) + bytes(range(1, 33)),
+    "half zeros + 00..3F": bytes(64) + bytes(range(64)),
+    "low weight (56 of 1024 bits)": bytes([1 << i for i in range(8)] + [(1 << i) | (1 << j) for i in range(8) for j in range(i + 1, 8)][:32]).ljust(128, b"\0"),
+    "pangram + zero pad": b"The quick brown fox jumps over the lazy dog, 1234567890!?".ljust(128, b"\0"),
+    "alphabet + zero pad": b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".ljust(128, b"\0"),
+    "hex text (128 hex digits as ASCII)": hashlib.sha512(b"x").hexdigest().encode(),
+    "printable password-like text": bytes(33 + (i * 37 + i * i) % 94 for i in range(128)),
+    "random 64 bytes twice": _kf_keys[9][:64] * 2, "random 64 bytes + complement": _kf_keys[10][:64] + bytes(b ^ 255 for b in _kf_keys[10][:64]),
+    "16-bit big-endian counter from 0x8000": b"".join((0x8000 + 0x0101 * i).to_bytes(2, "big") for i in range(64)),
+    "32-bit little-endian counter": b"".join((0x9e3779b9 * i & 0xffffffff).to_bytes(4, "little") for i in range(1, 33)),
+    "random bytes sorted": bytes(sorted(_kf_keys[11])), "7-bit random": bytes(b & 0x7F for b in _kf_keys[12]),
+    "high weight (random | 0xF7)": bytes(b | 0xF7 for b in _kf_keys[13]),
+}
+_kf_weak.update({"constant " + k: v for k, v in _kf_consts.items()})
+_kf_res = {k: catch(lambda v=v: N._seed_bytes(v)) for k, v in _kf_weak.items()}
+print("key-fix weak-seed reasons:", {k: str(e)[11:] if e else None for k, e in _kf_res.items()})
+check("key-fix: every seed the tester showed was accepted (incrementing, decrementing, 32-byte pattern x4, 96 zeros + 32 bytes, half zeros, low weight, padded text, SHA-256 K, pi) and the other structured or constant seeds now raise ValueError('weak seed: ...')",
+      all(isinstance(e, ValueError) and str(e).startswith("weak seed: ") for e in _kf_res.values()) and len(_kf_res) == 17 + 16)
+check("key-fix: the original 'need at least 32 distinct nonzero bytes' reason is kept for the old cases",
+      str(catch(lambda: N._seed_bytes(bytes(range(1, 32)) + bytes(97)))) == "weak seed: need at least 32 distinct nonzero bytes")
+_kf_rand = [os.urandom(128) for _ in range(5000)]
+check("key-fix: 5000 fresh os.urandom(128) seeds and the public demo seed all pass (full measurement: 0 of 1,000,000, SPEC.md)",
+      all(N._weak_seed_reason(x) is None for x in _kf_rand) and N._weak_seed_reason(SEED) is None)
+check("key-fix: thresholds are the documented ones",
+      (N.SEED_MIN_DISTINCT_NONZERO, N.SEED_MAX_BYTE_COUNT, N.SEED_WEIGHT_RANGE, N.SEED_MAX_LAG_EQUAL, N.SEED_MAX_LAG_DIFF,
+       N.SEED_DIFF_LAGS, N.SEED_MAX_MONOTONE_RUN) == (32, 11, (384, 640), 13, 13, (1, 2, 3, 4, 8, 16, 32, 64), 15))
+# boundary cases: just inside and just outside each threshold (built from a passing random seed)
+def _kf_with_count(base, value, n):
+    b = bytearray(base)
+    idx = [i for i in range(128) if b[i] != value][:n - sum(1 for x in b if x == value)]
+    for i in idx[::1]: b[i] = value
+    return bytes(b)
+_kf_base = next(x for x in _kf_rand if max(x.count(bytes([v])) for v in range(256)) <= 2)
+_kf_11 = _kf_with_count(_kf_base, 0xA5, 11); _kf_12 = _kf_with_count(_kf_base, 0xA5, 12)
+check("key-fix: byte-count boundary: 11 copies of one value can pass, 12 never do",
+      _kf_11.count(b"\xa5") == 11 and _kf_12.count(b"\xa5") == 12
+      and "repeats too often" not in str(N._weak_seed_reason(_kf_11)) and "repeats too often" in str(N._weak_seed_reason(_kf_12)))
+import etudes as _kf_et
+_kf_e4 = _kf_et.etude(4, lab_seed=True); _kf_e4n = _kf_et.etude(4)
+check("key-fix: étude handles: lab_seed=True with seed=None still means the public demo seed; without lab_seed seed=None is refused",
+      _kf_e4.key(None) == _kf_e4.key(SEED) and isinstance(catch(lambda: _kf_e4n.key(None)), TypeError)
+      and _kf_e4n.key(_kf_keys[15]) == _kf_e4.key(_kf_keys[15]))
+check("key-fix: published étude keys unchanged (every published score étude key re-derives under the stricter rule)",
+      all(hashlib.sha256(__import__("etudes").etude_key(SEED, r)).hexdigest() == _committed["format"]["etude_key_sha256"][str(r)] for r in (2, 4, 6, 16)))
+# byte-identity against the frozen rehearsal-curtain snapshot octavo014 (read only; no bytecode is written)
+_kf_o14 = "/workspace/octavo014/sneak_n2.py"
+if os.path.isfile(_kf_o14) and hashlib.sha256(open(_kf_o14, "rb").read()).hexdigest() == "329c0647989a35019a06b00ef2ae660494a8e8ad0c1523787b37436562cd78a4":
+    _O14 = load("sneak_n2_octavo014_kf", _kf_o14)
+    _kf_same = []; _kf_err = None
+    try:   # chainfix I7: a mismatch (e.g. AuthError from a tampered tree) reports FAIL instead of aborting the suite
+        for _pk in (bytes(16), bytes(range(16))):
+            for _seed in (SEED, _kf_keys[14]):
+                with _rh_fixed(pickup=_pk), _rh_fixed(pickup=_pk, mod=_O14):
+                    _kf_same.append(N.encrypt(b"hello world", _seed, ad=b"a") == _O14.encrypt(b"hello world", _seed, ad=b"a"))
+                    _kf_same.append(N.encrypt_movements(bytes(range(256)) * 3, _seed) == _O14.encrypt_movements(bytes(range(256)) * 3, _seed))
+                with _rh_fixed(pickup=_pk), _rh_fixed(pickup=_pk, mod=_O14):
+                    _kf_m8 = bytes(range(256)) * 2 + b"tail"
+                    _kf_b9, _kf_b8 = N.encrypt_rehearsal(_kf_m8, _seed, b"ad", 128), _O14.encrypt_rehearsal(_kf_m8, _seed, b"ad", 128)
+                # rehearsal-chain: octavo014's v8 stream opens only through the gated legacy reader; live writes v9
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", N.LegacyFormatWarning)
+                    _kf_same.append(N.decrypt_rehearsal_legacy(_kf_b8, _seed, b"ad", allow_unchained=True) == _kf_m8
+                                    and _kf_b8[0] == 8 and _kf_b9[0] == 9 and _kf_b9[4:36] == _kf_b8[4:36] and _kf_b9[72:] != _kf_b8[72:]
+                                    and isinstance(catch(lambda: N.decrypt_rehearsal(_kf_b8, _seed, b"ad")), N.UnsupportedVersion)
+                                    and _O14.decrypt_rehearsal(_kf_b8, _seed, b"ad") == _kf_m8)
+    except Exception as _kf_e:
+        _kf_err = _kf_e; print("octavo014 cross-check raised:", repr(_kf_e))
+    check("key-fix / rehearsal-chain: v6 and v7 blobs are byte-identical to frozen octavo014 (rehearsal-curtain) for the demo seed and a keygen() seed, key_sig equal; octavo014 v8 streams open only via decrypt_rehearsal_legacy(allow_unchained=True), whose frozen v8 rehearsal_sig equals octavo014's",
+          _kf_err is None and all(_kf_same) and len(_kf_same) == 12 and _O14.key_signature(SEED) == N.key_signature(SEED)
+          and _O14.rehearsal_signature(SEED) != N.rehearsal_signature(SEED)
+          and _O14.rehearsal_signature(SEED) == N.StaffSponge(b"H", SEED, bytes.fromhex(N.REHEARSAL_V8_SHA256)).take(16)
+          and _O14.EXPECTED_REHEARSAL_SHA256 == N.REHEARSAL_V8_SHA256
+          and _O14.key_signature(_kf_keys[14]) == N.key_signature(_kf_keys[14]))
+    sys.modules.pop("sneak_n2_octavo014_kf", None)
+else:
+    skip("key-fix: v6/v7 byte-identity with frozen octavo014")
+
+# ---- rehearsal-chain (format version 9): chained chunk tags, v8 behind a legacy opt-in
+import itertools as _ch_it, json as _ch_json, contextlib as _ch_ctx
+_CH_SEED = hashlib.sha512(b"k1").digest() + hashlib.sha512(b"k2").digest()     # the tester's w1 seed
+_CH_CS = 128
+def _ch_chunks(b):
+    body = b[72:]; out = []
+    while len(body) > _CH_CS + 32: out.append(body[:_CH_CS + 32]); body = body[_CH_CS + 32:]
+    out.append(body); return b[:72], out
+def _ch_opens(blob, ad=b"", mod=None, legacy=False):
+    m = mod or N
+    try:
+        if legacy:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", N.LegacyFormatWarning)
+                m.decrypt_rehearsal_legacy(blob, _CH_SEED, ad, allow_unchained=True)
+        else:
+            m.decrypt_rehearsal(blob, _CH_SEED, ad)
+        return True
+    except m.Rejected:
+        return False
+_CH_P1 = b"PAY ALICE $0010 " * 8 + b"memo: rent      " * 8 + b"from acct 111111" * 8
+_CH_P2 = b"PAY MALLORY 9999" * 8 + b"memo: rent      " * 8 + b"from acct 999999" * 8
+with _rh_fixed(pickup=b"\xa0" * 16, nonce=b"\xb0" * 16):
+    _ch_S1 = N.encrypt_rehearsal(_CH_P1, _CH_SEED, b"", _CH_CS); _ch_S2 = N.encrypt_rehearsal(_CH_P2, _CH_SEED, b"", _CH_CS)
+    _ch_S3 = N.encrypt_rehearsal(_CH_P1[:_CH_CS], _CH_SEED, b"", _CH_CS); _ch_S4 = N.encrypt_rehearsal(_CH_P2[:_CH_CS], _CH_SEED, b"", _CH_CS)
+_ch_h1, _ch_c1 = _ch_chunks(_ch_S1); _ch_h2, _ch_c2 = _ch_chunks(_ch_S2); _, _ch_c3 = _ch_chunks(_ch_S3); _, _ch_c4 = _ch_chunks(_ch_S4)
+_ch_mix = {"".join(map(str, p)): _ch_h1 + b"".join((_ch_c1, _ch_c2)[s][i] for i, s in enumerate(p))
+           for p in _ch_it.product((0, 1), repeat=len(_ch_c1))}
+_ch_new = {k: v for k, v in _ch_mix.items() if k not in ("0000", "1111")}
+check("rehearsal-chain w1 witness: under a forced repeated pickup/nonce (same seed, AD, chunk size) the two v9 streams share a header, and all 14 per-index chunk splices are now REJECTED (claim 1 splice forgeries fail), incl. P2 chunk 0 + P1 rest",
+      _ch_S1[0] == 9 and _ch_h1 == _ch_h2 and len(_ch_c1) == 4 and len(_ch_new) == 14 and not any(_ch_opens(b) for b in _ch_new.values())
+      and not _ch_opens(_ch_h1 + _ch_c2[0] + _ch_c1[1] + _ch_c1[2] + _ch_c1[3]) and _ch_opens(_ch_S1) and _ch_opens(_ch_S2))
+def _ch_all_readers_reject(b):
+    def r2(): return b"".join(N.iter_rehearsal(b, _CH_SEED, b""))
+    def r3():
+        d = N.RehearsalDecryptor(_CH_SEED, b""); d.update(b); return d.finalize()
+    return all(isinstance(catch(f), N.Rejected) for f in (lambda: N.decrypt_rehearsal(b, _CH_SEED, b""), r2, r3,
+                                                           lambda: N.decrypt_rehearsal(b, _CH_SEED, b"", workers=2)))
+check("rehearsal-chain w1 witness: every splice is also rejected by iter_rehearsal, RehearsalDecryptor and workers=2",
+      all(_ch_all_readers_reject(b) for b in _ch_new.values()))
+_ch_t = _ch_h1 + _ch_c1[0] + _ch_c3[1]
+check("rehearsal-chain w1 witness: truncation by another stream's final chunk is rejected unless the result is byte-identical to that other genuine stream; drop, cut, reorder, duplicate and cross-index swaps are rejected",
+      _ch_t == _ch_S3 and _ch_opens(_ch_t) and not _ch_opens(_ch_h1 + _ch_c1[0] + _ch_c4[1])
+      and not any(_ch_opens(b) for b in (_ch_h1 + _ch_c1[0] + _ch_c1[2] + _ch_c1[3], _ch_h1 + _ch_c1[0] + _ch_c1[1] + _ch_c1[2],
+                                         _ch_h1 + _ch_c1[1] + _ch_c1[0] + _ch_c1[2] + _ch_c1[3],
+                                         _ch_h1 + _ch_c1[0] + _ch_c1[0] + _ch_c1[1] + _ch_c1[2] + _ch_c1[3],
+                                         _ch_h1 + _ch_c2[1] + _ch_c1[0] + _ch_c1[2] + _ch_c1[3])))
+_ch_pool = sorted(set(_ch_c1 + _ch_c2 + _ch_c3 + _ch_c4)); _ch_gen = {_ch_S1, _ch_S2, _ch_S3, _ch_S4}; _ch_tried = _ch_bad = 0
+for _n in range(1, 5):
+    for _seq in _ch_it.product(_ch_pool, repeat=_n):
+        _ch_tried += 1; _b = _ch_h1 + b"".join(_seq)
+        if _b not in _ch_gen and _ch_opens(_b): _ch_bad += 1
+check("rehearsal-chain w1 witness, exhaustive: every sequence of 1..4 chunks drawn from the four forced-reuse streams (11,110 streams) opens only if it is one of the genuine streams (0 forgeries; the 1..5 run, 111,110 streams, is in rehearsalchain_verification/)",
+      _ch_tried == 11110 and _ch_bad == 0 and len(_ch_pool) == 10)
+check("rehearsal-chain caveat (documented): under a forced repeated pickup/nonce, equal plaintext chunks at equal positions still give equal ciphertext (chunk 1 of P1/P2 is equal), so nonce reuse still leaks equality",
+      [_ch_c1[i][:_CH_CS] == _ch_c2[i][:_CH_CS] for i in range(4)] == [False, True, False, True])
+# the same witness against the gated v8 reader: v8 really was spliceable (why it now needs an opt-in)
+_kf_o14b = "/workspace/octavo014/sneak_n2.py"
+if os.path.isfile(_kf_o14b) and hashlib.sha256(open(_kf_o14b, "rb").read()).hexdigest() == "329c0647989a35019a06b00ef2ae660494a8e8ad0c1523787b37436562cd78a4":
+    _O14b = load("sneak_n2_octavo014_ch", _kf_o14b)
+    with _rh_fixed(pickup=b"\xa0" * 16, nonce=b"\xb0" * 16, mod=_O14b):
+        _ch_V1 = _O14b.encrypt_rehearsal(_CH_P1, _CH_SEED, b"", _CH_CS); _ch_V2 = _O14b.encrypt_rehearsal(_CH_P2, _CH_SEED, b"", _CH_CS)
+    _ch_vh, _ch_v1 = _ch_chunks(_ch_V1); _, _ch_v2 = _ch_chunks(_ch_V2)
+    _ch_vsp = _ch_vh + _ch_v2[0] + _ch_v1[1] + _ch_v1[2] + _ch_v1[3]
+    check("rehearsal-chain: the w1 splice still opens on octavo014 v8 and through decrypt_rehearsal_legacy(allow_unchained=True) (the documented legacy risk), but v9 decrypt_rehearsal refuses the v8 stream (UnsupportedVersion)",
+          _ch_opens(_ch_vsp, mod=_O14b) and _ch_opens(_ch_vsp, legacy=True)
+          and isinstance(catch(lambda: N.decrypt_rehearsal(_ch_vsp, _CH_SEED, b"")), N.UnsupportedVersion))
+    sys.modules.pop("sneak_n2_octavo014_ch", None)
+else:
+    skip("rehearsal-chain: w1 splice on octavo014 v8")
+
+# chain formula: tag_i covers tag_{i-1}
+_ch_adh = N._rehearsal_ad_digest(b"")
+_ch_cm = _ch_S1[36:68]
+def _ch_tag(i, final, ct, prev):
+    k = N.StaffSponge(b"R", _CH_SEED, b"chunk\x09" + b"\xa0" * 16 + b"\xb0" * 16 + (128).to_bytes(4, "big") + i.to_bytes(8, "big")
+                      + (b"\x01" if final else b"\x00") + _ch_adh).take(32)
+    return _rh_hmac.new(k, N.staff_clef(_CH_SEED) + N.rehearsal_signature(_CH_SEED) + b"\x09SN2" + b"\xa0" * 16 + b"\xb0" * 16 + _ch_cm
+                        + (128).to_bytes(4, "big") + i.to_bytes(8, "big") + (b"\x01" if final else b"\x00") + _ch_adh + prev + ct,
+                        hashlib.sha256).digest()
+_ch_prev = bytes(32); _ch_fok = []
+for _i, _c in enumerate(_ch_c1):
+    _t = _ch_tag(_i, _i == len(_ch_c1) - 1, _c[:-32], _ch_prev); _ch_fok.append(_t == _c[-32:]); _ch_prev = _t
+check("rehearsal-chain formula: tag_i = HMAC(R-sponge(chunk||9||...)[:32], clef || rehearsal_sig || 9 || SN2 || pickup || nonce || commit || cs32 || index64 || final8 || ad_digest || tag_{i-1} || ct_i), tag_{-1} = 0^32; _rehearsal_tag(prev=...) agrees",
+      all(_ch_fok) and len(_ch_fok) == 4
+      and N._rehearsal_tag(N._rehearsal_chunk_key(_CH_SEED, b"\xa0" * 16, b"\xb0" * 16, 128, 1, False, _ch_adh), N.staff_clef(_CH_SEED),
+                           N.rehearsal_signature(_CH_SEED), b"\xa0" * 16, b"\xb0" * 16, _ch_cm, 128, 1, False, _ch_adh, _ch_c1[1][:-32],
+                           prev=_ch_c1[0][-32:]) == _ch_c1[1][-32:]
+      and isinstance(catch(lambda: N._rehearsal_tag(b"k" * 32, b"", b"", b"", b"", b"", 128, 0, False, b"", b"", prev=b"short")), ValueError))
+check("rehearsal-chain domain separation: v9 labels are b'sched'+9 / b'chunk'+9 (v8 keeps b'sched'/b'chunk'); v9 and v8 keys, tweaks, schedule nonces and commitments differ; _rehearsal_fmt accepts only 9 and 8",
+      N._rehearsal_label(b"chunk", 9) == b"chunk\x09" and N._rehearsal_label(b"sched", 8) == b"sched"
+      and N._rehearsal_chunk_key(_CH_SEED, bytes(16), bytes(16), 128, 0, False, _ch_adh, 9) != N._rehearsal_chunk_key(_CH_SEED, bytes(16), bytes(16), 128, 0, False, _ch_adh, 8)
+      and N._rehearsal_tweaks(_CH_SEED, bytes(16), bytes(16), 128, 0, False, _ch_adh, 1, 9) != N._rehearsal_tweaks(_CH_SEED, bytes(16), bytes(16), 128, 0, False, _ch_adh, 1, 8)
+      and N._rehearsal_schedule_nonce(_CH_SEED, bytes(16), bytes(16), 128, _ch_adh, 9) != N._rehearsal_schedule_nonce(_CH_SEED, bytes(16), bytes(16), 128, _ch_adh, 8)
+      and N._rehearsal_commitment(N._commit_key(_CH_SEED), bytes(16), bytes(16), b"", 128, 9) != N._rehearsal_commitment(N._commit_key(_CH_SEED), bytes(16), bytes(16), b"", 128, 8)
+      and all(isinstance(catch(lambda f=f: N._rehearsal_fmt(f)), ValueError) for f in (7, 10, 6, 0, None)))
+_ch_m = os.urandom(3000)
+with _rh_fixed():
+    _ch_a = N.encrypt_rehearsal(_ch_m, SEED, b"w", 256)
+with _rh_fixed():
+    _ch_b = N.encrypt_rehearsal(_ch_m, SEED, b"w", 256, workers=2)
+_ch_e = N.RehearsalEncryptor(SEED, b"w", 256)
+_ch_inc = _ch_e.update(_ch_m[:1000]) + _ch_e.update(_ch_m[1000:]) + _ch_e.finalize()
+check("rehearsal-chain: workers=2 encryption is byte-identical to workers=1 (blocks parallel, tag chain sequential); incremental update/finalize round-trips; decrypt with workers=2 opens",
+      _ch_a == _ch_b and N.decrypt_rehearsal(_ch_a, SEED, b"w", workers=2) == _ch_m and N.decrypt_rehearsal(_ch_inc, SEED, b"w") == _ch_m
+      and _ch_inc[0] == 9)
+
+# legacy v8: opt-in gate, warning, v8 only
+_ch_leg = _ch_json.load(open(os.path.join(HERE, "legacy_v8", "score8_rehearsal_v8.json")))
+_ch_leg_ok = []
+for _v in _ch_leg["vectors"]:
+    _b = bytes.fromhex(_v["blob"]); _ad = bytes.fromhex(_v["ad"])
+    with warnings.catch_warnings(record=True) as _ws:
+        warnings.simplefilter("always")
+        _pt = N.decrypt_rehearsal_legacy(_b, SEED, _ad, allow_unchained=True)
+    _ch_leg_ok.append(hashlib.sha256(_b).hexdigest() == _v["blob_sha256"] and hashlib.sha256(_pt).hexdigest() == _v["msg_sha256"]
+                      and len(_pt) == _v["msg_len"] and _b[0] == 8
+                      and sum(issubclass(w.category, N.LegacyFormatWarning) for w in _ws) == 1
+                      and isinstance(catch(lambda: N.decrypt_rehearsal(_b, SEED, _ad)), N.UnsupportedVersion))
+check("rehearsal-chain legacy: all 8 published score-version-8 (v8) rehearsal vectors (legacy_v8/score8_rehearsal_v8.json) open only via decrypt_rehearsal_legacy(allow_unchained=True), with one LegacyFormatWarning each; decrypt_rehearsal refuses them (UnsupportedVersion)",
+      all(_ch_leg_ok) and len(_ch_leg_ok) == 8 and _ch_leg["rehearsal_v8_sha256"] == N.REHEARSAL_V8_SHA256)
+_ch_dl = {l.split(":")[0]: l.split()[-1] for l in open(os.path.join(HERE, "legacy_v8", "rehearsal-demo-v8.txt"), encoding="utf-8") if l.startswith(("blob", "plaintext_hex"))}
+_ch_d8 = bytes.fromhex(_ch_dl["blob (392 bytes = header(72) || (ct(chunk_size) || tag(32)) * non-final || ct(128k) || tag(32))"])
+check("rehearsal-chain legacy: the rehearsal-curtain rehearsal-demo.txt (v8) opens via the legacy reader to its recorded plaintext",
+      N.decrypt_rehearsal_legacy(_ch_d8, SEED, b"rehearsal-demo", allow_unchained=True) == bytes.fromhex(_ch_dl["plaintext_hex"]) and _ch_d8[0] == 8)
+check("rehearsal-chain legacy gate: without allow_unchained=True (missing, False, 1, 'yes') decrypt_rehearsal_legacy raises ValueError before reading the blob; it refuses v9, v6, v7 and garbage (UnsupportedVersion / Rejected); a v8 blob relabelled 9 fails authentication",
+      all(isinstance(catch(lambda a=a: N.decrypt_rehearsal_legacy(_ch_d8, SEED, b"rehearsal-demo", **a)), ValueError)
+          and "allow_unchained=True" in str(catch(lambda a=a: N.decrypt_rehearsal_legacy(_ch_d8, SEED, b"rehearsal-demo", **a)))
+          for a in ({}, {"allow_unchained": False}, {"allow_unchained": 1}, {"allow_unchained": "yes"}))
+      and isinstance(catch(lambda: N.decrypt_rehearsal_legacy(N.encrypt_rehearsal(b"x", SEED), SEED, allow_unchained=True)), N.UnsupportedVersion)
+      and isinstance(catch(lambda: N.decrypt_rehearsal_legacy(N.encrypt(b"x", SEED), SEED, allow_unchained=True)), N.UnsupportedVersion)
+      and isinstance(catch(lambda: N.decrypt_rehearsal_legacy(N.encrypt_movements(b"x", SEED), SEED, allow_unchained=True)), N.UnsupportedVersion)
+      and isinstance(catch(lambda: N.decrypt_rehearsal_legacy(b"\x08SN2" + bytes(10), SEED, allow_unchained=True)), N.Rejected)
+      and isinstance(catch(lambda: N.decrypt_rehearsal(b"\x09" + _ch_d8[1:], SEED, b"rehearsal-demo")), N.AuthError))
+with warnings.catch_warnings():
+    warnings.simplefilter("error", N.LegacyFormatWarning)
+    _ch_warn = catch(lambda: N.decrypt_rehearsal_legacy(_ch_d8, SEED, b"rehearsal-demo", allow_unchained=True))
+check("rehearsal-chain legacy: the LegacyFormatWarning is raised on every legacy open (as an error under -W error) and names re-encrypting as v9",
+      isinstance(_ch_warn, N.LegacyFormatWarning) and "v9" in str(_ch_warn))
+import tempfile as _ch_tmp
+_ch_td = _ch_tmp.mkdtemp(prefix="octavo_chain_")
+try:
+    _ch_src = os.path.join(_ch_td, "v8.oct"); open(_ch_src, "wb").write(_ch_d8)
+    _ch_r_iter = catch(lambda: b"".join(N.iter_rehearsal(_ch_d8, SEED, b"rehearsal-demo")))
+    def _ch_dec_v8():
+        d = N.RehearsalDecryptor(SEED, b"rehearsal-demo"); d.update(_ch_d8); return d.finalize()
+    _ch_r_dec = catch(_ch_dec_v8)
+    _ch_r_file = catch(lambda: N.decrypt_rehearsal_file(_ch_src, os.path.join(_ch_td, "out.bin"), SEED, b"rehearsal-demo"))
+    check("rehearsal-chain: every v9 reader refuses a v8 stream with UnsupportedVersion: decrypt_rehearsal, iter_rehearsal, RehearsalDecryptor, decrypt_rehearsal_file (and leaves no output file)",
+          isinstance(catch(lambda: N.decrypt_rehearsal(_ch_d8, SEED, b"rehearsal-demo")), N.UnsupportedVersion)
+          and isinstance(_ch_r_iter, N.UnsupportedVersion) and isinstance(_ch_r_dec, N.UnsupportedVersion) and isinstance(_ch_r_file, N.UnsupportedVersion)
+          and not os.path.exists(os.path.join(_ch_td, "out.bin")))
+finally:
+    _rh_sh.rmtree(_ch_td, ignore_errors=True)
+check("rehearsal-chain attestation: decrypt_rehearsal_legacy is a REHEARSAL_CODE_ROOT (the rehearsal digest covers the v8 reader and gate); rehearsal_description records the chain and legacy_v8; rehearsal_sig moved to the v9 code, v8 uses the frozen REHEARSAL_V8_SHA256",
+      "decrypt_rehearsal_legacy" in N.REHEARSAL_CODE_ROOTS
+      and {"_RehearsalDecryptorV8", "_require_unchained", "_rehearsal_label", "_rehearsal_fmt"} <= N.mix_code_closure(N.REHEARSAL_CODE_ROOTS)[0]
+      and b"tag_{i-1}" in N.rehearsal_description() and b"legacy_v8" in N.rehearsal_description()
+      and N.REHEARSAL_V8_SHA256 == "50c077f3b2105b36e027bf0c94770dcad64f7242974c4b7e67d3f0226810a4a8"
+      and N.REHEARSAL_SIG_PIN == (N.EXPECTED_REHEARSAL_CORE_SHA256, "a21cf6e768a88cc21b4698b54426cf2d1527936f101f783862a609efa8bbad45")
+      and N.rehearsal_signature(SEED).hex() == "07172e74d02a04a42ea0a51b8e69cbf1"
+      and N.key_signature(SEED).hex() == "340dc1e062502bb13462a94ba490c3dc")
+check("rehearsal-chain docs: README, SPEC and SECURITY describe v9 chained tags, the w1 splice fix, and the v8 legacy opt-in (allow_unchained=True)",
+      all("allow_unchained=True" in open(os.path.join(HERE, f), encoding="utf-8").read() and "rehearsal-chain" in open(os.path.join(HERE, f), encoding="utf-8").read()
+          for f in ("README.md", "SPEC.md", "SECURITY.md")))
+
+# ---- rehearsal-chainfix: fixes for attacks_octavo_rehearsalchain (L1-L4, I1-I7); no ciphertext changes
+import json as _cf_json, contextlib as _cf_ctx, tempfile as _cf_tmp, textwrap as _cf_tw
+_cf_rand = [os.urandom(128) for _ in range(200)]
+check("chainfix L1: _seed_bytes(x) == x for 200 random seeds, as bytes, bytearray, memoryview and int; it returns the private _CheckedSeed marker",
+      all(N._seed_bytes(x) == x and N._seed_bytes(bytearray(x)) == x and N._seed_bytes(memoryview(x)) == x
+          and N._seed_bytes(int.from_bytes(x, "big")) == x and type(N._seed_bytes(x)) is N._CheckedSeed for x in _cf_rand))
+@_cf_ctx.contextmanager
+def _cf_pickup(pk):
+    saved = N._fresh_pickup; N._fresh_pickup = lambda: pk
+    try: yield
+    finally: N._fresh_pickup = saved
+_cf_k = N.keygen(); _cf_pk = bytes(range(16))
+with _cf_pickup(_cf_pk): _cf_ref = N.encrypt(b"hello world", _cf_k)
+_cf_seen = []
+_cf_orig_pol = N._seed_policy_check
+N._seed_policy_check = lambda s: (_cf_seen.append(type(s)), os.urandom(128))[1]     # a policy that tries to hand back another key
+try:
+    with _cf_pickup(_cf_pk): _cf_alt = N.encrypt(b"hello world", _cf_k)
+finally:
+    N._seed_policy_check = _cf_orig_pol
+check("chainfix L1: the excluded seed policy is a pure predicate: a policy that returns another key changes nothing (core ignores the return value; the policy sees an immutable bytes copy)",
+      _cf_alt == _cf_ref and _cf_seen == [bytes] and "_seed_policy_check(bytes(s))" in inspect.getsource(N._seed_bytes)
+      and "_seed_bytes" not in N.SEED_POLICY_NAMES and "_DerivedKey" not in N.ATTEST_ONLY_NAMES and "_CheckedSeed" not in N.ATTEST_ONLY_NAMES)
+# The w07 T1 tamper, now in the CORE: keep 2 bytes of every non-demo key. Re-pinning only the EXPECTED_* digests
+# (what every revision changes) no longer keeps key_sig: the core moved, so KEY_SIG_PIN no longer matches.
+_cf_src = open(os.path.join(HERE, "sneak_n2.py"), encoding="utf-8").read()
+_cf_t1 = _cf_src.replace("    return _CheckedSeed(s)\n",
+    "    if hashlib.sha256(s).hexdigest() != DEMO_SEED_SHA256: s = s[:2] + hashlib.shake_256(s[:2]).digest(126)\n    return _CheckedSeed(s)\n", 1)
+assert _cf_t1 != _cf_src
+with _cf_tmp.TemporaryDirectory(prefix="n2_cf_t1_") as _cf_td:
+    _cf_p = os.path.join(_cf_td, "sneak_n2_cf_t1.py"); open(_cf_p, "w").write(_loosen_all(_cf_t1))
+    _cf_T = load("sneak_n2_cf_t1", _cf_p)
+    _cf_nd = _committed["nondemo"]; _cf_ns = bytes.fromhex(_cf_nd["seed"]["hex"])
+    check("chainfix L1: the w07 T1 tamper moved into _seed_bytes (re-pinning only EXPECTED_*) changes the core digest, so key_sig moves for EVERY seed and the published non-demo key_sig no longer matches",
+          _cf_T._MIX_CORE_SHA256 != N._MIX_CORE_SHA256 and _cf_T.key_signature(SEED) != N.key_signature(SEED)
+          and _cf_T.key_signature(_cf_ns).hex() != _cf_nd["key_sig"] and _cf_T._SEED_POLICY_SHA256 == N._SEED_POLICY_SHA256)
+    sys.modules.pop("sneak_n2_cf_t1", None)
+# non-demo score vectors
+_cf_nd = _committed["nondemo"]; _cf_ns = bytes.fromhex(_cf_nd["seed"]["hex"])
+_cf_open = {"block": lambda b, ad: N.decrypt(b, _cf_ns, ad), "movements": lambda b, ad: N.decrypt_movements(b, _cf_ns, ad),
+            "rehearsal": lambda b, ad: N.decrypt_rehearsal(b, _cf_ns, ad), "etude-block": lambda b, ad: E.etude(4).decrypt(b, _cf_ns, ad=ad)}
+_cf_ok = []
+for _v in _cf_nd["vectors"]:
+    _b = bytes.fromhex(_v["blob"]); _pt = _cf_open[_v["mode"]](_b, bytes.fromhex(_v["ad"]))
+    _cf_ok.append(hashlib.sha256(_b).hexdigest() == _v["blob_sha256"] and hashlib.sha256(_pt).hexdigest() == _v["msg_sha256"] and _b[0] == _v["fmt_version"])
+_cf_pre = os.path.join(HERE, "chainfix_verification", "nondemo_pre.json")
+_cf_pre_ok = True
+if os.path.isfile(_cf_pre):
+    _cf_pj = _cf_json.load(open(_cf_pre))
+    _cf_pre_ok = (_cf_pj["key_sig"] == _cf_nd["key_sig"] and _cf_pj["rehearsal_sig"] == _cf_nd["rehearsal_sig"]
+                  and [v["blob"] for v in _cf_pj["vectors"]] == [v["blob"] for v in _cf_nd["vectors"]])
+check("chainfix L1: the 7 non-demo score vectors (live v6 x2, v7 x2, v9 x2, étude r4) open under the published non-demo test seed, which matches its SHAKE-256 definition and file, and equal the rehearsal-chain output (chainfix_verification/nondemo_pre.json)",
+      all(_cf_ok) and len(_cf_ok) == 7 and _cf_pre_ok and _cf_ns == hashlib.shake_256(b"Octavo published non-demo test seed v1").digest(128)
+      and _cf_ns == _gen_score.nondemo_seed() and _cf_ns != SEED and N.key_signature(_cf_ns).hex() == _cf_nd["key_sig"]
+      and N.rehearsal_signature(_cf_ns).hex() == _cf_nd["rehearsal_sig"])
+# EXPECTED_SEED_POLICY_SHA256 and what the policy may call
+def _cf_refs(n):
+    return {x.id for x in __import__("ast").walk(__import__("ast").parse(_cf_tw.dedent(inspect.getsource(getattr(N, n))))) if isinstance(x, __import__("ast").Name)}
+_cf_core_code = N.mix_code_closure(tuple(N.MIX_CODE_ROOTS) + tuple(N.REHEARSAL_CODE_ROOTS))[0] - N.ATTEST_ONLY_NAMES
+_cf_bad = {(n, r) for n in N.SEED_POLICY_NAMES for r in _cf_refs(n)
+           if r in vars(N) and (inspect.isfunction(getattr(N, r)) or inspect.isclass(getattr(N, r)))
+           and getattr(getattr(N, r), "__module__", None) == N.__name__ and r not in N.SEED_POLICY_NAMES and r not in _cf_core_code}
+check("chainfix L1/L2: EXPECTED_SEED_POLICY_SHA256 equals a fresh _seed_policy_digest(); keygen/save_seed/load_seed are in SEED_POLICY_NAMES and MIX_CODE_FUNCS; every function the policy calls is policy or core",
+      N.EXPECTED_SEED_POLICY_SHA256 == N._SEED_POLICY_SHA256 == N._seed_policy_digest() and not _cf_bad
+      and {"keygen", "save_seed", "load_seed", "_seed_policy_check", "_weak_seed_reason"} <= N.SEED_POLICY_NAMES
+      and {"keygen", "save_seed", "load_seed", "_fsync_dir"} <= set(N.MIX_CODE_FUNCS)
+      and N.KEY_SIG_PIN == (N.EXPECTED_MIX_CORE_SHA256, "fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6")
+      and N._MIX_SHA256 == N.KEY_SIG_PIN[1] and N.key_signature(SEED).hex() == "340dc1e062502bb13462a94ba490c3dc")
+# L3: atomic save_seed
+_cf_l3 = subprocess.run([sys.executable, "-B", "-c", _cf_tw.dedent("""
+    import sys, os, resource, signal, tempfile
+    sys.path.insert(0, %r); import sneak_n2 as N
+    d = tempfile.mkdtemp(); p = os.path.join(d, "k.txt"); k = N.keygen()
+    signal.signal(signal.SIGXFSZ, signal.SIG_IGN); old = resource.getrlimit(resource.RLIMIT_FSIZE)
+    resource.setrlimit(resource.RLIMIT_FSIZE, (100, old[1]))
+    try:
+        N.save_seed(p, k); failed = False
+    except OSError:
+        failed = True
+    resource.setrlimit(resource.RLIMIT_FSIZE, old)
+    left = os.listdir(d)
+    fs = []; real = N._fsync_dir; N._fsync_dir = lambda f: (fs.append(f), real(f))[1]
+    N.save_seed(p, k)
+    print(failed, left == [], N.load_seed(p) == k, oct(os.stat(p).st_mode & 0o777), os.listdir(d) == ["k.txt"], fs == [d])
+    """ % HERE)], capture_output=True, text=True, timeout=120)
+check("chainfix L3: save_seed under a 100-byte file-size limit raises OSError and leaves NOTHING behind; the retry succeeds (0600, only the final name) and fsyncs the directory",
+      _cf_l3.stdout.split() == ["True", "True", "True", "0o600", "True", "True"])
+with _cf_tmp.TemporaryDirectory(prefix="n2_cf_l3_") as _cf_td:
+    _cf_target = os.path.join(_cf_td, "victim"); open(_cf_target, "w").write("keep")
+    _cf_res = []
+    for _cf_kind in ("file", "symlink", "dangling", "dir", "fifo"):
+        _cf_q = os.path.join(_cf_td, "p_" + _cf_kind)
+        if _cf_kind == "file": open(_cf_q, "w").write("x")
+        elif _cf_kind == "symlink": os.symlink(_cf_target, _cf_q)
+        elif _cf_kind == "dangling": os.symlink(os.path.join(_cf_td, "nowhere"), _cf_q)
+        elif _cf_kind == "dir": os.mkdir(_cf_q)
+        else: os.mkfifo(_cf_q)
+        _cf_res.append(isinstance(catch(lambda: N.save_seed(_cf_q, _cf_k)), FileExistsError))
+    check("chainfix L3: save_seed still never clobbers (existing file, live/dangling symlink, directory, FIFO -> FileExistsError), the victim is intact and no temp file is left",
+          all(_cf_res) and open(_cf_target).read() == "keep" and not [f for f in os.listdir(_cf_td) if f.endswith(".tmp")])
+# L4 docs / docstrings
+check("chainfix L4: the weak-seed rule is documented as a sanity check (keygen() is the real protection) in the code, README and SECURITY",
+      "sanity check" in inspect.getsource(N._weak_seed_reason).lower() and "real protection" in " ".join(inspect.getsource(N.keygen).split())
+      and all("sanity check" in open(os.path.join(HERE, f), encoding="utf-8").read() for f in ("README.md", "SECURITY.md", "SPEC.md")))
+# I1: every legacy call warns under the DEFAULT filters (fresh interpreter, no -W)
+_cf_i1 = subprocess.run([sys.executable, "-B", "-c", _cf_tw.dedent("""
+    import sys, warnings
+    sys.path.insert(0, %r); import sneak_n2 as N
+    S = N.load_seed()
+    for _ in range(5):
+        try: N.decrypt_legacy(b"\\x02" + b"x" * 10, S, allow_noncommitting=True)
+        except N.Rejected: pass
+    for _ in range(3):
+        try: N.decrypt_rehearsal_legacy(b"\\x08" + b"x" * 10, S, allow_unchained=True)
+        except N.Rejected: pass
+    """ % HERE)], capture_output=True, text=True, timeout=120)
+check("chainfix I1: under Python's default filters LegacyFormatWarning shows on EVERY call (5 of 5 decrypt_legacy, 3 of 3 decrypt_rehearsal_legacy from one line each)",
+      _cf_i1.returncode == 0 and _cf_i1.stderr.count("LegacyFormatWarning") == 8)
+# I2: the private v8 class is gated
+_cf_v8j = _cf_json.load(open(os.path.join(HERE, "legacy_v8", "score8_rehearsal_v8.json")))["vectors"]
+_cf_v8 = next((bytes.fromhex(v["blob"]) for v in _cf_v8j if "blob" in v and not v.get("ad")), None)
+with warnings.catch_warnings(record=True) as _cf_w:
+    warnings.simplefilter("always")
+    _cf_i2_none = catch(lambda: N._RehearsalDecryptorV8(SEED))
+    _cf_i2_true = catch(lambda: N._RehearsalDecryptorV8(SEED, allow_unchained=1))
+    _cf_d8 = N._RehearsalDecryptorV8(SEED, allow_unchained=True)
+    _cf_pt8 = (_cf_d8.update(_cf_v8) + _cf_d8.finalize()) if _cf_v8 is not None else None
+check("chainfix I2: _RehearsalDecryptorV8 refuses (ValueError) unless allow_unchained is exactly True and warns on construction; gated update()/finalize() still opens a published v8 vector",
+      isinstance(_cf_i2_none, ValueError) and isinstance(_cf_i2_true, ValueError)
+      and sum(issubclass(w.category, N.LegacyFormatWarning) for w in _cf_w) == 1
+      and (_cf_v8 is None or _cf_pt8 is not None))
+# I3: seed first, consistent types
+_cf_mal = b"\x00\x01"
+_cf_i3 = [catch(lambda: N.decrypt(_cf_mal, None)), catch(lambda: N.decrypt_movements(_cf_mal, None)),
+          catch(lambda: N.decrypt_legacy(_cf_mal, None, allow_noncommitting=True)),
+          catch(lambda: N.decrypt_movements_legacy(_cf_mal, None, allow_noncommitting=True)),
+          catch(lambda: N.decrypt_rehearsal(_cf_mal, None)), catch(lambda: N.decrypt_rehearsal_legacy(_cf_mal, None, allow_unchained=True)),
+          catch(lambda: N.RehearsalDecryptor(None, ad=b"x" * (N.MAX_AD_LEN + 1))),
+          catch(lambda: E.etude(4).decrypt(_cf_mal, None)), catch(lambda: E.etude(4).encrypt(b"x", None))]
+check("chainfix I3: seed=None with a malformed blob (or bad AD) raises TypeError('seed is required...') everywhere, études included: the seed is checked first",
+      all(isinstance(e, TypeError) and "seed is required" in str(e) for e in _cf_i3))
+_cf_i3b = [catch(lambda v=v: N._seed_bytes(v)) for v in (True, False, -1, 1 << 1024, "ab" * 64, 3.5, [1] * 128)]
+check("chainfix I3: bool, str, float and list seeds raise TypeError; negative or >= 2**1024 ints raise ValueError (not OverflowError)",
+      [type(e) for e in _cf_i3b] == [TypeError, TypeError, ValueError, ValueError, TypeError, TypeError, TypeError]
+      and "LOW-LEVEL" in N.StaffSponge.__doc__)
+# I4: load_seed / save_seed warnings
+with _cf_tmp.TemporaryDirectory(prefix="n2_cf_i4_") as _cf_td:
+    _cf_kp = os.path.join(_cf_td, "k.txt"); N.save_seed(_cf_kp, _cf_k)
+    def _cf_warns(f):
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always"); r = f()
+        return r, [str(x.message) for x in w if issubclass(x.category, N.SeedWarning)]
+    _cf_r0 = _cf_warns(lambda: N.load_seed(_cf_kp))
+    os.chmod(_cf_kp, 0o644); _cf_r1 = _cf_warns(lambda: N.load_seed(_cf_kp)); os.chmod(_cf_kp, 0o600)
+    os.symlink(_cf_kp, _cf_kp + ".lnk"); _cf_r2 = _cf_warns(lambda: N.load_seed(_cf_kp + ".lnk"))
+    _cf_dp = os.path.join(_cf_td, "dash.txt"); open(_cf_dp, "w").write("-".join(_cf_k.hex()[i:i + 8] for i in range(0, 256, 8)) + "\n"); os.chmod(_cf_dp, 0o600)
+    _cf_r3 = _cf_warns(lambda: N.load_seed(_cf_dp))
+    _cf_r4 = _cf_warns(lambda: N.load_seed(N.SEED_PATH))
+    _cf_r5 = _cf_warns(lambda: N.save_seed(os.path.join(_cf_td, "demo.txt"), SEED))
+check("chainfix I4: load_seed(path) warns (SeedWarning) on a 0644 file, a symlink and non-hex decoration but still reads them; a 0600 keygen file and the public demo seed give no warning; save_seed warns when asked to store the demo seed",
+      _cf_r0 == (_cf_k, []) and _cf_r1[0] == _cf_k and len(_cf_r1[1]) == 1 and "group/others" in _cf_r1[1][0]
+      and _cf_r2[0] == _cf_k and len(_cf_r2[1]) == 1 and "symlink" in _cf_r2[1][0]
+      and _cf_r3[0] == _cf_k and len(_cf_r3[1]) == 1 and "other than hex" in _cf_r3[1][0]
+      and _cf_r4 == (SEED, []) and len(_cf_r5[1]) == 1 and "PUBLIC demo seed" in _cf_r5[1][0])
+# I5: the pin logic is attested (modification loop above) and the import checks run after every attested def
+check("chainfix I5: the pin logic, key tools and helpers are in MIX_CODE_FUNCS (attested) but not in the core; the import checks are the module's last statements",
+      N.PIN_LOGIC_NAMES <= set(N.MIX_CODE_FUNCS) and N.HELPER_NAMES <= set(N.MIX_CODE_FUNCS)
+      and not (N.ATTEST_ONLY_NAMES & N.mix_code_closure(N.MIX_CODE_ROOTS)[0] - {"_seed_policy_check", "_weak_seed_reason"})
+      and _cf_src.rstrip().endswith("_init_attestation()\n_init_rehearsal_attestation()\n_init_seed_policy_attestation()\n_verify_executed_code()"))
+# I7
+check("chainfix I7: an uncaught exception reports FAIL plus totals (sys.excepthook) and the octavo014 cross-check is wrapped",
+      sys.excepthook is _suite_abort_hook and "_kf_err is None and all(_kf_same)" in open(__file__, encoding="utf-8").read())
+check("chainfix docs: README, SPEC, SECURITY, SNAPSHOT and LINER_NOTES describe rehearsal-chainfix and EXPECTED_SEED_POLICY_SHA256",
+      all("rehearsal-chainfix" in open(os.path.join(HERE, f), encoding="utf-8").read() and N.EXPECTED_SEED_POLICY_SHA256[:8] in open(os.path.join(HERE, f), encoding="utf-8").read()
+          for f in ("README.md", "SPEC.md", "SECURITY.md", "SNAPSHOT.md", "LINER_NOTES.md")))
+
+
 def sha_ok(listfile):
     r = subprocess.run(["sha256sum", "-c", "--quiet", listfile], cwd="/workspace", capture_output=True)
     return r.returncode == 0

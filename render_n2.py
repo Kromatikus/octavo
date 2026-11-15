@@ -314,8 +314,8 @@ for j,bow_line in enumerate(bow_lines):
 # titles — built from live module metadata + FMT_VERSION, blob size, file SHA, key_sig, date
 _src_path=os.path.join(HERE,'sneak_n2.py')
 file_sha=hashlib.sha256(open(_src_path,'rb').read()).hexdigest()
-key_sig=N.key_signature().hex()
-rehearsal_sig=N.rehearsal_signature().hex()
+key_sig=N.key_signature(KEY).hex()
+rehearsal_sig=N.rehearsal_signature(KEY).hex()
 def _centered(text, font, y, fill, label):
     bb=d.textbbox((0,0),text,font=font)
     if bb[2]-bb[0] > W-80:
@@ -366,7 +366,7 @@ meta={
 # footer
 footf=ImageFont.truetype(Fd+'DejaVuSans.ttf',30)
 lines=[
-    f"rehearsal stream v{N.FMT_REHEARSAL}: header = version ‖ SN2 ‖ pickup ‖ nonce ‖ tuning ‖ chunk size ({N.REHEARSAL_HDR_LEN} B)   ·   chunks = ct ‖ HMAC-R tag over index ‖ final flag ‖ AD   ·   "
+    f"rehearsal stream v{N.FMT_REHEARSAL}: header = version ‖ SN2 ‖ pickup ‖ nonce ‖ tuning ‖ chunk size ({N.REHEARSAL_HDR_LEN} B)   ·   chunks = ct ‖ HMAC-R tag over index ‖ final flag ‖ AD{' ‖ previous tag' if N.FMT_REHEARSAL >= 9 else ''}   ·   "
     f"rehearsal_sig {rehearsal_sig[:8]}…   ·   attestation {N.EXPECTED_REHEARSAL_SHA256[:8]}…",
     f"pickup {pickup.hex()}   ·   nonce {nonce.hex()}",
     f"tag {tag.hex()}   ·   blob = version ‖ SN2 ‖ pickup ‖ nonce ‖ tuning ‖ ct ‖ tag   ·   \"hello world\" sample",

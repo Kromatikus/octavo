@@ -1,7 +1,7 @@
 Sneak staff-core N2 (Octavo) — conductor-polish: equal-time single-block and movements rejects; fixed-width unpad; Rejected base class; legacy helpers gated end to end.
 Homemade; NOT for real secrets. Use AES-GCM-SIV, age, or libsodium. Picture redrawn from this sample.
 seed: sneak1024-seed.txt next to sneak_n2.py (same bytes as /workspace/sneak1024-seed.txt)
-live sneak_n2.py SHA-256: 329c0647989a35019a06b00ef2ae660494a8e8ad0c1523787b37436562cd78a4
+live sneak_n2.py SHA-256: 48d261e36671a35b15000e68dbd82469e631be14cc77a3f391e115d19e8b9786
 key_sig (16 bytes): 340dc1e062502bb13462a94ba490c3dc
 pickup (16 bytes; sha256(SN2/P || urandom || time_ns || counter || pid)[:16]): 2b87dc4e184cd78e6c77b829273b17a3
 nonce (16 bytes; SHA-256(clef || pickup || encode_block(msg) || encode_ad(ad))[:16], empty AD): d4a86fc3847623035bbe3a19ceda33b1
@@ -34,4 +34,5 @@ Re-encrypting differs (fresh pickup and blob); this is one recorded sample with 
 Previous published sample (pickup c9a332594dfc60c3f16795a3cba3b16b, etudes / v2) opens only through decrypt_legacy(..., allow_noncommitting=True) (LegacyFormatWarning); default decrypt() rejects it. Unpublished tuning v4 blobs are rejected.
 The picture (sneak-staff-n2.png) was regenerated from this sample.
 demo-nonce.txt is unchanged: an older fixed schedule-test nonce, not this sample's nonce.
-rehearsal-curtain revision: this blob is byte-identical to octavo010's and still opens on the live sneak_n2.py SHA-256 329c0647989a35019a06b00ef2ae660494a8e8ad0c1523787b37436562cd78a4 (v6/v7 unchanged; key_sig unchanged).
+rehearsal-chain revision (after key-fix): this blob is byte-identical to octavo010's and still opens on the live sneak_n2.py SHA-256 b0e25f4d3bcb31eae7a64413376ab23f34665f97316876746f57642a1dd0c0d7 (v6/v7 unchanged; key_sig unchanged). Since key-fix it is opened with an explicit seed: N.load_seed() (the PUBLIC demo seed); seed=None raises TypeError.
+rehearsal-chainfix revision: this blob is unchanged (byte-identical to rehearsal-chain and octavo010) and still opens on the live sneak_n2.py SHA-256 48d261e36671a35b15000e68dbd82469e631be14cc77a3f391e115d19e8b9786; v6/v7/v9, key_sig and rehearsal_sig unchanged.

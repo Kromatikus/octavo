@@ -1,7 +1,7 @@
 Sneak staff-core N2 (Octavo) — conductor-polish demo (format version 7, commitment binds AD and nmov; commitment and coda checked together).
 Homemade; NOT for real secrets. Use AES-GCM-SIV, age, or libsodium.
 seed: sneak1024-seed.txt next to sneak_n2.py
-live sneak_n2.py SHA-256: 329c0647989a35019a06b00ef2ae660494a8e8ad0c1523787b37436562cd78a4
+live sneak_n2.py SHA-256: 48d261e36671a35b15000e68dbd82469e631be14cc77a3f391e115d19e8b9786
 key_sig (16 bytes): 340dc1e062502bb13462a94ba490c3dc
 revision: conductor-polish / 2026-11-11
 plaintext (188 bytes): Octavo movements: a chained duplex over the staff-core. Each section is a movement, the running theme is carried forward, a cadence closes every section, and a coda covers the whole piece.
@@ -18,4 +18,5 @@ blob (424 bytes = version || SN2 || pickup || nonce || commit || nmov || (ct||ca
 recovered plaintext matches.
 A version-6 single-block blob cannot be opened by decrypt_movements, and this blob cannot be opened by decrypt.
 Published version-3 movements blobs open only through decrypt_movements_legacy(..., allow_noncommitting=True) (LegacyFormatWarning); they are not key-committing. Unpublished tuning v5 blobs are rejected.
-rehearsal-curtain revision: this blob is byte-identical to octavo010's and still opens on the live sneak_n2.py SHA-256 329c0647989a35019a06b00ef2ae660494a8e8ad0c1523787b37436562cd78a4 (v6/v7 unchanged; key_sig unchanged).
+rehearsal-chain revision (after key-fix): this blob is byte-identical to octavo010's and still opens on the live sneak_n2.py SHA-256 b0e25f4d3bcb31eae7a64413376ab23f34665f97316876746f57642a1dd0c0d7 (v6/v7 unchanged; key_sig unchanged). Since key-fix it is opened with an explicit seed: N.load_seed() (the PUBLIC demo seed); seed=None raises TypeError.
+rehearsal-chainfix revision: this blob is unchanged (byte-identical to rehearsal-chain and octavo010) and still opens on the live sneak_n2.py SHA-256 48d261e36671a35b15000e68dbd82469e631be14cc77a3f391e115d19e8b9786; v6/v7/v9, key_sig and rehearsal_sig unchanged.

@@ -1,13 +1,40 @@
-"""Portable sanity check for a fresh clone: decrypts the published hello-world blob
-and round-trips a message under a fresh random seed, with and without associated data.
+"""Portable sanity check for a fresh clone: decrypts the published hello-world
+and rehearsal-demo blobs, round-trips a message under a fresh random seed,
+checks that a missing seed raises TypeError, and confirms score version 10.
 Run: python3 quick_check.py"""
+import json
 import os
-from sneak_n2 import encrypt, decrypt, load_seed, AuthError, UnsupportedVersion, FMT_VERSION
+from sneak_n2 import (
+    FMT_REHEARSAL,
+    FMT_VERSION,
+    AuthError,
+    UnsupportedVersion,
+    decrypt,
+    decrypt_rehearsal,
+    encrypt,
+    load_seed,
+)
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+
+def blob_from(name):
+    return bytes.fromhex(next(l for l in open(os.path.join(HERE, name)) if l.startswith("blob")).split()[-1])
 
 assert FMT_VERSION == 6
-seed = load_seed(os.path.join(os.path.dirname(os.path.abspath(__file__)), "sneak1024-seed.txt"))
-blob = bytes.fromhex(next(l for l in open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "hello-world.txt")) if l.startswith("blob")).split()[-1])
+assert FMT_REHEARSAL == 9
+seed = load_seed(os.path.join(HERE, "sneak1024-seed.txt"))
+blob = blob_from("hello-world.txt")
 assert blob[0] == 6 and decrypt(blob, seed) == b"hello world"
+rblob = blob_from("rehearsal-demo.txt")
+assert rblob[0] == 9 and decrypt_rehearsal(rblob, seed, b"rehearsal-demo") == (
+    b"Octavo rehearsal: the piece is played in fixed-length passages. "
+    b"Each passage is sealed with its own tag, numbered, and the last one is marked final, "
+    b"so a cut, a swap or a repeat is heard at once."
+)
+try:
+    decrypt(rblob, seed); raise SystemExit("FAIL: v9 rehearsal blob accepted by decrypt()")
+except UnsupportedVersion:
+    pass
 key = os.urandom(128)
 msg = b"meet at noon"
 b2 = encrypt(msg, key)
@@ -23,9 +50,16 @@ try:
     decrypt(bytes(bad), key); raise SystemExit("FAIL: tampered blob accepted")
 except AuthError:
     pass
-for old in (1, 2, 4):
+for old in (1, 2, 4, 8):
     try:
         decrypt(bytes([old]) + blob[1:], seed); raise SystemExit(f"FAIL: version-{old} blob accepted")
     except UnsupportedVersion:
         pass
-print("OK: hello-world decrypts, random-key round trip works, AD binds, tampering and versions 1, 2 and 4 are rejected")
+try:
+    encrypt(msg); raise SystemExit("FAIL: missing seed accepted")
+except TypeError as e:
+    assert "seed is required" in str(e)
+score = json.load(open(os.path.join(HERE, "score", "vectors.json")))
+assert score["score_version"] == 10 and score["counts"]["total"] == 79
+assert score["revision"] == "rehearsal-chainfix"
+print("OK: hello-world (v6) and rehearsal-demo (v9) decrypt, random-key round trip works, AD binds, missing seed raises TypeError, tampering and versions 1, 2, 4 and 8 are rejected, score is version 10")

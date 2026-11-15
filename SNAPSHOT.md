@@ -1,4 +1,54 @@
-# Live tree note — rehearsal-curtain (2026-11-14, live, not frozen)
+# Live tree note — rehearsal-chainfix (2026-11-14, live, not frozen)
+
+Live `/workspace/sneak_n2` is the rehearsal-chainfix revision: rehearsal-chain plus fixes for every finding of
+`/workspace/attacks_octavo_rehearsalchain/` (L1–L4, I1–I7). No ciphertext changed: v6/v7/v9 blobs, key_sig and
+rehearsal_sig are byte-identical to rehearsal-chain; the 72 score-version-9 vectors are unchanged and 7 non-demo
+vectors were added (score version 10).
+
+- sneak_n2.py SHA-256: 48d261e36671a35b15000e68dbd82469e631be14cc77a3f391e115d19e8b9786
+- EXPECTED_MIX_SHA256: b6e0fa2a5852a1bddb2aa407101080f989fb1efe1e4ddc590a58c8cdfe261991 (was 8b2c59fa…); core a4b54e7e2ac6d311ed461235b02a91472dd411ddaf2c0db332bc83fcc14202ff (was 4947e89d…); key_sig 340dc1e062502bb13462a94ba490c3dc (unchanged)
+- EXPECTED_REHEARSAL_SHA256: d0550f7fdb09d4f823c27f2497f40b30dd1f31627b643089af555c435bd6a491 (was a21cf6e7…); core f1e21f5006a27ff5b19f352ce17c2d24c042252586c515dd99763b1934cd5432 (was 5e91e290…); rehearsal_sig 07172e74d02a04a42ea0a51b8e69cbf1 (unchanged)
+- EXPECTED_SEED_POLICY_SHA256 (new): ab5cdce45c3078c80a0fd0af3ca573bd5d73267cea8ef81d7cc8bb2db272a2a0
+- KEY_SIG_PIN / REHEARSAL_SIG_PIN: core halves re-pinned to the new cores; signature halves fe939969… / a21cf6e7… unchanged
+- score version 10 (79 vectors; non-demo test seed key_sig 399f98cf52595841cabaade39428b3cb); tests 516/516 passed, 0 failed, 27 skipped
+- Pre-change backup: /workspace/sneak_n2_backups_rebuilt/pre_chainfix/ (full rehearsal-chain tree). Work notes: /workspace/chainfix_work/. Verification: chainfix_verification/.
+
+Still homemade, NOT for real secrets. Use AES-GCM-SIV, age, or libsodium.
+
+# Previous live tree note — rehearsal-chain (backup /workspace/sneak_n2_backups_rebuilt/pre_chainfix/)
+
+Live `/workspace/sneak_n2` is the rehearsal-chain revision: key-fix plus
+rehearsal format version 9 (each chunk tag covers the previous tag; v9 sponge
+labels). v8 opens only via `decrypt_rehearsal_legacy(..., allow_unchained=True)`.
+v6/v7 blobs byte-identical to octavo014; the tester's w1 splice witness fails.
+
+- sneak_n2.py SHA-256: b0e25f4d3bcb31eae7a64413376ab23f34665f97316876746f57642a1dd0c0d7
+- EXPECTED_MIX_SHA256: 8b2c59fa8756e269ad11c35d6e812bdea7b83ea36c2c4be39a9c4257dd85bee5 (unchanged); key_sig 340dc1e062502bb13462a94ba490c3dc (unchanged)
+- EXPECTED_REHEARSAL_SHA256: a21cf6e768a88cc21b4698b54426cf2d1527936f101f783862a609efa8bbad45 (core 5e91e290…); rehearsal_sig 07172e74d02a04a42ea0a51b8e69cbf1 (was 7ea74c1e…)
+- REHEARSAL_V8_SHA256 (frozen, legacy reader): 50c077f3b2105b36e027bf0c94770dcad64f7242974c4b7e67d3f0226810a4a8
+- score version 9 (8 rehearsal vectors regenerated; 64 others unchanged); legacy v8 vectors in legacy_v8/
+- Pre-change backup: /workspace/sneak_n2_backups_rebuilt/keyfix/ (rebuilt after the /tmp copy was lost in a reboot). Verification: rehearsalchain_verification/, /workspace/review_tester_claims_rerun_chain/.
+
+Still homemade, NOT for real secrets. Use AES-GCM-SIV, age, or libsodium.
+
+# Previous live tree note — key-fix (backup /workspace/sneak_n2_backups_rebuilt/keyfix/)
+
+Live `/workspace/sneak_n2` is the key-fix revision: rehearsal-curtain (frozen as
+octavo014) plus `keygen()` / `save_seed()`, `seed=None` refused (`TypeError`;
+the demo seed only via explicit `load_seed()`), and a stricter weak-seed rule
+(false-reject rate 0 of 1,000,000 random seeds). v6/v7/v8 blobs and all 72
+score vectors are byte-identical to octavo014.
+
+- sneak_n2.py SHA-256: fca305833b4413ba4d141b4d2bfbcb6b2755d0c4e974024c0a360c92d6f8146f
+- EXPECTED_MIX_SHA256: 8b2c59fa8756e269ad11c35d6e812bdea7b83ea36c2c4be39a9c4257dd85bee5 (was fe939969…); core 4947e89d…
+- EXPECTED_REHEARSAL_SHA256: efd31092b9c98cf6419cebe66cbc65ed9ae28322e49576b85ca1d704e5b2bae4 (was 50c077f3…); core 59ff3036…
+- key_sig 340dc1e062502bb13462a94ba490c3dc and rehearsal_sig 7ea74c1edbfe3c7eee503d04c2ff6391 (demo seed) unchanged via KEY_SIG_PIN / REHEARSAL_SIG_PIN
+- score version 8 (vectors unchanged); tests 495/495
+- Pre-change backup: was /tmp/sneak_n2_pre_keyfix (lost in a reboot; module = frozen octavo014). Changes: README "Current live revision — key-fix".
+
+Still homemade, NOT for real secrets. Use AES-GCM-SIV, age, or libsodium.
+
+# Previous live tree note — rehearsal-curtain (frozen as /workspace/octavo014)
 
 Live `/workspace/sneak_n2` is the rehearsal-curtain revision (2026-11-14): the
 rehearsal-finale tree (frozen as octavo011 / octavo013) plus the fixes for the
