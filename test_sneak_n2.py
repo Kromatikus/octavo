@@ -4792,6 +4792,10 @@ check("honest2: key_sig 340dc1e0... and rehearsal_sig 07172e74... unchanged; sig
               for f in ("README.md", "SPEC.md", "SECURITY.md", "SNAPSHOT.md", "LINER_NOTES.md")))
 
 
+# ---- app-ready API (octavo.py). Cipher unchanged; these checks add to the suite count.
+import test_octavo_app as _appready
+_appready.run_checks(check)
+
 def sha_ok(listfile):
     r = subprocess.run(["sha256sum", "-c", "--quiet", listfile], cwd="/workspace", capture_output=True)
     return r.returncode == 0

@@ -1,3 +1,8 @@
+app-ready revision test results (2026-11-18, America/New_York; frozen as octavo017)
+live /workspace/sneak_n2: 565/565 passed, 0 failed, 27 skipped (544 original + 21 app-API checks; about 11 min, 11:03-11:14; appready_verification/test_run_final.txt)
+sneak_n2.py SHA-256 unchanged: 19181bc1623115c075dc5dee25edec388f5413466777d47b7f19fa66d1e71eee; all ciphertexts and the 79 score v11 vectors unchanged
+new: octavo.py (seal/open_/generate_key/verify_install, HKDF-SHA512 key expansion), score/app_vectors.json, pyproject.toml packaging (octavo-demo 0.1.0)
+
 rehearsal-honest2 revision test results (2026-11-15, America/New_York; live, not frozen; pre-change backup /workspace/sneak_n2_backups_rebuilt/pre_honest2/)
 live /workspace/sneak_n2: 544/544 passed, 0 failed, 27 skipped (about 13 min, 11:17-11:30; honest2_verification/test_run_final.txt)
   the first full run was 542/544: two test-only failures (seedguard I3 SIGKILL/O_TMPFILE check, and honest2 I6 zip/.pyc worker check had a SyntaxError in the test); both fixed in the tests, no cipher change (honest2_verification/test_run_2fail.txt)

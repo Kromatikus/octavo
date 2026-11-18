@@ -1,0 +1,9 @@
+include LICENSE
+include README.md
+include SECURITY.md
+include sneak1024-seed.txt
+include score/vectors.json
+include score/app_vectors.json
+include score/generate_score.py
+include score/nondemo-test-seed.txt
+include score/README.md

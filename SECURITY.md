@@ -17,6 +17,17 @@ Octavo's import runs several self-checks: the `EXPECTED_*` attestation digests, 
 
 **The real tamper check is outside the file:** compare `sha256(sneak_n2.py)` (and, since rehearsal-honest2, `etudes.py` and `score/generate_score.py`) with the SHAs published in `score/vectors.json` (`python3 score/generate_score.py --check-sha` does this and never writes the score; regeneration requires an explicit `--write`, and an unknown argument exits 2 without writing), and compare those published values with a copy you trust — the repository history, a frozen snapshot, or a SHA you recorded yourself. A score that ships next to a tampered file can be tampered too, so the trusted copy is what counts.
 
+
+Apps can call `octavo.verify_install()` for the same published-SHA check
+(plus the package's key-expansion vectors in `score/app_vectors.json`)
+without changing `sneak_n2` import behavior. Like `--check-sha` and the
+import self-checks, **it catches mistakes and is not a tamper guard**: an
+editor can change the helper, the score, or both. Compare the published
+values with a copy you trust. The import self-checks still run when
+`sneak_n2` is imported; they remain a drift check, not a skippable security
+boundary, and they are not a substitute for comparing SHAs with a trusted
+copy. There is no environment variable that turns them off.
+
 ## Seed policy and key handling (rehearsal-chainfix, rehearsal-seedguard)
 
 - **The weak-seed rule is a sanity check.** It refuses obvious structure (zero padding, text, counters, repeated patterns, long monotone runs, 16 listed public constants). It is not an entropy test: hashed passphrases, `random.Random(k)` output, powers of a small generator, Fibonacci-like sequences, structured halves (`h‖rotl(h)`, `h‖reversed(h)`) and trivial variants of a listed constant or of the demo seed all pass (`attacks_octavo_rehearsalchain/` L4). **`keygen()` is the real protection.** Never derive a seed from anything someone else could guess or reproduce.

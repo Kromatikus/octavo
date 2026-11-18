@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "octavo-demo"
+version = "0.1.0"
+description = "Homemade demo cipher (Octavo). Not for real secrets — use AES-GCM-SIV, age or libsodium."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [{ name = "Kromatikus" }]
+keywords = ["octavo", "demo", "cipher", "education"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Topic :: Security :: Cryptography",
+    "Intended Audience :: Education",
+]
+
+[project.urls]
+Homepage = "https://github.com/Kromatikus/octavo"
+
+[tool.setuptools]
+py-modules = ["octavo", "sneak_n2", "etudes"]
+packages = ["score"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+score = [
+    "vectors.json",
+    "app_vectors.json",
+    "generate_score.py",
+    "nondemo-test-seed.txt",
+    "README.md",
+]

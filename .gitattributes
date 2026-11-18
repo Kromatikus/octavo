@@ -4,3 +4,4 @@
 *.py text eol=lf
 score/vectors.json -text
 score/nondemo-test-seed.txt -text
+score/app_vectors.json -text

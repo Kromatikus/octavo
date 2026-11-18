@@ -1,0 +1,58 @@
+{
+  "name": "Octavo app-API vectors",
+  "warning": "Homemade demo cipher. NOT for real secrets. Use AES-GCM-SIV, age or libsodium.",
+  "note": "Key-expansion and open() vectors for the octavo.seal/open_ API. Not part of the 79-vector published score. Blobs are v6; pickup is per-call random, so only open_ (not a re-seal) is expected to match the recorded blob.",
+  "kdf": {
+    "algorithm": "HKDF-SHA512",
+    "info": "Octavo app key v1",
+    "info_hex": "4f637461766f20617070206b6579207631",
+    "salt": "none (RFC 5869 default: 64 zero bytes)",
+    "output_length": 128
+  },
+  "keys": [
+    {
+      "id": "key32-seq",
+      "key_len": 32,
+      "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "seed": "737b81e6a8878f6bf275ca150c04b575378cb37a72f602b82811f82abf6edb5790ce012e4483e4202b6a74eba868a8fd8f09e96c85b49ed8e54d662e17a857629fe68cec4fd442248de6934b44cf47c99ced3079036f351421abd74a9ba06032ff34075173a063f7d812c921c090820bf5f7a49ef65dcd708c442b74ce956ccb"
+    },
+    {
+      "id": "key64-seq",
+      "key_len": 64,
+      "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+      "seed": "a17d3fd85e1528360794d0ed344cdb26a2989d3c8077d765e9891c326daedfd0e7f22b87a9b488764ad6cd5acb4afde3c225cfeb9f833192606edfe5185649d682df613e9700c478734868b071bd79cbd0dfcd3c7fe97a475fdfd4a8b75bb40b277f3b473ccf347387d31b5089dd468036bd3ccb72675dad6c08aef6f21b8ae4"
+    },
+    {
+      "id": "key32-11",
+      "key_len": 32,
+      "key": "1111111111111111111111111111111111111111111111111111111111111111",
+      "seed": "405fa59711e6ff48530ac098e310a9121d7b4feca2c0a8d678650e5575149c7b04c44599d5809c429e682789bbc8602285dedac0dfc7d8d18cb4942a72f576f7c03cf0ec11172e457513b489e476ddbc3665f98de8d7fe0594888f9123bfde661b9ad2e09aee2fb59672be93a937cd621389b557437a16625cdf68ecc9d8c984"
+    }
+  ],
+  "blobs": [
+    {
+      "id": "open-hello-key32",
+      "key_id": "key32-seq",
+      "ad_hex": "",
+      "msg_hex": "68656c6c6f20776f726c64",
+      "blob": "06534e3256d1b8b8d313d2ccbb614f7befc4e6fb469fd2f8e4538173ceb30aceb7c66ab742d510e1961da8a9ef0975adf1a07b90e875e8c45205ed3cb89f84a957fee265850ab8438c065d5c3e7683fa2347f76f02d3d3cad653f0c8c7042f7c79babc681a6f6bc716ef5704453c3c867d79173c3aa393ed7baf75e13da3674195ee70ae2c7a919a9ecd1230a65f5e22b10b9247e3623507d4f2a7cb886e0f1762953269914e9d3310843c089d5ddf7076fbde2fd49bad4bc4ebae3e661e05ea8c349bcd1f85342d9cbeff5f792854e024eec68897ac490d9f738fa31ce4c940557bacb2",
+      "fmt_version": 6
+    },
+    {
+      "id": "open-ad-key64",
+      "key_id": "key64-seq",
+      "ad_hex": "66726f6d3a616c696365",
+      "msg_hex": "6170702d766563746f72206164206d657373616765",
+      "blob": "06534e32b0880dba181d5c6683d292a4b0e9c1fb408948d6c49ffd4a90afc2e872e81f2bed882b22d1d1d9ba93e19ad09873ad5f714865e8a6d5c540fb79e3004df0e8a2d57d20d42314626326159af4e3802e55a024ee7933487019401ab5dd9a1de048ca3c38380ad7053dcf25688d306e1fa18fb48132339656bf814bf62df0a0a78cefb067490e7378bf21d8f644c7036cc304cf750e83cc58401401c43ed87a350bbad20edd0fad22c339eaccd31c49b76ff235013d5aa90b0885032b754bbc99256d90d1d3f12fac34163036c4bae0f3300f61700ad1885bba499c19b40b82dfc8",
+      "fmt_version": 6
+    },
+    {
+      "id": "open-hi-key32-11",
+      "key_id": "key32-11",
+      "ad_hex": "",
+      "msg_hex": "6869",
+      "blob": "06534e3229b233528ca0ef320cf4ed017adc269b0920f87a52fda1d87ccb1d12538b0af47466a5cd657e6a623aaebdb601aba090db5925807632f388d875d295127b7d6a588a89e8c50b7d1f9de5dff679fc7811622d9e686aac2b66b9d129c7dd2bbcd09fd02d4b0c6868b25efbf838a6399c1b3e9c329392907f19d5793a18124bff03a72b79feecf5cc21552cc86b39c34ee5a2d995318be3d8a62d9304b3effdd78e4289c4016d05418ac0d94ca6b07dd77feaa351929c13f0eba65c2fc161ea294c27784c8bf0e8e9f8a3813354ad1acbf64c1078ef35d9013cb57858408844f628",
+      "fmt_version": 6
+    }
+  ]
+}

@@ -42,6 +42,7 @@ not been attacked yet.
 - **I6.** `workers > 1` falls back to `__loader__.get_source()` when the `.py`
   path cannot be opened (zip installs). A sourceless `.pyc-only` install still
   has no source, so `workers > 1` stays unavailable there.
+- **App-ready wrappers (no cipher change).** New `octavo.py` front door: `seal` / `open_` take a 32- or 64-byte key (HKDF-SHA512, info `b'Octavo app key v1'`), always use v6, never enable legacy modes, and never write keys to disk. `pip install .` installs `octavo-demo` 0.1.0. `octavo.verify_install()` checks published SHAs and the app key-expansion vectors; it catches mistakes and is not a tamper guard. A one-time UserWarning and `DEMO_ONLY = True` label the package a homemade demo. See [Using Octavo in an app](#using-octavo-in-an-app). `sneak_n2.py` is byte-identical (`19181bc1623115c075dc5dee25edec388f5413466777d47b7f19fa66d1e71eee`); all 79 score vectors, `key_sig` and `rehearsal_sig` are unchanged.
 - **Identifiers.** sneak_n2.py SHA-256 `19181bc1623115c075dc5dee25edec388f5413466777d47b7f19fa66d1e71eee`; `EXPECTED_MIX_SHA256` `1fafb4adc1cae574a1158fc19695b5a7c354e405666278ab5f66444122f8f34a`
   (was `2bc45b77…`), core `9b8ac067676c92f2150d897c7ea9fa1021952ee6c728269ba9bdecf6a4b1efb1` (was `e48c6878…`); `EXPECTED_REHEARSAL_SHA256`
   `44ad0a4a2eb86b7b98ff147ecf0374552e16bd9fe031fbe32b6b7ed0b1f67737` (was `8987bf9f…`), core `636d48eea97eb29449fbd0270d41d75826d6b9cab6a743e19e5cbb3a8319da72` (was `0d6d9122…`);
@@ -50,6 +51,43 @@ not been attacked yet.
   "rehearsal-honest2".
 - Tests: 544/544 passed, 27 skipped (about 13 min, 11:17–11:30 AM ET; `honest2_verification/test_run_final.txt`). Pre-change backup:
   `/workspace/sneak_n2_backups_rebuilt/pre_honest2/`. Work: `/workspace/honest2_work/`.
+
+
+## Using Octavo in an app
+
+Octavo is a homemade demo cipher. **Do not use it for real secrets.** Use
+AES-GCM-SIV, age or libsodium. The `octavo` module is a small front door
+around the current v6 format so an app does not have to deal with seed files
+or legacy modes. The cipher itself is unchanged.
+
+```python
+import octavo
+
+# 32-byte key, e.g. from libsodium crypto_kx / X25519, or:
+key = octavo.generate_key()
+blob = octavo.seal(key, b"hello", ad=b"from:alice")
+assert octavo.open_(key, blob, ad=b"from:alice") == b"hello"
+# octavo.DEMO_ONLY is True; the first seal/open emits a UserWarning
+```
+
+`seal` and `open_` accept a 32- or 64-byte key and expand it with HKDF-SHA512
+(info `b'Octavo app key v1'`, RFC 5869 default salt) into the 1024-bit seed
+the cipher needs. Other lengths, `str`, `None`, and an all-zero key are
+rejected. Keys are never written to disk. For a two-party demo, run an X25519
+key exchange in libsodium (`crypto_kx`) and pass the shared 32-byte session
+key here.
+
+Install from this tree with `pip install .` (package name `octavo-demo`,
+version 0.1.0, MIT). From a new virtualenv, `import octavo` works without
+being in the repo folder; the public demo seed is still shipped next to
+`sneak_n2.py`. Existing tests still run from the repo folder
+(`python3 test_sneak_n2.py`).
+
+Call `octavo.verify_install()` to compare the published SHAs of `sneak_n2.py`,
+`etudes.py` and `score/generate_score.py` plus the app key-expansion vectors
+in `score/app_vectors.json`. That check catches mistakes and is not a tamper
+guard (see SECURITY.md). The import-time self-checks in `sneak_n2.py` are
+unchanged.
 
 ## Previous revision — rehearsal-honest (2026-11-15, not frozen; backup /workspace/sneak_n2_backups_rebuilt/pre_honest2/; attacked in `attacks_octavo_honest/`)
 

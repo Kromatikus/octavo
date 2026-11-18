@@ -1,0 +1,659 @@
+PASS seed is the 1024-bit file (128 bytes), same parse as N1
+PASS blob length 228 = 1 + 3 + 16 + 16 + 32 + 128 + 32
+PASS blob starts with version byte 6 then b'SN2'
+PASS SEED_PATH is sneak1024-seed.txt next to the module
+PASS load_seed() finds the module-relative demo seed
+PASS load_seed() raises when the module-relative seed file is missing (no /workspace fallback)
+PASS embedded mix digest matches a fresh sha256(mix_description()) (key-fix: the full attestation digest is _MIX_ATTEST_SHA256)
+PASS FMT_VERSION is 6 and is authenticated in the tag; legacy v2 is 2; unpublished v4 is 4
+PASS old 195-byte SN2 blob raises UnsupportedVersion before a tag check
+PASS version byte 1 on a 196-byte blob raises UnsupportedVersion, not tag mismatch
+PASS version byte 3 on a 196-byte blob raises UnsupportedVersion, not tag mismatch
+PASS weak seeds rejected: all-zero, integer 1, all-FF, 31 distinct nonzero bytes
+PASS real demo seed and os.urandom(128) are accepted
+PASS roundtrip hello world (SIV nonce)
+PASS hello-world.txt demo blob (228 bytes) decrypts to b'hello world' and its pickup/nonce/commit/ct/tag lines match live split_blob
+PASS roundtrip random messages, every length 0..127 (x3)
+PASS roundtrip edge msgs (0xFF*127, trailing zeros, 0x80*127, empty)
+PASS oversize message (128, 200 bytes) rejected
+PASS int seed (N1-style) accepted and equals bytes seed (cross-decrypt)
+PASS every single-bit flip of the 228-byte blob (1824: version, pickup, nonce, commit, ct, tag) fails closed
+PASS all 32 single-bit flips in version raise AuthError (no payload)
+PASS all 128 single-bit flips in pickup raise AuthError (no payload)
+PASS all 128 single-bit flips in nonce raise AuthError (no payload)
+PASS all 256 single-bit flips in commit raise AuthError (no payload)
+PASS all 1024 single-bit flips in ciphertext raise AuthError (no payload)
+PASS all 256 single-bit flips in tag raise AuthError (no payload)
+random 228-byte blobs accepted: 0/1000
+PASS 1000 random 228-byte blobs: 0 accepted
+random 196-byte blobs accepted: 0/1000
+PASS 1000 random 196-byte (legacy-sized) blobs: 0 accepted
+random blobs with correct version+SN2 prefix accepted: 0/1000
+PASS 1000 random blobs WITH correct version+SN2 prefix: 0 accepted
+PASS truncated blobs (every length 0..227) fail closed
+PASS old 4-bit 115-byte blob fails closed on length (AuthError); zero-padded / re-wrapped to 179 and 195 bytes also fails closed
+PASS old metered 203-byte blobs (looped and unlooped) fail closed on length (AuthError), also cut to 179 / 195 bytes
+PASS pre-bar 8-bit 179-byte demo blob now fails the clef-bound tag -> AuthError, no payload
+SKIP pre-pickup 179-byte hello-world blob (from /tmp/sneak_n2_pre_pickup) fails closed
+PASS staffs are linear: no staff-loop layer (no staff_loop/staff_unloop/LOOP_A/LOOP_B) and no loop step in round_enc/round_dec
+PASS 8-bit cells: 16 faces x 8 byte-beats, 128-byte block, 228-byte blob, max payload 127
+PASS extended blob (extra byte) fails closed
+PASS version prefix changed to SN1 / SN3 / sn2 fails closed
+PASS splicing: ct+tag of one blob with nonce of another fails
+PASS splicing: pickup of another blob onto this one fails
+PASS tag of one message on ct of another fails
+PASS wrong seed fails closed (bit 0, bit 1023, random seed)
+PASS decrypt checks tag before decoding (tampered ct -> AuthError, never DecodeError)
+PASS tag compared with hmac.compare_digest
+PASS demo blob in hello-world.txt: blob, pickup, nonce, commit, ct, tag hex all present
+PASS pickup: same message twice -> different pickups, nonces, blobs; both decrypt to original
+PASS pickup: 200 encryptions of the same message -> 200 distinct pickups and blobs
+PASS pickup hardening: constant os.urandom still yields different pickups and blobs; both decrypt
+PASS AD round-trip: encrypt(..., ad=x) decrypts with the same ad
+PASS wrong AD fails authentication with the unified AuthError message
+PASS missing AD fails authentication when the blob was sealed with nonempty AD
+PASS empty versus absent AD behave the same (both decrypt with omitted or b'')
+PASS length-prefix AD encoding is unambiguous: (ad='foo',msg='bar') != (ad='foob',msg='ar'); cross-AD decrypt fails
+SKIP octavo003 version-1 196-byte hello-world blob fails as unsupported version
+PASS 300 different messages -> 300 different nonces and ciphertexts
+PASS nonce formula: SHA-256(clef || pickup || encode_block(msg) || encode_ad(ad))[:16] for the pickup stored in the blob (demo + 50 random + AD)
+PASS encrypt(msg, nonce=wrong) raises ValueError (random, zero, old demo SIV, another blob's nonce for same msg)
+PASS encrypt has no public pickup argument (signature is msg, seed, nonce, ad)
+PASS os.urandom used only inside _fresh_pickup, never for the nonce
+PASS PIN dictionary: encrypt(correct_guess) != target blob over 200 fresh PIN-like targets (old match attack fails)
+PASS valid tag but blob nonce != SIV nonce of recovered message -> AuthError (insider-built blob)
+PASS bad nonce length rejected
+schedule avalanche (1-bit nonce flip, all 128 bits, 17408 schedule bits): mean 0.5001, min 0.4920, max 0.5091
+PASS 1-bit nonce flip changes ~half of round-key+whitening bits (each of 128 flips in 0.46..0.54)
+PASS 1-bit nonce flip changes every round's S-box params, weave, sigma and bridge (16/16 rounds)
+PASS 1-bit nonce flip changes MAC key
+PASS 1-bit seed flip changes ~half the schedule bits (28 positions)
+PASS domain separation: MAC stream (b'M') and schedule stream (b'K') differ and MAC key not in schedule material
+PASS clef = StaffSponge domain 'C', seed + zero nonce (independent hashlib check), 16 bytes, not in blob
+PASS clef depends on seed
+PASS tag = HMAC-SHA256(mac_key, clef || key_sig || version || 'SN2' || pickup || nonce || commit || ct || encode_ad(ad)) (independent hmac check)
+PASS MAC key derived from seed via SHA-256 domain 'M' (independent check with hashlib)
+PASS base S-box table is the published SM4 S-box: GB/T 32907-2016 Example 1 and draft-ribose-cfrg-sm4 Example 4 reproduce
+SM4 base S-box: DDT max 4/256 (best differential prob 4/256 = 2^-6), LAT max |count-128| 16/256 (|bias| 16/256 = 2^-4, nonlinearity 112)
+PASS SM4 base S-box: permutation, DDT max 4, LAT max 16 (nonlinearity 112)
+demo nonce, 32 keyed round S-boxes: DDT max [4], LAT max [16]
+PASS demo nonce: all 32 keyed round S-boxes are permutations (with inverse) and inherit DDT max 4
+PASS demo nonce: all 32 keyed round S-boxes inherit LAT max 16
+PASS 5 random nonces: all 160 keyed S-boxes permutations with DDT max 4
+PASS affine matrices A1–A4 invertible (8x8 over GF(2)) in every round
+PASS S-boxes are keyed: 16 distinct boxes among the 16 demo rounds, none equal to the SM4 base
+PASS no AES S-box / MixColumns / GF(2^8) AES poly / AES libraries in library
+PASS 2-cell SM4-field mix is a bijection on all 65536 byte pairs, exhaustive inverse
+PASS five bar lines (boundaries 0,2,4,6,8) plus two interior joins M2 (2,3), M3 (4,5) = 7 mixes in beat order; every adjacent pair mixed; no (7,0) end-to-end pair
+PASS six active field pairs have distinct invertible matrices; B0 slot is unused (None)
+PASS bar B1 bar 2 mix ((1, 1), (1, 2)) is a bijection on all 65536 byte pairs and its inverse ((173, 172), (172, 172)) undoes it
+PASS bar M2 beats 3-4 mix ((3, 5), (1, 2)) is a bijection on all 65536 byte pairs and its inverse ((173, 3), (172, 1)) undoes it
+PASS bar B2 center mix ((1, 3), (1, 4)) is a bijection on all 65536 byte pairs and its inverse ((75, 74), (149, 149)) undoes it
+PASS bar M3 beats 5-6 mix ((5, 2), (2, 1)) is a bijection on all 65536 byte pairs and its inverse ((1, 2), (2, 5)) undoes it
+PASS bar B3 bar 6 mix ((2, 1), (1, 1)) is a bijection on all 65536 byte pairs and its inverse ((172, 172), (172, 173)) undoes it
+PASS bar B4 end mix ((3, 1), (2, 1)) is a bijection on all 65536 byte pairs and its inverse ((1, 1), (2, 3)) undoes it
+PASS SM4 field reduction uses 0xF5, not AES 0x1B
+PASS all nonzero field inverses and high-bit products
+PASS B1 bar 2: every nonzero single-cell XOR derivative has two outputs at ANY base
+PASS M2 beats 3-4: every nonzero single-cell XOR derivative has two outputs at ANY base
+PASS B2 center: every nonzero single-cell XOR derivative has two outputs at ANY base
+PASS M3 beats 5-6: every nonzero single-cell XOR derivative has two outputs at ANY base
+PASS B3 bar 6: every nonzero single-cell XOR derivative has two outputs at ANY base
+PASS B4 end: every nonzero single-cell XOR derivative has two outputs at ANY base
+PASS bar layer as a whole inverts (500 random grids)
+PASS bar layer is in the round: round_enc calls bar_mix, round_dec calls bar_unmix
+PASS six distinct det-1 triplets cover (0,1,2)..(5,6,7), no wrap
+PASS each triplet row and column has >=2 odd coefficients
+PASS T0 (0, 1, 2) matrix ((5, 1, 1), (2, 3, 1), (5, 5, 2)), det 1, two-sided inverse ((1, 3, 254), (1, 5, 253), (251, 236, 13))
+PASS T1 (1, 2, 3) matrix ((1, 3, 1), (3, 5, 2), (3, 2, 1)), det 1, two-sided inverse ((1, 255, 1), (3, 254, 1), (247, 7, 252))
+PASS T2 (2, 3, 4) matrix ((2, 1, 1), (1, 3, 1), (3, 3, 2)), det 1, two-sided inverse ((3, 1, 254), (1, 1, 255), (250, 253, 5))
+PASS T3 (3, 4, 5) matrix ((3, 3, 1), (2, 5, 3), (1, 3, 2)), det 1, two-sided inverse ((1, 253, 4), (255, 5, 249), (1, 250, 9))
+PASS T4 (4, 5, 6) matrix ((1, 1, 1), (1, 3, 2), (3, 2, 3)), det 1, two-sided inverse ((5, 255, 255), (3, 0, 255), (249, 1, 2))
+PASS T5 (5, 6, 7) matrix ((2, 1, 3), (3, 1, 3), (1, 2, 5)), det 1, two-sided inverse ((255, 1, 0), (244, 7, 3), (5, 253, 255))
+T0: all 3*255*256 XOR cases, independent of 256**2 other-cell completions: singleton events 0, min output cells 2
+PASS T0 exhaustive equivalent: NO single-cell events for ANY single-cell nonzero XOR input difference
+T1: all 3*255*256 XOR cases, independent of 256**2 other-cell completions: singleton events 0, min output cells 2
+PASS T1 exhaustive equivalent: NO single-cell events for ANY single-cell nonzero XOR input difference
+T2: all 3*255*256 XOR cases, independent of 256**2 other-cell completions: singleton events 0, min output cells 2
+PASS T2 exhaustive equivalent: NO single-cell events for ANY single-cell nonzero XOR input difference
+T3: all 3*255*256 XOR cases, independent of 256**2 other-cell completions: singleton events 0, min output cells 2
+PASS T3 exhaustive equivalent: NO single-cell events for ANY single-cell nonzero XOR input difference
+T4: all 3*255*256 XOR cases, independent of 256**2 other-cell completions: singleton events 0, min output cells 2
+PASS T4 exhaustive equivalent: NO single-cell events for ANY single-cell nonzero XOR input difference
+T5: all 3*255*256 XOR cases, independent of 256**2 other-cell completions: singleton events 0, min output cells 2
+PASS T5 exhaustive equivalent: NO single-cell events for ANY single-cell nonzero XOR input difference
+PASS triplet layer inverse, 500 random grids; does not mutate caller grid
+PASS combined bar+triplet layer inverse on both shells, 500 random grids
+triplets 0x80 output weights at zero base (0..7): [5, 5, 3, 5, 5, 4, 3, 3]; singleton crossings: 0
+PASS triplets: no singleton 0x80 crossing at zero and 256 uniform base states
+bar+triplet (same as encore) 0x80 output weights at zero base (0..7): [8, 8, 8, 8, 8, 8, 8, 8]; singleton crossings: 0
+PASS bar+triplet (same as encore): no singleton 0x80 crossing at zero and 256 uniform base states
+PASS staff butterfly inverse (300 random grids, random sigma)
+PASS shell bridge inverse, even and odd rounds (300 grids)
+PASS weave inverse (300 grids)
+PASS every round r = 0..15 inverts (20 grids each)
+PASS full 16-round block cipher encrypt/decrypt inverse (300 grids)
+PASS block cipher is a permutation sample: 2000 random blocks -> 2000 distinct outputs
+PASS byte<->grid encoding inverse (128 bytes <-> 16x8 byte cells)
+PASS bytes_to_grid rejects blocks that are not 128 bytes (0, 5, 127, 129, 256)
+PASS siv_nonce rejects pickups that are not 16 bytes (0, 15, 17, 32) and accepts 16
+SKIP triplet tuples and integer helpers byte-for-byte unchanged by field retune
+SKIP round-0 existing sponge prefixes unchanged
+PASS both colorings present: S2 differs from S in every round
+PASS nonce flip changes second-coloring affine parameters every round
+PASS S2 exactly uses the published SM4-affine recipe
+PASS round order: bars -> triplets -> bow -> odd_restack -> cross -> S2 -> encore bars -> encore triplets -> bow -> odd_restack -> cross; decrypt reverses, uncross FIRST
+PASS instrumented sequence: each bow -> rehair -> cross, inverse uncross -> unrehair -> unbow
+SKIP historical pair slots, S-boxes, schedule, clef, encoding, weave and butterfly/bridge routing unchanged from pre-triplet (B0 implementation intentionally changed)
+PASS S2 -> encore -> xor rk -> next-round S is NOT a single-cell function (1-cell change hits >=2 cells, rounds 0..14)
+SKIP old 179-byte blobs from /tmp/sneak_n2_8bit_precolor2 and /tmp/sneak_n2_pre_clef_encore_siv raise AuthError (4 demo blobs)
+SKIP pre-triplet + pre-join + testn3 old-length demo blobs fail closed
+SKIP 256 random pre-join-pairs blobs fail closed (AuthError or DecodeError), none returns a plaintext
+SKIP pre-triplet/pre-join/testn3/pre-field demo blobs (179 bytes) now fail on length -> AuthError
+SKIP 256 random pre-triplet blobs fail closed (AuthError or DecodeError), none returns plaintext
+SKIP 512 random pre-clef blobs (valid under old MAC) all raise AuthError
+SKIP pickup-era 195-byte recorded blob now raises unsupported version
+PASS blob regions are version + SN2 + pickup + nonce + commit + ct + tag
+PASS mix2 high-bit derivative is (0x80,0xF5), not integer singleton
+PASS mix2 matrix determinant 3, characteristic-two inverse
+SKIP triplet tables and integer arithmetic unchanged from pickup era
+PASS key signature uses domain G and sha256(mix_description()) as sponge nonce (independent hashlib)
+PASS key signature has no public encrypt/decrypt override and no blob field
+PASS altered pair score: 228-byte alternate blob fails closed on live decrypt
+PASS altered triplet score: 228-byte alternate blob fails closed on live decrypt
+PASS altered mix2 score: 228-byte alternate blob fails closed on live decrypt
+PASS mix_description changes with FIELD_POLY (key_sig is cached at import)
+PASS mix_description changes with BOW_STROKES (key_sig is cached at import)
+PASS mix_description changes with BOW_PRESSURE_ROT (key_sig is cached at import)
+PASS mix_description changes with BOW_ROT_BASE (key_sig is cached at import)
+PASS mix_description changes with BOW_ROT_MOD (key_sig is cached at import)
+PASS mix_description changes with BOW_R2_SHIFT (key_sig is cached at import)
+PASS bow strokes match open even then interior odd order, pressure read only may wrap
+PASS BOW_PRESSURE_ROT aligned with BOW_STROKES: beat-0 readers use 0,3,5; others identity
+PASS bow stroke inverse, exhaustive byte pairs for pressures 0, 127, 255
+PASS bow pressure two-sided inverse: 20,000 random staffs plus uniform edge staffs
+PASS bow pressure is nonidentity and copies its input
+PASS B0 has no unused field matrix to attest (slot and inverse are None)
+PASS live keyed B0 is not the retired field witness (5,1)->(0,3)
+PASS _canon_data encodes set/frozenset/bytearray/memoryview/float deterministically
+PASS _canon_data raises TypeError for an unsupported type (explicit, not silent)
+PASS re-inserting the retired B0 matrix changes mix_description (it would be attested if kept)
+PASS CROSS_OPPOSITE is an oriented perfect matching of 16 staffs
+PASS CROSS_RADIAL is an oriented perfect matching of 16 staffs
+PASS CROSS_ADJACENT is an oriented perfect matching of 16 staffs
+PASS cross layer order is opposite, radial, adjacent, bridge
+PASS cross-staff two-sided inverse and no input/row mutation, 1000 random grids
+PASS canonical description includes cross matchings, effective layer order and placement
+PASS mix_description changes with CROSS_OPPOSITE (key_sig is cached at import)
+PASS mix_description changes with CROSS_RADIAL (key_sig is cached at import)
+PASS mix_description changes with CROSS_ADJACENT (key_sig is cached at import)
+PASS mix_description changes with CROSS_BRIDGE (key_sig is cached at import)
+PASS mix_description changes with CROSS_LAYERS (key_sig is cached at import)
+PASS altered effective cross order roundtrips locally but fails closed on live decrypt
+SKIP pre-cross 195-byte hello-world pickup 28c124 now fails as unsupported version
+SKIP triplets, schedule, weave, bridges, encoding unchanged from pre-cross
+SKIP bow_pressure/unbow_pressure sources differ from pre-cross
+cell-2 one-round spread (300 pairs, demo schedule; first delta 0x5a): min 16, max 16, union [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], confined 0/300
+PASS cell-2 previous five-staff confinement broken in all 300 pairs; union all 16 staffs
+PASS testn4 frozen source hash unchanged
+PASS testn3 frozen source hash unchanged
+SKIP pre-four 195-byte hello-world pickup 831a4499 fails as unsupported version
+PASS CROSS_BRIDGE is intended partial oriented disjoint matching, not a perfect matching
+four-layer cross graph component from 0: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+PASS four-layer cross graph is one connected 16-staff component
+PASS B0 exhaustive two-sided inverse on all 65,536 pairs
+B0 live old-witness output XOR (round-0 tables): ('0xe2', '0xd8')
+PASS B0 (0,0) vs (5,1) witness no longer (0,3); live equals independent x=u^v, y=u^2v, (S[x],S2[y])
+B0 old (5,1) delta over 65,536 bases: distinct derivatives 16129 ; first-output zeros 0 ; second-output zeros 0
+PASS B0 old differential is not a base-independent linear kernel wipe
+PASS B0 exactly-one-input changes both outputs (40,000 sampled derivatives)
+PASS odd_restack two-sided inverse, copies without mutation (20,256 staffs)
+PASS odd restack beat 7 only pairs with 6; no beat-7-to-0 line
+all-beat scan bow -> bow+rehair: 482/1044480 -> 0/1044480 singletons; min after 2; includes every delta 0x80
+per-beat singletons (130,560 cases each), bow alone: [0, 7, 0, 120, 0, 127, 0, 228] ; bow+rehair: [0, 0, 0, 0, 0, 0, 0, 0]
+PASS bow+odd_restack has no singletons for 1,044,480 all-beat input cases (8 beats x 130,560, all 255 deltas; odd subset = the old 522,240)
+PASS ARX rotation constants retired (no B0_ROT_*/ODD_RESTACK_R* attributes)
+PASS latin_pair/latin_unpair/round_enc/round_dec are in MIX_CODE_FUNCS
+PASS description changes when latin_pair object is replaced (key_sig is cached at import)
+PASS description changes when latin_unpair object is replaced (key_sig is cached at import)
+PASS description changes when round_enc object is replaced (key_sig is cached at import)
+PASS description changes when round_dec object is replaced (key_sig is cached at import)
+PASS B0 description is keyed Latin pair (field MIX2 then S/S2), not ARX or the unused matrix
+PASS description records keyed Latin odd rehair and pairs
+SKIP pre-rotation-retune 195-byte hello-world pickup 724da1f4 fails as unsupported version, not DecodeError
+SKIP pre-latin 195-byte hello-world pickup a287436b fails as unsupported version, not DecodeError
+PASS latin_unpair inverse formula: v = gf_mul(gf_inv(3), x^y), u = x^v equals mix2_inv on all 65,536 (x,y)
+PASS keyed B0 and rehair pair are bijections with exact two-sided inverses for all 16 rounds' tables (65,536 pairs each)
+B0 exhaustive single-input singletons (u column, v column) over 2x255x65,536, round-0 tables: [0, 0] (ARX 2,7 had [0, 10752])
+PASS B0 exhaustive single-input singletons are 0 (pure-Python, round-0 tables)
+live-table singleton counts, 16 rounds x (B0 + 4 rehair pairs): [(0, 0)]
+keyed pair (0,0) images per round: [(142, 210), (51, 205), (125, 105), (101, 247), (142, 145), (27, 23), (94, 127), (41, 165), (231, 196), (81, 206), (177, 102), (121, 73), (127, 47), (86, 115), (3, 247), (150, 0)]
+keyed pair fixed points per round (u,v)->(u,v): [3, 2, 0, 0, 2, 0, 1, 1, 2, 1, 1, 0, 2, 2, 0, 0]
+PASS B0 and every rehair pair (0,1),(2,3),(4,5),(6,7): 0 singletons over all 2x255x65,536 one-input changes, all 16 rounds' tables
+PASS (0,0) is not a fixed point of the keyed pair in any of the 16 demo rounds
+all-beat 0x80 singletons after bow+rehair: 0/4096 (ARX 5,4 had 3/522,240 and 0/2,048 on odd beats)
+bow+keyed rehair singleton witnesses (base, beat, delta): []
+PASS bow+keyed rehair: 0x80 singletons 0/4,096 and 0/1,044,480 all-beat singletons (beat-7 + beat-6 fixes)
+PASS the 5 pre-fix beat-7 witnesses now change >=2 bytes after bow+rehair for all 16 rounds' tables
+PASS beat-7 lemma: bow keeps beats 0..4, always changes beat 5 (200,000 random staffs x deltas)
+PASS beat-6 lemma: bow keeps beats 0..4, always changes beats 5 and 7 (200,000 random staffs x deltas)
+PASS beat 6 is read as pressure by no stroke; beat 0 feeds exactly the three strokes (4,5,0),(6,7,0),(5,6,0)
+pre-fix beat-6 witnesses, bow+rehair changed bytes per round table: [[4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4], [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4], [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4], [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4]]
+PASS the 4 pre-fix beat-6 witnesses (3 all-table + REPORT mechanism example) now change >=2 bytes for all 16 rounds' tables
+PASS negative control: with pre-beat6 (4,5,6) strokes AND all-zero BOW_PRESSURE_ROT patched in, the 4 beat-6 witnesses are single-byte under all 16 tables
+PASS NumPy bow/rehair model equals live bow_pressure/odd_restack on 5,000 random staffs
+NumPy bow+rehair singleton scan (round-0 tables), cases per beat [4177920, 4177920, 4177920, 4177920, 4177920, 4177920, 16711680, 4177920], singletons [0, 0, 0, 0, 0, 0, 0, 0], 17.1s
+PASS beat-6 scan: 0 singletons in 16,711,680 beat-6 cases (65,536 random bases x 255 deltas; pre-fix layout gave ~19) and 0 on every other beat (4,177,920 each)
+SKIP pre-beat6-fix 195-byte hello-world pickup ee95ddb2 fails as unsupported version, not DecodeError
+SKIP pre-beat0rot 195-byte hello-world pickup d450337d fails as unsupported version, not DecodeError
+PASS beat-0 pressure views are p, rotl8(p,3), rotl8(p,5) for all 256 pressure bytes
+beat-0 reader (r1,r2) distinctness over 256 p: shared-all=4, all-three-distinct=226
+PASS beat-0 readers rarely share one (r1,r2); usually all three distinct (shared < 16, distinct3 > 180)
+bow-alone best diff log2 (2^12 bases): beat0=-9.42, beat6=-7.05, beat7=-6.96 (pre-fix live ~-8.1/-5.6/-4.9)
+PASS bow-alone best differentials on beats 0/6/7 improved vs pre-fix live (~-8.1/-5.6/-4.9)
+PASS mix_description bow records pressure_rot and the view-then-r1/r2 formula
+SKIP pre-beat7-fix 195-byte hello-world pickup 76908595 fails as unsupported version, not DecodeError
+keyed pair exact affine output bits per round (col,bit,u_mask,v_mask,const): [[], [], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
+PASS keyed pair: no output bit is an exact affine function of the inputs (all 16 rounds' tables)
+SKIP pre-sig-gap 195-byte hello-world pickup 24d554eb fails as unsupported version, not DecodeError
+reachable functions/classes: 95 ; reachable module data: ['BARS', 'BARS_INV', 'BLOB_LEN', 'BLOCK_LEN', 'BOW_PRESSURE_ROT', 'BOW_R2_SHIFT', 'BOW_ROT_BASE', 'BOW_ROT_MOD', 'BOW_STROKES', 'CM0', 'CM1', 'COMMIT_DOMAIN', 'CROSS_ADJACENT', 'CROSS_BRIDGE', 'CROSS_LAYERS', 'CROSS_OPPOSITE', 'CROSS_RADIAL', 'CT1', 'FIELD_POLY', 'FMT_MOVEMENTS', 'FMT_MOVEMENTS_V3', 'FMT_VERSION', 'FMT_VERSION_V2', 'KNOWN_CONSTANT_SEEDS_SHA256', 'LAYERS', 'LEGACY_MIX_SHA256', 'MAX_AD_LEN', 'MAX_MOVEMENTS', 'MAX_MOVEMENTS_MSG', 'MAX_MSG', 'MIX2_INV', 'MIX2_MATRIX', 'MIX_CODE_FUNCS', 'MIX_CODE_ROOTS', 'MOVEMENTS_HDR_LEN', 'MOVEMENT_STRIDE', 'N0', 'NB', 'NF', 'NMOV0', 'NONCE_LEN', 'NR', 'PICKUP_LEN', 'PK0', 'SEED_DIFF_LAGS', 'SEED_MAX_BYTE_COUNT', 'SEED_MAX_LAG_DIFF', 'SEED_MAX_LAG_EQUAL', 'SEED_MAX_MONOTONE_RUN', 'SEED_MIN_DISTINCT_NONZERO', 'SEED_POLICY_NAMES', 'SEED_WEIGHT_RANGE', 'SM4_SBOX', 'TAG_LEN', 'TRIPLETS', 'TRIPLETS_INV', 'V2_BLOB_LEN', 'V2_CT0', 'V2_CT1', 'V3_MOVEMENTS_HDR_LEN', 'V3_NMOV0', 'VERSION', '_BUILTIN_PRIMITIVES', '_EXPECTED_MODULES', '_GF_MUL', '_POLICY_ATTRS', '_POLICY_BANNED_NODES', '_POLICY_BUILTINS', '_POLICY_CONSTANTS', '_POLICY_MODULES', '_STDLIB_FUNCTIONS', '_UNPAD_MASKS', '_UNPAD_TOP', '_WEAK_REASON_SHAPES', 'ast', 'hashlib', 'hmac', 'inspect', 'json', 'operator', 'os', 'platform', 'sys', 'textwrap', 'time', 'types', 'warnings']
+PASS MIX_CODE_FUNCS covers the whole closure (chainfix: _weak_seed_reason is listed); listed extras are the import-time table builders, the core key tools no root reaches (seedguard: load_seed, keygen, save_seed, _fsync_dir, SeedWarning) and the attestation-only names (pin logic, helpers)
+module functions/classes NOT in coverage: ['RehearsalDecryptor', 'RehearsalEncryptor', 'UnfinalizedStreamWarning', '_RehearsalBase', '_RehearsalDecryptorV8', '_RehearsalOutput', '_RehearsalWorkers', '_fresh_stream_nonce', '_rehearsal_abspath', '_rehearsal_ad_digest', '_rehearsal_blocks', '_rehearsal_bool', '_rehearsal_chunk_key', '_rehearsal_chunk_size', '_rehearsal_chunk_sponge', '_rehearsal_commitment', '_rehearsal_crypt_chunk', '_rehearsal_fmt', '_rehearsal_fstat', '_rehearsal_fsync_dir', '_rehearsal_label', '_rehearsal_mask', '_rehearsal_max_chunk_size', '_rehearsal_open', '_rehearsal_pad', '_rehearsal_read_size', '_rehearsal_refuse_same', '_rehearsal_renameat2', '_rehearsal_same_inode', '_rehearsal_schedule_nonce', '_rehearsal_tag', '_rehearsal_temp_prefix', '_rehearsal_tweaks', '_rehearsal_unpad', '_rehearsal_worker_env', '_rehearsal_worker_timeout', '_rehearsal_workers', '_require_unchained', 'decrypt_rehearsal', 'decrypt_rehearsal_file', 'decrypt_rehearsal_legacy', 'encrypt_rehearsal', 'encrypt_rehearsal_file', 'iter_rehearsal', 'rehearsal_description', 'rehearsal_signature']
+PASS chainfix I5/L2: every module function/class is attested: outside MIX_CODE_FUNCS is only rehearsal code, which the rehearsal digest covers (keygen, save_seed, the pin logic, ddt_max, lat_max, grid_rows, encrypt_hello are now listed)
+PASS closure includes staff_mix/staff_unmix/shell_mix/shell_unmix/weave/unweave/xor_grid/Schedule/keyed_sbox/encode_block/encrypt_grid/decrypt_grid
+PASS module data hashed includes BARS, BARS_INV, TRIPLETS(_INV), CROSS_*, BOW_* (incl. BOW_PRESSURE_ROT), LAYERS, SM4_SBOX, _GF_MUL, MIX2_*, sizes
+PASS independent recomputation of mix_code and mix_data digests matches
+modified-file revisions: 102 functions/classes; key_sig changed AND live decrypt of alt blob -> authentication failed for 102; failures []
+PASS modified file of staff_mix: key_sig changes and its blob fails live with AuthError authentication failed
+PASS modified file of staff_unmix: key_sig changes and its blob fails live with AuthError authentication failed
+PASS modified file of shell_mix: key_sig changes and its blob fails live with AuthError authentication failed
+PASS modified file of shell_unmix: key_sig changes and its blob fails live with AuthError authentication failed
+PASS modified file of weave: key_sig changes and its blob fails live with AuthError authentication failed
+PASS modified file of unweave: key_sig changes and its blob fails live with AuthError authentication failed
+PASS modified file of EVERY covered function/class (all but the exception classes) changes key_sig and fails live on tag
+PASS key-fix/chainfix: a modified _core_digest moves EXPECTED_MIX_SHA256 but not the core digests, key_sig, rehearsal_sig or any blob (live opens it)
+PASS key-fix/chainfix: a modified _executed_pyc_code moves EXPECTED_MIX_SHA256 but not the core digests, key_sig, rehearsal_sig or any blob (live opens it)
+PASS key-fix/chainfix: a modified _init_attestation moves EXPECTED_MIX_SHA256 but not the core digests, key_sig, rehearsal_sig or any blob (live opens it)
+PASS key-fix/chainfix: a modified _init_rehearsal_attestation moves EXPECTED_MIX_SHA256 but not the core digests, key_sig, rehearsal_sig or any blob (live opens it)
+PASS key-fix/chainfix: a modified _init_seed_policy_attestation moves EXPECTED_MIX_SHA256 but not the core digests, key_sig, rehearsal_sig or any blob (live opens it)
+PASS key-fix/chainfix: a modified _module_source_snapshot moves EXPECTED_MIX_SHA256 but not the core digests, key_sig, rehearsal_sig or any blob (live opens it)
+PASS key-fix/chainfix: a modified _seed_policy_check moves EXPECTED_MIX_SHA256 and EXPECTED_SEED_POLICY_SHA256 but not the core digests, key_sig, rehearsal_sig or any blob (live opens it)
+PASS key-fix/chainfix: a modified _seed_policy_digest moves EXPECTED_MIX_SHA256 but not the core digests, key_sig, rehearsal_sig or any blob (live opens it)
+PASS key-fix/chainfix: a modified _signature_nonce moves EXPECTED_MIX_SHA256 but not the core digests, key_sig, rehearsal_sig or any blob (live opens it)
+PASS key-fix/chainfix: a modified _verify_executed_code moves EXPECTED_MIX_SHA256 but not the core digests, key_sig, rehearsal_sig or any blob (live opens it)
+PASS key-fix/chainfix: a modified _weak_seed_reason moves EXPECTED_MIX_SHA256 and EXPECTED_SEED_POLICY_SHA256 but not the core digests, key_sig, rehearsal_sig or any blob (live opens it)
+PASS key-fix/chainfix: a modified ddt_max moves EXPECTED_MIX_SHA256 but not the core digests, key_sig, rehearsal_sig or any blob (live opens it)
+PASS key-fix/chainfix: a modified encrypt_hello moves EXPECTED_MIX_SHA256 but not the core digests, key_sig, rehearsal_sig or any blob (live opens it)
+PASS key-fix/chainfix: a modified grid_rows moves EXPECTED_MIX_SHA256 but not the core digests, key_sig, rehearsal_sig or any blob (live opens it)
+PASS key-fix/chainfix: a modified lat_max moves EXPECTED_MIX_SHA256 but not the core digests, key_sig, rehearsal_sig or any blob (live opens it)
+identity staff_mix revision: key_sig same as live: False ; tampered blob on live: AuthError('authentication failed')
+PASS identity staff_mix file revision: key_sig differs and its blob fails live on TAG
+PASS new module-level helper named by a replacement is in the live closure; changing only that helper changes mix_description
+PASS mix_description changes when module data LAYERS changes (key_sig is cached at import)
+PASS mix_description changes when module data SM4_SBOX changes (key_sig is cached at import)
+PASS mix_description changes when module data _GF_MUL changes (key_sig is cached at import)
+PASS mix_description changes when module data BARS_INV changes (key_sig is cached at import)
+PASS mix_description changes when module data TRIPLETS_INV changes (key_sig is cached at import)
+PASS mix_description changes when module data MIX2_INV changes (key_sig is cached at import)
+PASS mix_description changes when module data NR changes (key_sig is cached at import)
+PASS mix_description changes when module data VERSION changes (key_sig is cached at import)
+PASS staff_mix replaced by builtin list: mix_description raises (fail closed); cached key_signature still works
+PASS staff_mix replaced by functools.partial: mix_description raises (fail closed); cached key_signature still works
+PASS key signature is stable across calls in an untouched process
+PASS copied bar_mix skips B0, BARS identical: key_sig changes; alternate roundtrip; live authentication failed
+PASS runtime replacing bar_mix object changes mix_description without editing BARS (key_sig stays cached)
+N2-8bit+bars+triplets diffusion, min over 128 input bytes of |union of affected output bytes| after r rounds: [128, 128, 128, 128, 128, 128]
+N2-8bit+bars+triplets diffusion, mean affected bytes per single trial (random ~127.5): [127.6, 127.5, 127.5, 127.5, 127.5, 127.5]
+N2-8bit+bars+triplets full byte dependence at round 1  (8-bit N2 before bars: round 3, min-union [37, 127, 128]; 4-bit N2: round 3)
+PASS N2-8bit reaches full 128-byte dependence by round 4
+PASS N2-8bit mean affected bytes after 3 rounds >= 120 (random-like 127.5)
+bit avalanche  1 rounds: mean 510.5/1024, min 452, max 546
+bit avalanche  2 rounds: mean 511.9/1024, min 462, max 551
+bit avalanche  3 rounds: mean 511.4/1024, min 466, max 545
+bit avalanche  4 rounds: mean 513.1/1024, min 471, max 568
+bit avalanche 16 rounds: mean 511.6/1024, min 458, max 559
+PASS 4-round bit avalanche mean within 496..528 (of 1024)
+PASS 16-round bit avalanche mean within 500..524, min > 440
+ct byte chi2 over 2000 random messages (255 df, 99.9% crit 330.5): 237.5
+PASS ct byte distribution uniform-ish (chi2 < 330.5)
+PASS mix2 2x2 is MDS over GF(2^8): all entries nonzero, det nonzero, both outputs depend on both inputs
+PASS each field bar-pair matrix is MDS over GF(2^8) (every output depends on every input)
+PASS B0 and odd-restack latin field step equals mix2 (identity S-boxes, all 65,536 pairs); both therefore inherit the MDS 2x2
+PASS staff butterfly, shell bridges, and cross-staff layers apply mix2 (the MDS 2x2), not a private matrix
+PASS each triplet: every entry nonzero, >=2 odd coefficients per row and column, odd determinant
+PASS all small linear mixes (mix2, field bars, B0/latin/restack field step, triplets) are complete
+one-round diffusion (SEED+DEMO_NONCE, RNG 20261110, 48 bit + 48 byte): bit mean 512.750/1024 bits, 127.542/128 bytes; byte-diff mean 511.333/1024 bits, 127.562/128 bytes
+PASS one-round single-bit and single-byte means: flipped bits in 500..524, changed bytes >= 124
+C059 throwaway one-round: bit mean 439.479/1024 bits, 108.938/128 bytes; byte-diff mean 442.250/1024 bits, 110.354/128 bytes
+PASS C059 throwaway (MIX2[0][0] 1->0) fails the mix2 MDS check and the one-round diffusion band
+PASS triplet last-row-zero throwaway (T0.M[2][2] 2->0) fails the all-entries-nonzero / complete-mix check
+test-gap checks wall time: 0.71s
+PASS encrypt rejects int/list/str/None msg with TypeError (no bytes() coercion)
+PASS encrypt rejects int/list/str/None ad with TypeError (no bytes() coercion)
+PASS decrypt rejects int/list/str/None blob with TypeError
+PASS decrypt rejects int/list/str/None ad with TypeError
+PASS encrypt/decrypt accept bytearray and memoryview for msg, blob, and ad
+PASS explicit ad=None is TypeError, not empty AD
+PASS MAX_AD_LEN is 65536 and is enforced on encrypt and decrypt
+PASS AD of exactly MAX_AD_LEN round-trips
+PASS AD of MAX_AD_LEN+1 raises ValueError on encrypt and decrypt
+PASS bad tag is rejected without building Schedule; a valid blob still builds Schedule then decrypts
+PASS FEATURES mention the version byte and AD in the HMAC description, and AD in the SIV nonce
+PASS FMT_MOVEMENTS is 7, distinct from single-block version 6, and the header/stride sizes match the layout
+PASS movements round-trip lengths 0,1,126,127,128,129,253,254,255,256,381,400 with expected movement counts
+PASS movements round-trip a 4096-byte message (33 movements)
+PASS movements AD round-trip and empty AD matches omitted AD
+PASS movements rejects int/list/str/None msg and ad with TypeError
+PASS movements oversize message and MAX_AD_LEN+1 are rejected
+PASS movements wrong seed, wrong AD, and empty-vs-absent AD mismatch fail closed
+PASS version confusion: decrypt rejects a movements blob; decrypt_movements rejects a version-6 blob
+PASS movements SIV nonce matches sha256(clef||pickup||len||msg||encode_ad(ad)) and a wrong caller nonce is rejected
+PASS movements tampers fail closed: truncate, extend, bit flips, reorder, drop, duplicate, splice, downgrade
+PASS movements: bad coda or cadence is rejected without building Schedule; a valid blob still builds Schedule then decrypts
+PASS movements: cadence-only edit is caught by the coda, and the cadence key is derived only after the coda passes
+PASS movements domains T/D/O/W/I match independent SHA-256 squeezes (theme, cadence key, coda key, tweak)
+PASS movements cadence HMAC covers ct, theme, index and AD; coda HMAC covers header, count, all ct, all cadences and AD
+PASS movements gap mutants (theme domain T->M; coda omits cadences) fail the new pins
+PASS movements-demo.txt decrypts to its recorded plaintext
+PASS a blob made under key A fails under key B with the unified AuthError
+PASS commitments and tags differ across keys for the same message (no two-key blob by construction)
+PASS conductor: commitment bit flips and wrong keys still compute the tag (MAC key M) but never build a Schedule
+PASS tuning domain letter U is pinned and encode_ad is in the commitment HMAC
+PASS associated data is bound in the commitment, so a different AD changes it
+PASS wrong key and wrong AD raise the identical AuthError type and message
+PASS conductor: wrong AD runs both checks (MAC-key domain M derived) and builds no Schedule
+PASS movements: wrong key and commitment bit flips raise unified AuthError before coda/cadence work
+PASS movements commitment binds nmov: the recorded count matches, a different count does not
+PASS legacy octavo009 version-2 hello-world is rejected by decrypt() and opens via decrypt_legacy()
+PASS legacy octavo009 version-3 movements-demo is rejected by decrypt_movements() and opens via decrypt_movements_legacy()
+SKIP unpublished tuning v4 hello-world blob is rejected by decrypt and decrypt_legacy
+SKIP unpublished tuning v5 movements blob is rejected by decrypt_movements and decrypt_movements_legacy
+PASS etude() only accepts the published round counts 2, 4, 6, 16
+PASS etude blobs use distinct committed version bytes, not 2/3/4/5/6/7
+PASS conductor: etude(16) permute is the live 16-round core keyed by K_e (not the live seed), and inverts
+PASS etude(2/4/6) permute differs from full-round and still inverts
+PASS conductor: etude(16) hello-world with the live pickup shares only the pickup (nonce, ct, commit, tag all differ)
+PASS normal decrypt rejects every étude single-block version as UnsupportedVersion
+PASS normal decrypt_movements rejects every étude movements version as UnsupportedVersion
+PASS étude decrypt rejects ordinary version-6 and version-7 blobs
+PASS étude single-block and movements round-trip at 2, 4, 6, 16, with and without AD
+PASS encrypt still has no public pickup argument; études are not in the attested sneak_n2 module
+PASS legacy pre-tuning étude blobs (0xF0 / 0xF1) are rejected by default and open via decrypt_legacy
+SKIP unpublished tuning étude blobs (0xD0 / 0xD1) are rejected by decrypt and decrypt_legacy
+PASS conductor M1: every single-block reject (wrong key/AD, bad commit/pickup/ct/tag) runs commitment AND tag, no Schedule, one AuthError
+PASS conductor M1: decrypt combines the two compare_digest results with & (no short-circuit) and raises once
+conductor timing: median commit-fail 218.30 us, tag-fail 218.23 us, ratio 1.000
+PASS conductor M1: single-block commit-fail and tag-fail medians are within 25% (was ~3x)
+PASS conductor-polish L1: movements compute the coda on a commitment failure too (same work), one AuthError, and the docs say so
+PASS conductor: étude keys are derived (domain E, round count in tweak), distinct per round count and from the seed
+PASS conductor: etude(16).unpermute cannot decrypt a live v6 ciphertext (no shared round material)
+PASS conductor: a live v6 blob relabelled as a 16-round étude does not open (AuthError), even for the seed holder
+PASS conductor: études with the live pickup never reproduce the live nonce or Schedule (r = 2, 4, 6, 16)
+PASS conductor: the étude version byte is hashed into the SIV nonce
+PASS conductor: études refuse seed=None and the public demo seed unless lab_seed=True; other seeds work (chainfix I3: a missing seed is TypeError, the demo seed stays ValueError)
+SKIP conductor: never-published tuning-fix étude bytes (0xB0 / 0xB1) are rejected by every étude and live path
+PASS conductor: Etude(r).decrypt / decrypt_movements reject another round count's blob (UnsupportedVersion: étude round count mismatch)
+PASS conductor: Etude(r).decrypt_legacy pins the round count too (a 16-round 0xF0 blob is refused by etude(2))
+PASS conductor: UnsupportedVersion is a ValueError but NOT an AuthError subclass
+PASS conductor: a natural `except AuthError:` fallback no longer swallows UnsupportedVersion
+PASS conductor: every legacy helper refuses (ValueError naming allow_noncommitting) without allow_noncommitting=True
+PASS conductor-polish L2: every legacy helper emits LegacyFormatWarning (a UserWarning, not a DeprecationWarning) when allowed
+PASS conductor: the published octavo009 v2 hello-world still opens with the flag, with exactly one warning
+PASS conductor L4: _unpad_block matches the old pad check on 4000 random blocks and every length; no `any(b[1 + L:])` scan remains
+PASS conductor L4: movements decode every block before raising (one combined DecodeError decision)
+PASS conductor I3 (chainfix I6): the default seed file is parsed once (cached by stat key); validated seeds are NOT remembered across calls (no seed memo)
+PASS conductor L1 (port reference): branch-free masked-doubling multiply equals _GF_MUL on all 65536 inputs
+PASS conductor docs: README and SECURITY say the default seed is a public demo seed, and SECURITY lists Rust-port requirements
+PASS conductor-polish L1: every outsider movements reject (bad commit/coda/ct/cadence, wrong AD/key) runs commitment AND coda, no cadence key, no Schedule, one AuthError
+PASS conductor-polish L1: decrypt_movements raises authentication failed exactly twice (combined commit/coda, then combined cadences) and decrypts nothing before both
+conductor-polish movements timing: median commit-fail 201.88 us, coda-fail 202.26 us, ratio 1.002
+PASS conductor-polish L1: movements commit-fail and coda-fail medians are within 25% (was ~2.5x)
+PASS conductor-polish L1: étude movements also compute the coda on a commitment failure (combined reject)
+PASS conductor-polish L1: a good movements blob still opens, and a valid-coda bad-pad block still gives DecodeError only after auth
+PASS conductor-polish L2: a library module calling decrypt_legacy(..., allow_noncommitting=True) prints LegacyFormatWarning under default filters
+PASS conductor-polish L3: mask _unpad_block equals the old pad rule on 100864 blocks (every L 0..255, every single-byte pad position), fixed-width masks, no loop
+conductor-polish unpad timing: median L=0 430 ns, L=127 479 ns
+PASS conductor-polish L3: unpad L=0 vs L=127 medians within 400 ns (loop version was ~750 ns apart) and under 3 us
+PASS conductor-polish I2: every private legacy body refuses without allow_noncommitting=True (ValueError)
+PASS conductor-polish I2: private legacy bodies pin the version byte (live/other bytes -> UnsupportedVersion; another round count -> mismatch)
+PASS conductor-polish I2: private étude legacy bodies apply the demo-seed gate too
+PASS conductor-polish I2: the published v2 hello-world opens through the private body with the flag, with exactly one warning
+PASS conductor-polish I3: Rejected is the common ValueError parent of AuthError, DecodeError and UnsupportedVersion; AuthError and UnsupportedVersion stay disjoint
+PASS conductor-polish I3: one `except Rejected:` clause catches every reject class (length, version, auth, round mismatch); caller errors stay plain
+PASS conductor-polish I3: SECURITY.md documents Rejected and recommends an allowlist / cutoff for legacy fallback, not `except UnsupportedVersion`
+PASS conductor-polish I1: etudes.py and SECURITY.md give an end date for the legacy étude helpers
+PASS conductor-polish I4: replacing the seed file with a same-size, same-mtime seed is noticed (cache key has inode + ctime)
+PASS chainfix I6: no seed memo (a repeat call runs the full weak-seed rule again, so timing does not reveal recent use); one public call runs it once
+PASS conductor-polish I5: a weak value wrapped as _DerivedKey is still rejected (the marker never skips the rule)
+PASS conductor-polish I6: Etude.lab_seed is read-only after construction; the demo seed stays refused
+PASS rehearsal constants: FMT_REHEARSAL 9 (FMT_REHEARSAL_V8 8 legacy), 72-byte header, chunk 128..1 MiB (default 64 KiB), 2^24 chunks, domains R/H
+PASS rehearsal domains are new: R and H are not existing sponge letters; raw prefixes SN2/A and SN2/Q avoid every sponge letter and P/T/I
+PASS rehearsal round trip for 0,1,127,128,129,255,256,257,383,384,1000 bytes at chunk sizes 128/256/384, exact stream lengths
+PASS empty stream: 232 bytes = header 72 + one 128-byte final chunk + tag; decrypts to b''; default chunk size 65536 in the header
+PASS a plaintext that is an exact multiple of the chunk size ends with an empty 128-byte final chunk
+PASS equal chunks never give equal ciphertext (per-chunk tweaks), and two encryptions of one message differ (fresh pickup and nonce)
+PASS rehearsal incremental encryption (random splits, empty updates, 1-byte updates) is byte-identical to one-shot
+PASS workers=3 (process pool) encryption is byte-identical to workers=1; header comes first even from a finalize()-only stream
+PASS rehearsal incremental decryption (random splits, 1-byte feeds, workers=3) equals one-shot
+PASS sample stream framing: 72-byte header, two 160-byte non-final chunks, one 160-byte final chunk
+PASS every single-bit flip in every byte of a v8 stream is rejected (byte 0 -> UnsupportedVersion, every other byte -> AuthError), all Rejected
+PASS truncation at every offset 0..551 (including exact chunk boundaries): update() yields only the verified chunk-aligned prefix, finalize() raises AuthError
+PASS dropping only the final chunk is rejected: the last non-final chunk fails as a final chunk ('authentication failed')
+PASS reordering, duplication, dropping, moving the final chunk, extension and tag swaps are all rejected with AuthError
+PASS cross-stream splicing (same seed, AD, chunk size and plaintext; other pickup or only another stream nonce) is rejected for every chunk and header mix
+PASS chunk-size changes are rejected: a rewritten valid size fails authentication; the same stream id at another size never shares chunks
+PASS invalid chunk-size fields (0, 64, 100, 129, 2^20+128, 2^32-1) are structural rejects AuthError('bad chunk size')
+PASS bad SN2 magic in a v8 header is AuthError('bad version prefix')
+PASS wrong AD, missing AD, wrong seed all raise the same AuthError('authentication failed'); empty AD == omitted AD
+PASS v9 header = 9 || SN2 || pickup || nonce || commit || chunk_size32, commit = HMAC(K_commit, U || 9 || SN2 || pickup || nonce || encode_ad(ad) || cs32)
+PASS chunk 0 tag = HMAC(R-sponge(chunk||9||pickup||nonce||cs32||index64||final8||ad_digest)[:32], clef || rehearsal_sig || 9 || SN2 || pickup || nonce || commit || cs32 || index64 || final8 || SHA-256(SN2/A || encode_ad) || tag_{-1}=0^32 || ct)
+PASS each block is XEX under the unchanged staff-core: ct = encrypt_grid(P ^ T, Schedule(seed, R(sched||...||ad_digest)[:16])) ^ T, T from R(chunk||...||ad_digest)
+PASS chunk 0 reject is equal-time: a bad commitment, bad chunk-0 tag and bad chunk-0 ciphertext all run commitment + tag, then one AuthError, no Schedule, no decrypt
+PASS never releases unauthenticated plaintext: a bad chunk 1 is rejected before ANY block is decrypted in that call; incremental feed releases only verified chunk 0
+PASS a rejected decryptor stays dead (AuthError 'stream already rejected'); update/finalize after finalize raise ValueError
+rehearsal reject medians (ns): {'commit': 214165, 'tag': 213680, 'ct': 213500}
+PASS timing sanity: v8 commitment-fail, tag-fail and ciphertext-fail medians agree within 15% (1500 interleaved trials each)
+PASS MAX_REHEARSAL_CHUNKS counts the final chunk: encrypt refuses with ValueError, decrypt rejects AuthError('too many chunks')
+PASS caller mistakes: bad chunk_size (ValueError / TypeError), AD over MAX_AD_LEN, non-bytes data, bad workers; none is a Rejected
+PASS version separation: decrypt/decrypt_movements/étude handles reject v8 as UnsupportedVersion; RehearsalDecryptor rejects v6, v7 and étude bytes the same way
+PASS études get no streaming: no rehearsal API on Etude or in etudes.py, and no étude rehearsal version byte
+PASS rehearsal attestation: EXPECTED_REHEARSAL_SHA256 == sha256(rehearsal_description()); it embeds the live mix digest; closure covers the whole staff-core
+PASS rehearsal code is invisible to the live mix closure (so key_sig and v6/v7 blobs are unchanged)
+PASS editing rehearsal data (pad byte) or code (tweak offset) fails the embedded rehearsal attestation at import
+PASS the rehearsal signature is bound into every chunk tag: under a different rehearsal_signature the stream does not open
+PASS v6 and v7 are byte-identical to frozen octavo010: 18 fixed-pickup blobs (9 single-block, 9 movements) match exactly, and blobs cross-decrypt both ways
+PASS live EXPECTED_MIX_SHA256, demo key_sig, FMT_VERSION 6, FMT_MOVEMENTS 7, 228-byte blob and 72-byte movements header equal octavo010's
+PASS hello-world.txt and movements-demo.txt blobs are octavo010's, byte for byte, and still open on the live module
+PASS the 64 existing score vectors (16 permute, 24 aead, 24 movements) are unchanged from octavo010's score
+PASS movements still cap at 1,040,384 bytes (unchanged), rehearsal does not
+rehearsal 5 MB: encrypt 45.0 s, decrypt 64.0 s (8 workers)
+PASS 5,255,225-byte stream (5x the movements cap) round-trips through encrypt_rehearsal_file / decrypt_rehearsal_file with workers=8
+PASS a cut-off 5 MB stream: decrypt_rehearsal_file raises AuthError and leaves no output; keep_partial=True leaves only the verified chunk-aligned prefix
+PASS file helpers also take binary file objects, any read size
+PASS rehearsal-demo.txt decrypts to its recorded plaintext (format version 9)
+PASS README, SECURITY, LINER_NOTES describe rehearsal (v8) and keep the verdict: homemade, use AES-GCM-SIV, age, or libsodium
+PASS docs use the recorded movements timings 12.45/12.42 and 14.70/14.68 µs (no rounded 12.3/14.3 figures)
+PASS ATTACKS.md covers the history through octavo010 and the rehearsal revision, and its round count matches its table
+PASS module docstring no longer calls the whole scheme 'unreviewed'
+PASS rehearsal-fix M1: a symlink planted at dst.partial / dst.tmp is never written through, followed or removed (victim files untouched, dst is a regular file)
+PASS rehearsal-fix M1: a pre-existing regular dst.partial is neither truncated nor deleted on a reject; no temp file is left
+PASS rehearsal-polish L1/M1: both helpers write through an anonymous 0600 O_TMPFILE in dst's directory (via a dir fd); with O_TMPFILE off, a unique 0600 dot-name made O_EXCL|O_NOFOLLOW; never a fixed sibling name
+PASS rehearsal-fix L1: encrypt('report.tmp' -> 'report') keeps the plaintext and seals all of it; decrypt('h.partial' -> 'h') keeps the ciphertext
+PASS rehearsal-fix L1: src == dst by path, symlink, hard link or descriptor raises ValueError (not Rejected) and leaves both files intact
+PASS rehearsal-fix L2: plaintext and ciphertext outputs are created 0600 under umask 022, whatever the source mode
+PASS rehearsal-fix L2: an existing dst raises FileExistsError by default (dst untouched, no temp left); overwrite=True replaces it
+PASS rehearsal-fix L2: a symlink at dst (live or dangling) is never followed: refused by default, replaced as a link with overwrite=True; a directory dst is refused up front
+PASS rehearsal-fix L2: each helper fsyncs the file before moving it into place and the directory after (file, dir, file, dir)
+PASS rehearsal-fix: keep_partial=True keeps only the verified prefix, as dst.partial when that name is free, else under the call's own unique temp name (never clobbering), reported as exc.partial_path
+PASS rehearsal-fix L3: a file-object dst receives nothing from a cut stream (buffered until finalize); stream_verified_prefix=True keeps the old prefix behaviour
+PASS rehearsal-fix L3: iter_rehearsal always finalizes: whole stream (bytes, piece iterable, file object) yields the message; a stream cut at any chunk boundary raises AuthError
+PASS rehearsal-fix L3 / rehearsal-polish L2: a decryptor dropped after data without finalize() emits one UnfinalizedStreamWarning; fresh, finalized, rejected and explicitly closed ones do not; an abandoned iter_rehearsal does not
+PASS rehearsal-fix L3: leaving a `with RehearsalDecryptor` block normally without finalize() raises AuthError('stream not finalized'); close() abandons on purpose (later calls ValueError)
+PASS rehearsal-fix I3: one-shot decrypt_rehearsal with a forged final chunk after 8 valid chunks runs 9 tags and no Schedule or decryption; a valid stream runs all 9 tags before the first decrypt
+rehearsal-fix I3 one-shot reject medians (ms): {'final forged': 0.284, 'chunk0 forged': 0.239}
+PASS rehearsal-fix I3: rejecting a forged final chunk in one shot costs HMACs only (well under 5 ms here, was ~85 ms for 8 blocks)
+PASS rehearsal-fix I1: same seed, pickup and nonce under two ADs: headers share pickup/nonce, but no ciphertext block, tag or schedule nonce is shared; same AD stays deterministic
+PASS rehearsal-fix I1: the per-stream AD digest is SHA-256(SN2/A || encode_ad(ad)) and empty AD == omitted AD (still one stream format, v9)
+PASS rehearsal-fix I2: workers are capped at min(32, os.cpu_count()); bad values still raise ValueError
+PASS rehearsal-fix I2: workers=4 output is byte-identical to workers=1 and decrypts with workers=4
+PASS rehearsal-fix I2: every worker is a fresh interpreter (python -I -B -S -c, not a fork) and is sent no seed, no other memo seed, no AD and no plaintext
+PASS rehearsal-fix I2: workers are started lazily (workers=12 on a 2-chunk batch starts 2) and none survives finalize(), a reject, or an abandoned encryptor
+PASS rehearsal-fix I4: max_chunk_size rejects a forged 1 MiB-chunk header at the header (nothing buffered); streams within the limit open; bad limits raise
+PASS rehearsal-polish L1: a rename or symlink over the temp name at link time, or a rename over dst after the link, makes the helper raise RuntimeError and publish nothing (no dst, victim key not hard-linked, no fake keep_partial prefix); named temps are linked with follow_symlinks=False, O_TMPFILE via /proc/self/fd
+rehearsal-polish L1 detail: {'a': True, 'b': True, 'c': True, 'd': True, 'e': True}
+PASS rehearsal-polish I3: on the named-temp path, link errors other than EPERM/EOPNOTSUPP/ENOTSUP/ENOSYS/EXDEV/EMLINK are raised (EIO: no dst); the no-hard-link fallback copies into an O_EXCL dst and refuses (FileExistsError) a file created in the gap, leaving it untouched
+PASS rehearsal-polish I4: a chdir during the call leaves a relative dst in the starting directory; swapping a symlinked parent mid-call still publishes into the directory opened at the start, with no orphaned temp file anywhere
+PASS rehearsal-polish I5: 240-byte CJK and emoji dst names (and a 254-byte é name on the named-temp path) work in both helpers; the temp prefix is <= 100 bytes and always whole UTF-8 characters
+PASS rehearsal-polish I6: non-bool overwrite/keep_partial/stream_verified_prefix raise TypeError before anything is written; a kept partial is fsync'd, then its directory; a header-level reject keeps no empty partial
+PASS rehearsal-polish L2: UnfinalizedStreamWarning is a UserWarning (not a ResourceWarning) and a plain update() loop without finalize() prints it under Python's default filters
+PASS rehearsal-polish I1: workers execute the module source read once at import (sent over the pipe): a file replaced on disk after import (payload appended, or a fake that echoes the digests and returns zeros) is never run; a hello mismatch is refused
+PASS rehearsal-polish I2: a SIGSTOPped worker no longer blocks forever: after worker_timeout the workers are killed and reaped and RuntimeError is raised (encrypt and decrypt); worker_timeout validates (default 600 s)
+PASS rehearsal-polish I7 (as changed by rehearsal-finale L3): iter_rehearsal(bytes path) is read as ciphertext (UnsupportedVersion, no file probe); str paths and bytes ciphertext still work; other bytes stay ciphertext (UnsupportedVersion)
+PASS rehearsal-polish I8: decrypt_rehearsal / encrypt_rehearsal document one-shot memory (about 4x / 2x) and that max_chunk_size stays opt-in (default None)
+PASS rehearsal-finale L1 (as changed by rehearsal-curtain I1): the no-hard-link copy keeps its fd open through the check (inode cannot be recycled): a file swapped in at dst is refused with RuntimeError, never vouched for, and (curtain) left alone since this call did not create it; the clean fallback still publishes 0600
+PASS rehearsal-finale I1: an overwrite=True race (rename over the .swap name) raises RuntimeError and the caller's old dst is put back intact (no stray .swap); clean overwrites work with renameat2 and with the os.replace fallback; overwrite=True onto a missing dst links directly
+PASS rehearsal-finale I2: the .swap leftover after a crash during an overwrite=True commit is documented (helpers, README, SPEC, SECURITY), and 'a crash leaves nothing behind' is qualified as mid-stream
+PASS rehearsal-finale I3: a /proc link error on the O_TMPFILE path falls back to a copy (verified output and keep_partial survive); a 250-byte dst keeps its partial under a fresh dot-name; a dst that appeared after full verification keeps the whole plaintext as dst.complete
+PASS rehearsal-finale I4: a parent-symlink swap after the path check no longer lets overwrite=True replace the ciphertext source with its own plaintext (ValueError; source intact, nothing left behind)
+PASS rehearsal-finale L2: under -W error the UnfinalizedStreamWarning is reported through sys.unraisablehook (not swallowed); under default filters 5 dropped decryptors give 5 warnings; -W ignore still silences it
+PASS rehearsal-finale L3: iter_rehearsal treats every bytes src as ciphertext (no os.path.exists probe): an existing path, /root and a missing path all raise UnsupportedVersion
+PASS rehearsal-finale I5 (as changed by rehearsal-curtain L1): the module verifies that the bytecode it executed was compiled from _MODULE_SOURCE: an honest .pyc imports, a .pyc built from a same-size modified source (unpad accepting zero blocks) with the honest .py restored at the same mtime fails the import (now caught by the whole-module comparison, reported as <module>)
+PASS rehearsal-finale I6: workers are started as python -I -B -S -c with an empty environment (no site/.pth, no LD_PRELOAD); a worker returning wrong blocks is caught by the parent's per-batch spot check (RuntimeError) on decrypt and encrypt; honest workers round-trip
+PASS rehearsal-finale I7: read_size 0/-1 raise ValueError and True/1.5/'8' raise TypeError in decrypt_rehearsal_file, iter_rehearsal and encrypt_rehearsal_file; read_size=1 and encrypt's None default still work
+PASS rehearsal-finale I8: bad final padding on a fully tag-verified stream raises AuthError with no decrypted plaintext left in any traceback frame (one-shot pts cleared, streaming padded/msg dropped)
+PASS rehearsal-curtain L1: an honest .pyc imports; a timestamp .pyc with code APPENDED after the executed-code check, the same as an unchecked hash-based .pyc, and a .pyc with a module-level MethodType rebinding before the check all fail the import (whole module code object compared)
+PASS rehearsal-curtain L1: bound methods and functools.partial globals are unwrapped and compared too (a source-path MethodType or partial rebinding is refused); the check and README/SECURITY describe the whole-module comparison and its limit
+PASS rehearsal-curtain I1 S1: a double race (over .swap before the exchange and again before the swap-back) is reported honestly as 'could NOT be restored' and the .swap name is left as found; a single race still puts the old dst back and removes only the stray
+PASS rehearsal-curtain I1 S2/S3/S5: a file renamed over dst after the exchange is refused (RuntimeError) but left in place (never unlinked: this call did not create it); a dst that becomes a directory is refused with IsADirectoryError, before the exchange or by exchanging back, with the directory and its contents intact; a dst swapped for a hard link to the source is replaced and the link removed (source nlink 1, intact); no stray .swap
+PASS rehearsal-curtain I2: every chunk gets min(8, blocks) distinct spot-checked blocks: a worker that falsifies one block in each 8-block chunk is caught on 12/12 decrypts and 6/6 encrypts; the real odds are documented (helper, README, SECURITY); honest workers still round-trip
+PASS rehearsal-curtain I3: a worker announcing a 63 MiB reply for a 1 KiB chunk is refused (RuntimeError 'wrong reply length', workers killed) without the parent ever asking to read more than the chunk size
+PASS rehearsal-curtain I4: under -X dev and -W default every dropped decryptor warns (5/5, was 1/5); -W once still means once; -W error / -W ignore unchanged (see rehearsal-finale L2)
+PASS rehearsal-curtain I5: _rehearsal_fsync_dir fsyncs a directory fd and refuses a path or bool (TypeError); its source opens nothing by name
+PASS rehearsal-curtain I6: the module docstring says four in-house rehearsal attacks (rehearsal, -fix, -polish, -finale) and names rehearsal-curtain; the stale 'two in-house attacks' text is gone
+PASS rehearsal-curtain I7 (held, no code change): truncations, a dropped / duplicated / swapped chunk and a header edit are rejected by decrypt_rehearsal, iter_rehearsal and RehearsalDecryptor; the genuine stream opens (also with workers=2)
+PASS rehearsal-polish / rehearsal-finale / key-fix: the key_sig nonce and key_sig are unchanged (fe939969… / 340dc1e0…); v6/v7 untouched
+PASS published score regenerates identically (79 vectors: 16 permute, 24 aead, 24 movements, 8 rehearsal, 7 non-demo; score version 11)
+PASS every published rehearsal vector (live v9, demo seed) decrypts to its recorded plaintext hash and length
+PASS sneak-staff-n2.json matches live sneak_n2.py SHA, key_sig, and hello-world pickup/nonce/tag
+PASS temp-name prefix keeps the longest whole UTF-8 prefix within the byte limit (1-4 byte characters, every alignment)
+PASS two distinct file objects open on the same inode are refused as src and dst (ValueError)
+PASS iter_rehearsal never yields an empty chunk when fed one byte at a time, and the pieces join to the plaintext
+PASS renameat2 helper raises OSError(ENOENT) for a missing name instead of returning silently
+PASS overwrite=True replaces an existing dst with the new stream; overwrite=False refuses and keeps the old file
+PASS key-fix: seed=None raises TypeError('seed is required ...') in every public API (v6, v7, legacy, v8 one-shot/streaming/iter, signatures, Schedule)
+PASS key-fix: the rehearsal file helpers refuse seed=None too, and create no output
+PASS key-fix: an explicit load_seed() (the public demo seed) still works and opens the published hello-world blob
+PASS key-fix: keygen() returns fresh 128-byte seeds that pass the rule, never repeat, and round-trip in v6/v7/v8
+PASS honest2 I1: keygen refuses a patched os.urandom (the binding check re-run on each call)
+PASS key-fix / honest I4: keygen() makes ONE draw and never redraws: a weak draw raises RuntimeError (the RNG or policy is broken), a good draw is returned as is
+PASS key-fix: save_seed writes 256 hex digits 0600 that load_seed(path) reads back; refuses an existing path, a symlink and a weak seed
+PASS key-fix: KNOWN_CONSTANT_SEEDS_SHA256 is exactly the 16 constants recomputed from their formulas / tables (pi starts 243f6a88, e b7e15162, golden ratio 9e3779b9)
+key-fix weak-seed reasons: {'incrementing 00..7F': 'every byte is below 0x80', 'decrementing FF..80': 'counter or arithmetic sequence (stride 1)', '32-byte pattern 01..20 x4': 'Hamming weight 324 of 1024 is far from 512', '96 zero bytes + 01..20': 'one byte value repeats too often (zero padding or low entropy)', 'half zeros + 00..3F': 'one byte value repeats too often (zero padding or low entropy)', 'low weight (56 of 1024 bits)': 'one byte value repeats too often (zero padding or low entropy)', 'pangram + zero pad': 'one byte value repeats too often (zero padding or low entropy)', 'alphabet + zero pad': 'one byte value repeats too often (zero padding or low entropy)', 'hex text (128 hex digits as ASCII)': 'need at least 32 distinct nonzero bytes', 'printable password-like text': 'need at least 32 distinct nonzero bytes', 'random 64 bytes twice': 'repeated pattern (period 64)', 'random 64 bytes + complement': 'counter or arithmetic sequence (stride 64)', '16-bit big-endian counter from 0x8000': 'counter or arithmetic sequence (stride 1)', '32-bit little-endian counter': 'counter or arithmetic sequence (stride 4)', 'random bytes sorted': 'repeated pattern (period 1)', '7-bit random': 'every byte is below 0x80', 'high weight (random | 0xF7)': 'need at least 32 distinct nonzero bytes', 'constant pi': 'a published constant', 'constant e': 'a published constant', 'constant sqrt2': 'a published constant', 'constant sqrt3': 'a published constant', 'constant sqrt5': 'a published constant', 'constant golden ratio': 'a published constant', 'constant ln2': 'a published constant', 'constant SHA-256 K[0:32]': 'a published constant', 'constant SHA-256 K[32:64]': 'a published constant', 'constant SHA-512 K[0:16]': 'a published constant', 'constant SHA-512 H0..7 x2': 'repeated pattern (period 64)', 'constant SHA-256 H0..7 x4': 'need at least 32 distinct nonzero bytes', 'constant SM4 S-box[0:128]': 'a published constant', 'constant SM4 S-box[128:256]': 'a published constant', 'constant AES S-box[0:128]': 'a published constant', 'constant AES S-box[128:256]': 'a published constant'}
+PASS key-fix: every seed the tester showed was accepted (incrementing, decrementing, 32-byte pattern x4, 96 zeros + 32 bytes, half zeros, low weight, padded text, SHA-256 K, pi) and the other structured or constant seeds now raise ValueError('weak seed: ...')
+PASS key-fix: the original 'need at least 32 distinct nonzero bytes' reason is kept for the old cases
+PASS key-fix: 5000 fresh os.urandom(128) seeds and the public demo seed all pass (full measurement: 0 of 1,000,000, SPEC.md)
+PASS key-fix: thresholds are the documented ones
+PASS key-fix: byte-count boundary: 11 copies of one value can pass, 12 never do
+PASS key-fix: étude handles: lab_seed=True with seed=None still means the public demo seed; without lab_seed seed=None is refused
+PASS key-fix: published étude keys unchanged (every published score étude key re-derives under the stricter rule)
+PASS key-fix / rehearsal-chain: v6 and v7 blobs are byte-identical to frozen octavo014 (rehearsal-curtain) for the demo seed and a keygen() seed, key_sig equal; octavo014 v8 streams open only via decrypt_rehearsal_legacy(allow_unchained=True), whose frozen v8 rehearsal_sig equals octavo014's
+PASS rehearsal-chain w1 witness: under a forced repeated pickup/nonce (same seed, AD, chunk size) the two v9 streams share a header, and all 14 per-index chunk splices are now REJECTED (claim 1 splice forgeries fail), incl. P2 chunk 0 + P1 rest
+PASS rehearsal-chain w1 witness: every splice is also rejected by iter_rehearsal, RehearsalDecryptor and workers=2
+PASS rehearsal-chain w1 witness: truncation by another stream's final chunk is rejected unless the result is byte-identical to that other genuine stream; drop, cut, reorder, duplicate and cross-index swaps are rejected
+PASS rehearsal-chain w1 witness, exhaustive: every sequence of 1..4 chunks drawn from the four forced-reuse streams (11,110 streams) opens only if it is one of the genuine streams (0 forgeries; the 1..5 run, 111,110 streams, is in rehearsalchain_verification/)
+PASS rehearsal-chain caveat (documented): under a forced repeated pickup/nonce, equal plaintext chunks at equal positions still give equal ciphertext (chunk 1 of P1/P2 is equal), so nonce reuse still leaks equality
+PASS rehearsal-chain: the w1 splice still opens on octavo014 v8 and through decrypt_rehearsal_legacy(allow_unchained=True) (the documented legacy risk), but v9 decrypt_rehearsal refuses the v8 stream (UnsupportedVersion)
+PASS rehearsal-chain formula: tag_i = HMAC(R-sponge(chunk||9||...)[:32], clef || rehearsal_sig || 9 || SN2 || pickup || nonce || commit || cs32 || index64 || final8 || ad_digest || tag_{i-1} || ct_i), tag_{-1} = 0^32; _rehearsal_tag(prev=...) agrees
+PASS rehearsal-chain domain separation: v9 labels are b'sched'+9 / b'chunk'+9 (v8 keeps b'sched'/b'chunk'); v9 and v8 keys, tweaks, schedule nonces and commitments differ; _rehearsal_fmt accepts only 9 and 8
+PASS rehearsal-chain: workers=2 encryption is byte-identical to workers=1 (blocks parallel, tag chain sequential); incremental update/finalize round-trips; decrypt with workers=2 opens
+PASS rehearsal-chain legacy: all 8 published score-version-8 (v8) rehearsal vectors (legacy_v8/score8_rehearsal_v8.json) open only via decrypt_rehearsal_legacy(allow_unchained=True), with one LegacyFormatWarning each; decrypt_rehearsal refuses them (UnsupportedVersion)
+PASS rehearsal-chain legacy: the rehearsal-curtain rehearsal-demo.txt (v8) opens via the legacy reader to its recorded plaintext
+PASS rehearsal-chain legacy gate: without allow_unchained=True (missing, False, 1, 'yes') decrypt_rehearsal_legacy raises ValueError before reading the blob; it refuses v9, v6, v7 and garbage (UnsupportedVersion / Rejected); a v8 blob relabelled 9 fails authentication
+PASS rehearsal-chain legacy: the LegacyFormatWarning is raised on every legacy open (as an error under -W error) and names re-encrypting as v9
+PASS rehearsal-chain: every v9 reader refuses a v8 stream with UnsupportedVersion: decrypt_rehearsal, iter_rehearsal, RehearsalDecryptor, decrypt_rehearsal_file (and leaves no output file)
+PASS rehearsal-chain attestation: decrypt_rehearsal_legacy is a REHEARSAL_CODE_ROOT (the rehearsal digest covers the v8 reader and gate); rehearsal_description records the chain and legacy_v8; rehearsal_sig moved to the v9 code, v8 uses the frozen REHEARSAL_V8_SHA256
+PASS rehearsal-chain docs: README, SPEC and SECURITY describe v9 chained tags, the w1 splice fix, and the v8 legacy opt-in (allow_unchained=True)
+PASS chainfix L1: _seed_bytes(x) == x for 200 random seeds, as bytes, bytearray, memoryview and int; it returns the private _CheckedSeed marker
+PASS chainfix L1 / seedguard L1: the excluded seed policy is a strict predicate: a policy that returns another key is refused (RuntimeError, nothing encrypted; the policy saw an immutable bytes copy) and the honest policy still gives the reference blob
+PASS chainfix L1: the w07 T1 tamper moved into _seed_bytes (re-pinning only EXPECTED_*) changes the core digest, so key_sig moves for EVERY seed and the published non-demo key_sig no longer matches
+PASS chainfix L1: the 7 non-demo score vectors (live v6 x2, v7 x2, v9 x2, étude r4) open under the published non-demo test seed, which matches its SHAKE-256 definition and file, and equal the rehearsal-chain output (chainfix_verification/nondemo_pre.json)
+PASS chainfix L1/L2 / seedguard L1: EXPECTED_SEED_POLICY_SHA256 equals a fresh _seed_policy_digest(); SEED_POLICY_NAMES is only the accept/reject rule; keygen/save_seed/load_seed are CORE (in MIX_CODE_FUNCS, not excluded); every function the policy calls is policy or core
+PASS chainfix L3: save_seed under a 100-byte file-size limit raises OSError and leaves NOTHING behind; the retry succeeds (0600, only the final name) and fsyncs the directory
+PASS chainfix L3: save_seed still never clobbers (existing file, live/dangling symlink, directory, FIFO -> FileExistsError), the victim is intact and no temp file is left
+PASS chainfix L4: the weak-seed rule is documented as a sanity check (keygen() is the real protection) in the code, README and SECURITY
+PASS chainfix I1: under Python's default filters LegacyFormatWarning shows on EVERY call (5 of 5 decrypt_legacy, 3 of 3 decrypt_rehearsal_legacy from one line each)
+PASS chainfix I2: _RehearsalDecryptorV8 refuses (ValueError) unless allow_unchained is exactly True and warns on construction; gated update()/finalize() still opens a published v8 vector
+PASS chainfix I3: seed=None with a malformed blob (or bad AD) raises TypeError('seed is required...') everywhere, études included: the seed is checked first
+PASS chainfix I3: bool, str, float and list seeds raise TypeError; negative or >= 2**1024 ints raise ValueError (not OverflowError)
+PASS chainfix I4: load_seed(path) warns (SeedWarning) on a 0644 file, a symlink and non-hex decoration but still reads them; a 0600 keygen file and the public demo seed give no warning; save_seed warns when asked to store the demo seed
+PASS chainfix I5: the pin logic, key tools and helpers are in MIX_CODE_FUNCS (attested) but not in the core; the import checks are the module's last statements
+PASS chainfix I7: an uncaught exception reports FAIL plus totals (sys.excepthook) and the octavo014 cross-check is wrapped
+PASS chainfix docs: README, SPEC, SECURITY, SNAPSHOT and LINER_NOTES describe rehearsal-chainfix and EXPECTED_SEED_POLICY_SHA256
+PASS seedguard L1: the chainfix T1 tamper (policy writes the caller's s via sys._getframe().f_locals), a __import__('sys') variant and a globals() call are all refused AT IMPORT by the core policy lint, even with every EXPECTED_* pin re-pinned
+PASS seedguard L1: a lint-clean policy that returns a key (not None) is refused on every call (RuntimeError), never used as the key
+PASS seedguard L1: the chainfix T2 tamper (load_seed weakens explicit-path keys) is refused at import when only the three non-core pins are re-pinned (core attestation mismatch); re-pinning the core pins too moves key_sig and rehearsal_sig for every seed (published non-demo key_sig no longer matches)
+PASS seedguard L1: the strict gate and the lint are CORE (listed, not excluded); load_seed, keygen, save_seed, _fsync_dir and SeedWarning are core; the docs say a change to EXPECTED_SEED_POLICY_SHA256 needs the same review as a core change
+PASS seedguard L1: key_sig 340dc1e0..., rehearsal_sig 07172e74... and the signature halves of both pins are unchanged; only the core halves were re-pinned
+PASS seedguard I1: a hand-built _CheckedSeed of 3, 0, 127 or 129 bytes is refused (ValueError) by _seed_bytes and by v6, v7, v9 and key_signature
+PASS seedguard I2: SECURITY.md says the import checks are not a runtime guard (monkeypatching after import is not re-checked)
+PASS seedguard I3: save_seed writes an anonymous O_TMPFILE (0600) and publishes it with linkat; a SIGKILL just before publish leaves NOTHING; with O_TMPFILE off the documented fallback leaves one 0600 .k.txt.*.tmp
+PASS seedguard I4: under Python's default filters SeedWarning shows on EVERY call (5 of 5 load_seed calls from one line)
+seedguard I5 race: regular reads 1758, symlinked reads 1242, silent symlinked reads 0
+PASS seedguard I5: load_seed opens explicit paths with O_NOFOLLOW and checks the opened fd (fstat); a FIFO or directory is refused (ValueError, no hang); a symlinked folder and a world-writable folder warn; a clean 0700 folder does not; a racing symlink swap is never read silently
+PASS seedguard I6: SECURITY.md no longer lists _seed_bytes or _DerivedKey as excluded seed-policy code
+PASS seedguard docs: README, SPEC, SECURITY, SNAPSHOT and LINER_NOTES describe rehearsal-seedguard and the new EXPECTED_SEED_POLICY_SHA256 / core pins
+honest L1 copies: {'w01_os_rebind': (1, "RuntimeError: module bindings changed: ['_r_']"), 'w01_os_rebind_del': (1, "RuntimeError: module bindings changed: ['_r_']"), 'urandom_patch': (1, 'RuntimeError: os.urandom is not a C builtin'), 'sha256_wrap': (1, 'RuntimeError: hashlib.sha256 is not a C builtin'), 'hmac_new_wrap': (1, 'RuntimeError: hmac.new is not the stdlib function')}
+PASS honest L1: the seedguard w01 tamper (os rebound to a look-alike with a predictable urandom, ZERO re-pins) and variants (names deleted, os.urandom / hashlib.sha256 / hmac.new replaced in-file) are refused at import by _check_module_bindings
+PASS honest L1: the score publishes the file SHA and generate_score.py --check-sha compares it (exit 0 here)
+PASS honest L2: an int-subclass policy constant renamed 'int' (the seedguard w02 tamper, zero re-pins) and a subclass hidden inside a tuple constant are refused at import; _canon_data refuses subclasses for any constant
+PASS honest I1: any exception from the policy becomes a fresh ValueError with no seed bytes and no __cause__/__context__ (fixed 'weak seed', or a known reason shape)
+PASS honest I2/I3: the policy lint refuses while loops, **, <<, annotated assignments, argument and return annotations, and match statements (even with every pin re-pinned)
+PASS honest I4: a policy that rejects keygen's draw makes keygen raise RuntimeError (one draw, no redraw loop in the source)
+/workspace/sneak_n2/test_sneak_n2.py:4561: SeedWarning: seed file '/tmp/n2_ho_i5_jrjjhr7w/ww/mine/k.txt' is below a folder writable by everyone without the sticky bit (/tmp/n2_ho_i5_jrjjhr7w/ww)
+  _inner = os.path.join(_ww, "mine"); os.mkdir(_inner, 0o700); _pk = os.path.join(_inner, "k.txt"); N.save_seed(_pk, _ho_k)
+PASS honest I5: load_seed refuses a file over 16384 bytes and non-UTF-8 content with plain ValueError; a world-writable non-sticky grandparent warns; a sticky (1777) one and a clean tree do not
+PASS honest I6: save_seed accepts bytes paths on both the O_TMPFILE and the fallback path, like load_seed
+PASS honest docs: SECURITY.md says plainly the import self-checks are not a tamper guard and that the real tamper check is the file SHA-256 against the published score and a trusted source; README and SPEC say it too
+PASS honest: key_sig 340dc1e0... and rehearsal_sig 07172e74... unchanged; both signature halves unchanged; docs name rehearsal-honest and the new core pin
+PASS honest2 L1: _check_module_bindings checks only names bound by import statements (not __builtins__); python3 sneak_n2.py, python3 -m sneak_n2 and runpy all run; C-builtin identity checks are CPython-only
+PASS honest2 L1: PyPy 3.11 imports, matches key_sig and round-trips a v6 blob
+PASS honest2 L2: generate_score.py uses argparse; no args and typo flags exit 2 without writing; --check-sha never writes and catches a tampered etudes.py
+honest2 I1 probe: 0 ['imported', '340dc1e062502bb13462a94ba490c3dc', 'RuntimeError:keygen', 'RuntimeError:save'] imp ['RuntimeError:import']
+PASS honest2 I1: a rebinding appended after the final import check still imports (doc-conceded) if it adds no import, but keygen and save_seed re-run _check_module_bindings and refuse it; the original w04 append (which imported random) is now refused at import; the docstring says so
+PASS honest2 I2: the score publishes etudes_sha256 and generate_score_sha256 and --check-sha verifies all three files
+PASS honest2 I3: .gitattributes sets *.py eol=lf and treats score/vectors.json and the non-demo seed as -text
+PASS honest2 I4: load_seed and save_seed warn on a group-writable non-sticky ancestor (0775/0770) and stay silent on a sticky 1775 one
+PASS honest2 I5: save_seed runs the same folder checks as load_seed and warns when the destination folder is world-writable without the sticky bit
+honest2 I6 zip: 0 zip-workers-ok 
+honest2 I6 pyc: 0 src False
+pyc-workers:workers > 1 needs the module source (not available in this install; zip installs use the loader, a .pyc-only install has no source) 
+PASS honest2 I6: a zip install gets module source from the loader and workers=2 round-trips; a .pyc-only install has no source and workers>1 raise the documented error
+PASS honest2: key_sig 340dc1e0... and rehearsal_sig 07172e74... unchanged; signature halves unchanged; docs name rehearsal-honest2 and the new core pin
+PASS DEMO_ONLY is True
+PASS APP_KEY_INFO is the documented domain label
+PASS Rejected family is sneak_n2's
+PASS generate_key returns 32 distinct random bytes and does not write a file
+PASS expand_key of a 32-byte key is a 128-byte seed, stable, and accepted by the cipher
+PASS expand_key of a 64-byte key is a different 128-byte seed
+PASS expand_key rejects str, None, int and other non-bytes types with TypeError
+PASS expand_key rejects lengths other than 32 or 64 with ValueError
+PASS expand_key rejects an all-zero 32- or 64-byte key with ValueError
+PASS seal/open_ (and module open) round-trip a message with AD as a v6 blob
+PASS open_ binds AD: the wrong AD raises AuthError('authentication failed')
+PASS open_ with the wrong key raises AuthError('authentication failed')
+PASS a tampered v6 blob raises AuthError('authentication failed')
+PASS open_ does not enable legacy modes: a v9 blob raises UnsupportedVersion
+PASS seal/open_ reject None and an all-zero key before touching the blob
+PASS a one-time UserWarning on first seal/open says homemade / not for real secrets
+PASS app key-expansion vectors in score/app_vectors.json match expand_key
+PASS recorded app blobs open with the published key, AD and message
+PASS published score still has 79 vectors and is not the app-vector file
+PASS verify_install passes on the clean tree and matches published SHAs
+PASS verify_install fails on a one-byte edit of sneak_n2.py in a scratch copy
+baseline frozen-and-n1.sha256: 58 files
+PASS unchanged vs baseline frozen-and-n1.sha256
+baseline v2-v13-and-seed.sha256: 116 files
+PASS unchanged vs baseline v2-v13-and-seed.sha256
+PASS no files added/removed in test1/, test3/, test13/, testn1/, sneak_t1n/
+
+565/565 passed, 0 failed, 27 skipped
