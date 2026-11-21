@@ -7,3 +7,5 @@ include score/app_vectors.json
 include score/generate_score.py
 include score/nondemo-test-seed.txt
 include score/README.md
+include SPEC.md
+recursive-include independent_check *.py *.md

@@ -45,8 +45,126 @@ not been attacked yet.
   `EXPECTED_SEED_POLICY_SHA256` `0fc482e65533814588ade098f6c8d5e68693aca76e6a1232f76466b5e609cd5e` (unchanged). Only the core halves
   of `KEY_SIG_PIN` / `REHEARSAL_SIG_PIN` were re-pinned. `REVISION` =
   "rehearsal-honest2".
+- **Docs (2026-11-21).** The consolidated *Implementer's reference* below states every live wire-level
+  detail (bit orders, rejection rule, shuffle and rotation directions, signatures, v6/v7/v9 layouts, score inputs).
 - Tests: 544/544 passed, 27 skipped (about 13 min, 11:17–11:30 AM ET; `honest2_verification/test_run_final.txt`). Pre-change backup:
   `/workspace/sneak_n2_backups_rebuilt/pre_honest2/`. Work: `/workspace/honest2_work/`.
+
+## Implementer's reference (2026-11-21, docs only)
+
+This section consolidates the **live** wire-level definitions in one place. It is a documentation fix only: no code, constant, vector or ciphertext changed (`sneak_n2.py` SHA-256 is still `19181bc1…`). Every statement below was confirmed by an independent from-scratch implementation written from this spec (`/workspace/independent_check/`, `python3 run_check.py`), which rebuilds all **79** score-v11 vectors byte for byte, opens them, and opens the 3 `score/app_vectors.json` blobs. Where an older section below disagrees, **this section wins**; those older statements are now marked "[Superseded — see Implementer's reference]". Still homemade, **not for real secrets** (use AES-GCM-SIV, age or libsodium).
+
+### R1. StaffSponge, signatures, seed-only keys
+
+- `StaffSponge(dom, k, nonce).take(n)` = the first n bytes of `SHA-256(b"SN2/" ‖ dom ‖ ctr ‖ k ‖ nonce)` for ctr = 0, 1, 2, …, with **ctr a 4-byte big-endian** integer. `nonce` may have any length.
+- `key_sig(k) = StaffSponge(b"G", k, KS).take(16)`, where KS is the 32-byte signature half of `KEY_SIG_PIN`: `fe93996970ecd92693b5f8f43ffb2cad5e96867f258a38b12637f1014b12b4c6`.
+- `rehearsal_sig(k) = StaffSponge(b"H", k, RS).take(16)`, where RS is the signature half of `REHEARSAL_SIG_PIN`: `a21cf6e768a88cc21b4698b54426cf2d1527936f101f783862a609efa8bbad45`.
+- Check values: demo seed `340dc1e0…` / `07172e74…`; non-demo test seed `399f98cf…` / `4bc90949…`.
+- `clef = StaffSponge(b"C", k, 16 zero bytes).take(16)`; `K_commit = StaffSponge(b"U", k, 16 zero bytes).take(32)`; `mac_key = StaffSponge(b"M", k, nonce).take(32)`.
+- `encode_ad(ad) = uint64be(len(ad)) ‖ ad`; `encode_block(m) = bytes([len(m)]) ‖ m ‖ zeros` (128 bytes, len ≤ 127).
+
+### R2. Key schedule `Schedule(k, nonce)`
+
+One byte stream `StaffSponge(b"K", k, nonce)`, consumed strictly in this order. For r = 0..15:
+1. `rk_r`: 128 bytes.
+2. `A1`: take 8 bytes as 8 rows; if the GF(2) rank is not 8, discard them and take 8 more, until invertible. Then `A2` the same way.
+3. `b1`, `b2`: one byte each (b1 first).
+4. `SH[0..15]`: 16 draws of `randint(8)`. `SV[0..7]`: 8 draws of `randint(16)`.
+5. `σ_0 … σ_15`: 16 Fisher–Yates permutations of 8 (face 0 first). Then `bridge`: one Fisher–Yates permutation of 64.
+6. `A3`, `A4` (as in step 2), `b3`, `b4`.
+
+After round 15: `white` = the next 128 bytes.
+
+- **Matrix · byte:** output bit i (bit 0 = least significant) = parity(`row_i AND x`), where `row_i` is the i-th byte drawn. So row i gives output bit i, and row bit j multiplies input bit j.
+- **Keyed S-boxes:** `S(x) = A2·SM4[A1·x ⊕ b1] ⊕ b2` and `S2(x) = A4·SM4[A3·x ⊕ b3] ⊕ b4`, with SI and SI2 their table inverses.
+- **`randint(n)` (uniform in [0, n)):** take one byte b. Reject it and take another if b ≥ 256 − (256 mod n); otherwise return b mod n. For n = 8, 16 and 64 nothing is ever rejected.
+- **Fisher–Yates:** start from the identity list p = [0, …, n−1]. For i = n−1 down to 1: j = randint(i+1), then swap p[i] and p[j].
+
+### R3. Grid and layers
+
+- **Grid:** block byte `8f + t` is face f, beat t. Faces 0–7 are the inner shell and faces 8–15 the outer shell.
+- **Field:** GF(2^8) with polynomial 0x1F5.
+- **mix2 (live, everywhere):** `mix2(u,v) = (u ⊕ v, u ⊕ 2⊗v)` in that field. Inverse: `v = 3⁻¹⊗(a ⊕ b)`, `u = a ⊕ v`. The butterfly, the shell bridges, the four cross layers and the Latin pair all use this field mix2. **No live layer uses the mod-256 mix2** `(u+v, u+2v)`.
+- **Weave:**
+  1. Rotate each face **left** by `SH[f]`: `new[f][t] = old[f][(t + SH[f]) mod 8]`.
+  2. Then rotate each beat column: `new[f][t] = old[(f − SV[t]) mod 16][t]`. Face f's byte moves to face f + SV[t].
+- **Butterfly:** layers m = 1, 2, 4 in that order. In each layer, for each i with `i & m = 0`, apply `(u, v) = (g[f][σ_f[i]], g[f][σ_f[i|m]])` ← mix2(u, v).
+- **Bridges:** inner cell c is block byte c, for c = 0..63. Its partner is block byte `64 + bridge[c]`. In **even** rounds (round 0 included) u = the inner cell and v = the outer cell. In **odd** rounds u = the outer cell and v = the inner cell.
+- **Bars (per staff, in order):**
+  1. B0 on (0,1) is the keyed Latin pair `x = u ⊕ v`, `y = u ⊕ 2⊗v`, `u' = S_r[x]`, `v' = S2_r[y]`.
+  2. Then B1 (1,2) `((1,1),(1,2))`, M2 (2,3) `((3,5),(1,2))`, B2 (3,4) `((1,3),(1,4))`, M3 (4,5) `((5,2),(2,1))`, B3 (5,6) `((2,1),(1,1))` and B4 (6,7) `((3,1),(2,1))`. Each maps `(a⊗u ⊕ b⊗v, c⊗u ⊕ d⊗v)` in the field.
+- **Triplets:** T0..T5 in ascending order (§11 matrices), over Z/256.
+- **Bow:** the 7 strokes and pressure views of the beat-0 rotation section, applied in order, each reading the current pressure byte.
+- **Odd restack:** the Latin pair (with S_r, S2_r) on (0,1), (2,3), (4,5), (6,7).
+- **Cross:** four layers in order: opposite, radial, adjacent, bridge. Each mixes every listed staff pair (a, b), a < b, at every beat t = 0..7 with `(g[a][t], g[b][t])` ← mix2.
+
+### R4. Exact round order (live)
+
+```
+round r (r = 0 .. R-1):
+  g ^= rk_r ; g = S_r[g] ; weave(SH_r, SV_r) ; butterfly(σ_r) ; bridges(bridge_r, r)
+  bars(S_r, S2_r) ; triplets ; bow ; odd_restack(S_r, S2_r) ; cross
+  g = S2_r[g]
+  bars(S_r, S2_r) ; triplets ; bow ; odd_restack(S_r, S2_r) ; cross      # encore
+after the last round:  g ^= white
+```
+
+R = 16 for live formats. An R-round étude uses rounds 0..R−1 of the full 16-round schedule and then the same `white`. Decryption runs every step's inverse in reverse order.
+
+### R5. Single block (v6) and étude block
+
+- **Layout:** `ver ‖ SN2 ‖ pickup16 ‖ nonce16 ‖ commit32 ‖ ct128 ‖ tag32` (228 bytes).
+- **Live nonce:** `SHA-256(clef ‖ pickup ‖ encode_block(m) ‖ encode_ad(ad))[:16]`.
+- **Étude nonce:** `SHA-256(clef ‖ ver ‖ pickup ‖ encode_block(m) ‖ encode_ad(ad))[:16]`.
+- **Commitment:** `commit = HMAC(K_commit, U ‖ ver ‖ SN2 ‖ pickup ‖ nonce ‖ encode_ad(ad))`.
+- **Ciphertext:** `ct = E(encode_block(m))` under `Schedule(k, nonce)`.
+- **Tag:** `tag = HMAC(mac_key, clef ‖ key_sig(k) ‖ ver ‖ SN2 ‖ pickup ‖ nonce ‖ commit ‖ ct ‖ encode_ad(ad))`.
+- **Which key k:** live k = the seed. For an étude, k = `K_e = StaffSponge(b"E", seed, bytes([R]) ‖ 15 zero bytes).take(128)` for **everything**, including **`key_sig(K_e)`** in the tag (not key_sig(seed)).
+
+### R6. Movements (v7) and étude movements
+
+- **Layout:** `ver ‖ SN2 ‖ pickup16 ‖ nonce16 ‖ commit32 ‖ nmov32 ‖ (ct128 ‖ cadence32) × nmov ‖ coda32`.
+- **Chunks:** the message is split into 127-byte chunks (the last may be shorter). The empty message is one empty chunk, so 1000 bytes give 8 movements and 128 bytes give 2.
+- **Nonce:** `SHA-256(clef ‖ [ver, études only] ‖ pickup ‖ uint64be(len m) ‖ m ‖ encode_ad(ad))[:16]`.
+- **Commitment:** `commit = HMAC(K_commit, U ‖ ver ‖ SN2 ‖ pickup ‖ nonce ‖ encode_ad(ad) ‖ nmov32)`.
+- **Per movement i:** `index64` = uint64be(i). `final` is **one byte**: 0x01 on the last movement, 0x00 otherwise.
+  - `theme_0 = StaffSponge(b"T", k, nonce).take(128)`.
+  - `tweak_i = StaffSponge(b"W", k, SHA-256(b"SN2/I" ‖ nonce ‖ index64 ‖ final)[:16]).take(128)`.
+  - `ct_i = E(encode_block(chunk_i) ⊕ theme_i ⊕ tweak_i)`, all movements under one `Schedule(k, nonce)`.
+  - `theme_{i+1} = StaffSponge(b"T", k, SHA-256(b"SN2/T" ‖ theme_i ‖ ct_i ‖ index64 ‖ final)[:16]).take(128)`.
+- **The commitment sits right after the nonce in both MACs:**
+  - `cadence_i = HMAC(StaffSponge(b"D", k, nonce).take(32), clef ‖ key_sig(k) ‖ ver ‖ SN2 ‖ pickup ‖ nonce ‖ commit ‖ index64 ‖ final ‖ theme_i ‖ ct_i ‖ encode_ad(ad))`. Here theme_i is the theme used to encrypt movement i.
+  - `coda = HMAC(StaffSponge(b"O", k, nonce).take(32), clef ‖ key_sig(k) ‖ ver ‖ SN2 ‖ pickup ‖ nonce ‖ commit ‖ nmov32 ‖ ct_0 ‖ … ‖ ct_{n−1} ‖ cadence_0 ‖ … ‖ cadence_{n−1} ‖ encode_ad(ad))`.
+
+### R7. Rehearsal (v9)
+
+- **Header:** `0x09 ‖ SN2 ‖ pickup16 ‖ nonce16 ‖ commit32 ‖ cs32`, where `cs32 = uint32be(chunk_size)`.
+- **Commitment:** `commit = HMAC(K_commit, U ‖ 0x09 ‖ SN2 ‖ pickup ‖ nonce ‖ encode_ad(ad) ‖ cs32)`.
+- **AD digest:** `ad_digest = SHA-256(b"SN2/A" ‖ encode_ad(ad))`.
+- **Labels:** "sched‖9" and "chunk‖9" are the ASCII words `sched` and `chunk` followed by the raw byte **0x09**.
+- **Schedule:** one per stream, `Schedule(seed, StaffSponge(b"R", seed, b"sched" ‖ 0x09 ‖ pickup ‖ nonce ‖ cs32 ‖ ad_digest).take(16))`, full 16 rounds.
+- **Chunks:**
+  - Every non-final chunk carries exactly chunk_size bytes, and the final chunk carries the remaining 0 … chunk_size−1 bytes. A message whose length is a multiple of chunk_size therefore ends with an empty final chunk.
+  - The final chunk is padded `rest ‖ 0x80 ‖ zeros` to a multiple of 128.
+- **Chunk i keys:** let `idx = uint64be(i)`, let `final8` = 0x01 on the final chunk and 0x00 otherwise, and let nb = (chunk bytes)/128.
+  - `out = StaffSponge(b"R", seed, b"chunk" ‖ 0x09 ‖ pickup ‖ nonce ‖ cs32 ‖ idx ‖ final8 ‖ ad_digest).take(32 + 128·nb)`.
+  - The chunk MAC key `K_i = out[0:32]`, and block b's tweak is `T_b = out[32+128b : 160+128b]`.
+- **Blocks:** `C_b = E(P_b ⊕ T_b) ⊕ T_b`.
+- **Tags:** `tag_i = HMAC(K_i, clef ‖ rehearsal_sig(seed) ‖ 0x09 ‖ SN2 ‖ pickup ‖ nonce ‖ commit ‖ cs32 ‖ idx ‖ final8 ‖ ad_digest ‖ tag_{i−1} ‖ ct_i)`, with tag_{−1} = 32 zero bytes. The score's `final_tag` is the last chunk's tag.
+
+### R8. Score test messages
+
+These are the plaintexts behind the score vectors that are recorded only as SHA-256 and length:
+- `MSG_1 = b"A"`
+- `MSG_127 = bytes(range(127))`
+- `MV_128 = bytes(range(128))`
+- `MV_1000 = bytes((3i + 1) mod 256 for i in 0..999)`
+- `MV_4096 = bytes((7i + 13) mod 256 for i in 0..4095)` (movements and rehearsal-4096)
+- `RH_70000 = bytes((11i + 5) mod 256 for i in 0..69999)`
+- `hello world` = `b"hello world"`
+- AD = `b"from:alice"`
+
+`score/README.md` lists them too.
 
 ## Previous revision — rehearsal-honest (2026-11-15, not frozen; backup /workspace/sneak_n2_backups_rebuilt/pre_honest2/; attacked in `attacks_octavo_honest/`)
 
@@ -339,7 +457,7 @@ libsodium). This change has not been attacked yet.
   the chain makes the tag of chunk *i* authenticate the whole stream up to *i*,
   and the final tag authenticate the whole stream, so no separate whole-stream
   tag is needed. The v9 sponge labels carry the version byte (`sched‖9`,
-  `chunk‖9`) and the commitment binds it, so v9 keys, tweaks, blocks and
+  `chunk‖9`; i.e. ASCII `sched`/`chunk` then the raw byte 0x09, see Implementer's reference R7) and the commitment binds it, so v9 keys, tweaks, blocks and
   commitments are unrelated to v8's. Same 72-byte header (version byte 9),
   same chunk layout and sizes, same release rule. Blocks are still encrypted
   in parallel with `workers`; only the tags run in order, and output stays
@@ -897,7 +1015,7 @@ movements-demo samples and the 64 existing score vectors).
   exactly `chunk_size` bytes; the final chunk carries 0 … chunk_size−1
   bytes, padded `msg || 0x80 || zeros` to a multiple of 128, plus its tag.
   Every stream has exactly one final chunk (the empty stream is 232 bytes).
-- **Per-chunk keys:** a new sponge domain `R` over
+- **Per-chunk keys** (output split: first 32 bytes MAC key, then one 128-byte tweak per block; schedule nonce = 16 bytes; see Implementer's reference R7): a new sponge domain `R` over
   `chunk || pickup || nonce || chunk_size32 || index64 || final8` gives the
   chunk MAC key and one 128-byte tweak per block. Blocks are
   `E(P ⊕ T) ⊕ T` under one per-stream `Schedule` (its nonce also comes from
@@ -1037,7 +1155,7 @@ The picture was re-rendered.
   as documented in SECURITY.md.
 - **Études are key-separated (attack Low 1).** Every étude derives its own
   key `K_e = StaffSponge(b"E", seed, rounds‖15 zero bytes).take(128)` and
-  uses it for clef, commitment key, MAC key, `Schedule`, theme, tweak,
+  uses it for clef, commitment key, MAC key, `key_sig` (the tag binds `key_sig(K_e)`, not key_sig(seed)), `Schedule`, theme, tweak,
   cadence and coda. The étude version byte is hashed into the SIV nonce.
   An étude can no longer decrypt or unpermute a live ciphertext, and a
   reduced-round étude given a live pickup no longer reproduces that blob's
@@ -1118,7 +1236,9 @@ from a captured blob requires the associated data. The construction is:
   `UnsupportedVersion` keep their own messages.
 - The single-block tag is still
   `HMAC-SHA256(mac_key, clef || key_sig || version || SN2 || pickup || nonce || commit || ct || encode_ad(ad))`.
-  Movements cadences and the coda likewise cover the commitment.
+  Movements cadences and the coda likewise cover the commitment, placed right after the nonce
+  (`… ‖ pickup ‖ nonce ‖ commit ‖ index64 ‖ final8 ‖ …` and `… ‖ nonce ‖ commit ‖ nmov32 ‖ …`;
+  `final` is one byte; see Implementer's reference R6).
 
 ### Formats
 
@@ -1212,7 +1332,9 @@ A current blob can only ever open under one key. The construction is:
   `CommitError` ("commitment mismatch"), a subclass of `AuthError`.
 - The single-block tag is
   `HMAC-SHA256(mac_key, clef || key_sig || version || SN2 || pickup || nonce || commit || ct || encode_ad(ad))`.
-  Movements cadences and the coda likewise cover the commitment.
+  Movements cadences and the coda likewise cover the commitment, placed right after the nonce
+  (`… ‖ pickup ‖ nonce ‖ commit ‖ index64 ‖ final8 ‖ …` and `… ‖ nonce ‖ commit ‖ nmov32 ‖ …`;
+  `final` is one byte; see Implementer's reference R6).
 
 Associated data is not in the commitment: a wrong AD still fails the tag
 after a passing commitment check. That keeps "wrong key" and "wrong AD"
@@ -1715,7 +1837,7 @@ also in `_ATTEST_SKIP`, so the constant is not part of what it names
    A mismatch raises `RuntimeError`.
 2. If source is not readable (a `.pyc`-only install), use the embedded digest.
 
-`key_signature(seed)` is `StaffSponge(b"G", seed, bytes.fromhex(digest)).take(16)`.
+`key_signature(seed)` is `StaffSponge(b"G", seed, bytes.fromhex(digest)).take(16)`. **[Superseded — see Implementer's reference (2026-11-21), R1: live key_sig uses the pinned signature half fe939969… of KEY_SIG_PIN; rehearsal_sig uses domain H and a21cf6e7…]**
 The sponge nonce is the 32-byte digest, not the full JSON. That is a packaging
 change to the commitment encoding; the round function is untouched. Encrypt and
 decrypt therefore no longer re-parse source on every call.
@@ -2173,7 +2295,7 @@ rotation choice was added. See `test_results.txt` for the full verification.
 - `encrypt(msg, seed=None, nonce=None)` has no new public arguments. Pickup is
   fresh `os.urandom(16)`; nonce is `SHA-256(clef || pickup || encode_block(msg))[:16]`.
   Clef remains `StaffSponge(b"C", seed, bytes(16)).take(16)`.
-- `key_sig = StaffSponge(b"G", seed, mix_description()).take(16)` is unchanged.
+- `key_sig = StaffSponge(b"G", seed, mix_description()).take(16)` is unchanged. **[Superseded — see Implementer's reference (2026-11-21), R1: live nonce is the pinned 32-byte digest fe939969…]**
   Tag is `HMAC-SHA256(mac_key, clef || key_sig || SN2 || pickup || nonce || ct)`.
   Length, prefix and tag are checked before decryption; SIV is checked after decode.
   The pre-change 195-byte sample fails on **tag**; old 179-byte samples fail on **length**.
@@ -2363,7 +2485,7 @@ For M=((a,b),(c,d)), bar_apply returns (a⊗u XOR b⊗v, c⊗u XOR d⊗v). det=(
 
 Correction to the proposed determinant list: M2 is **3**, not 10: (3⊗2) XOR (5⊗1) = 6 XOR 5 = 3. These degree-low products need no polynomial reduction. Coefficients were not changed.
 
-All nonzero single-cell XOR differences affect both outputs of every pair, at every base state: all four coefficients are nonzero field elements. Tests exhaust the derivatives and multiplication XOR-linearity, and all 65,536 inverse inputs per matrix. Triplets remain exactly Z/256Z determinant-1 mixes; mix2, butterfly and bridges remain Z/256Z. The combined field-pair/integer-triplet layer is NOT a single linear matrix over either ring; old parity-column proofs and weights below apply only to the historical pre-retune revision. Current combined/encore 0x80 checks cover zero and all 256 uniform base states, not a proof for every possible nonuniform base.
+All nonzero single-cell XOR differences affect both outputs of every pair, at every base state: all four coefficients are nonzero field elements. Tests exhaust the derivatives and multiplication XOR-linearity, and all 65,536 inverse inputs per matrix. Triplets remain exactly Z/256Z determinant-1 mixes; mix2, butterfly and bridges remain Z/256Z. **[Superseded — see Implementer's reference (2026-11-21), R3: live mix2, butterfly, bridges and cross layers all use the SM4-field mix2 (u⊕v, u⊕2⊗v); only the triplets are Z/256]** The combined field-pair/integer-triplet layer is NOT a single linear matrix over either ring; old parity-column proofs and weights below apply only to the historical pre-retune revision. Current combined/encore 0x80 checks cover zero and all 256 uniform base states, not a proof for every possible nonuniform base.
 
 (Historical, field-retune revision) Blob was **179 bytes**, SN2 || nonce(16) || ct(128) || tag(32). No pickup, randomness, key-signature commitment, nonce/MAC change or N3 was added. Hello-world nonce remains b98b9c3815374fac6048ec47c9760eb3. Decryption still undoes encore triplets before encore bars, S2, mid triplets and mid bars.
 
@@ -2430,7 +2552,8 @@ stream(domain) = SHA-256("SN2/" ‖ domain ‖ ctr32 ‖ seed ‖ nonce) for ctr
 mac_key  = first 32 bytes of stream("M")
 schedule = stream("K"), consumed in order:
   for r = 0..15:  rk_r (128 bytes as a 16×8 byte grid)
-                  A1, A2: invertible 8×8 GF(2) matrices (8 byte rows each, resampled until GF(2) rank is 8)
+                  A1, A2: invertible 8×8 GF(2) matrices (8 byte rows each, resampled until GF(2) rank is 8;
+                          row i -> output bit i, LSB first; see Implementer's reference R2)
                   b1, b2: one byte each
                   SH[16] ∈ 0..7, SV[8] ∈ 0..15
                   σ_f, a permutation of 8 beats for each of 16 faces
@@ -2439,7 +2562,7 @@ schedule = stream("K"), consumed in order:
                   S2, SI2 = keyed_sbox(A3,b3,A4,b4); resample these parameters if S2 == S
   white (128 bytes)
 ```
-- Bounded integers are drawn by byte rejection sampling (no bias), and permutations by Fisher–Yates.
+- Bounded integers are drawn by byte rejection sampling (no bias), and permutations by Fisher–Yates. Exactly: randint(n) takes one byte b, rejects b ≥ 256 − (256 mod n), returns b mod n; Fisher–Yates runs i = n−1 down to 1 with j = randint(i+1), swapping p[i], p[j] (Implementer's reference R2).
 - **One-way:** every schedule byte is a SHA-256 output over `seed ‖ nonce`. This closes N1's linear, invertible schedule. Preimage resistance beyond SHA-256's is not claimed and cannot be unit-tested.
 - **Historical bar-lines-only measurement:** a 1-bit nonce flip changes **49.96%** of the 17,408 round-key and whitening bits on average (min 48.99%, max 50.97%, over all 128 nonce bits). It also changes every round's S-box, weave, σ and bridge, and the MAC key. A seed-bit flip also gives about 50%.
 - **Domain separation:** the MAC key comes from `M` and the cipher material from `K`, and the MAC key never appears in the schedule (tested).
@@ -2477,6 +2600,7 @@ schedule = stream("K"), consumed in order:
 ## 4. Mix layers (on bytes)
 **Two-cell mix** (the user's original from test1), now **mod 256**:
 ```
+# [Superseded — see Implementer's reference R3: live mix2 is (u XOR v, u XOR 2*v) in GF(2^8)/0x1F5]
 mix2(u, v)    = (u + v,  u + 2v) mod 256       matrix [[1,1],[1,2]], det = 1 (a unit mod 256)
 mix2⁻¹(a, b)  = (2a − b, b − a)  mod 256
 ```
@@ -2484,11 +2608,11 @@ Tested exhaustively bijective on all 65,536 byte pairs.
 
 **Staffs are linear (unlooped).** There is no end-to-end loop layer; the library has none, and neither do `round_enc` or `round_dec` (tested).
 
-**Staff butterfly (within each face):** three layers m = 1, 2, 4 pair `σ_f[i]` with `σ_f[i|m]` for i with `i & m = 0`. That is 4 pairs per layer, 192 byte mix2 calls per round, and every byte of a face reaches all 8 bytes of that face.
+**Staff butterfly (within each face):** three layers m = 1, 2, 4 pair `σ_f[i]` (u) with `σ_f[i|m]` (v) for i with `i & m = 0`. That is 4 pairs per layer, 192 byte mix2 calls per round, and every byte of a face reaches all 8 bytes of that face.
 
-**Shell bridges (1:1):** 64 disjoint pairs, inner cell c ↔ outer cell `bridge[c]`, both shells mixed every round. The "u" side alternates by round.
+**Shell bridges (1:1):** 64 disjoint pairs, inner cell c ↔ outer cell `bridge[c]`, both shells mixed every round. The "u" side alternates by round: inner is u in even rounds (round 0 included), outer is u in odd rounds.
 
-**Weave:** rotate face f by `SH[f]` beats, then rotate each beat column across the 16 faces by `SV[b]`.
+**Weave:** rotate face f by `SH[f]` beats, then rotate each beat column across the 16 faces by `SV[b]`. Directions: face rotation is left, `new[f][t] = old[f][(t+SH[f]) mod 8]`; column rotation is `new[f][t] = old[(f−SV[t]) mod 16][t]` (Implementer's reference R3).
 
 **Pair layer (five bar lines plus two interior joins, seven mixes per staff per pass):**
 ```
@@ -2521,6 +2645,7 @@ B4   8 end     (6,7)  last measure   [[3,1],[2,1]]         (3u+v,  2u+v)        
 - **Branch number:** the mix's branch number is 2, the same as before.
 
 ## 5. Round function (16 rounds)
+**[Superseded — see Implementer's reference (2026-11-21), R4: the live round also runs bow → odd_restack → cross after each bar+triplet pass, mid-round and encore; this listing predates them.]**
 ```
 round r:  g ^= rk_r                      (all 128 bytes)
           g  = S_r[g]                    (keyed 8-bit S-box on all 128 bytes)
@@ -2651,7 +2776,7 @@ The schedule changes after round 0, so later-round differences include both sche
 
 ## Clef, encore and SIV nonce (unchanged by triplets)
 
-- **Current round order:** ⊕ rk → S → weave → butterfly → bridges → seven pairs → six triplets → S2 → encore seven pairs → encore six triplets. Decrypt reverses this, starting with encore triplets. The encore prevents per-cell fusion of S2 with the next round's S.
+- **Round order at that revision** **[Superseded — see Implementer's reference R4]**: ⊕ rk → S → weave → butterfly → bridges → seven pairs → six triplets → S2 → encore seven pairs → encore six triplets. Decrypt reverses this, starting with encore triplets. The encore prevents per-cell fusion of S2 with the next round's S.
 - **Clef:** `clef = StaffSponge(b"C", seed, bytes(16)).take(16)`, seed-only (avoids a cycle with the nonce), not in the blob.
 - **Tag:** `HMAC-SHA256(mac_key, clef ‖ "SN2" ‖ nonce ‖ ct)`, `mac_key = StaffSponge(b"M", seed, nonce)`, checked with `compare_digest` before any decryption. Pre-clef 179-byte blobs (including every earlier 8-bit demo) now raise `AuthError`, not `DecodeError` or the wrong plaintext.
 - **SIV nonce:** `nonce = SHA-256(clef ‖ encode_block(msg))[:16]`; `Schedule(seed, nonce)`. After the tag and decode pass, decrypt recomputes the SIV nonce from the recovered message; mismatch → `AuthError`.
@@ -2679,7 +2804,7 @@ Every row and column has at least two odd entries. The matrices were found by se
 
 There are **7 pair mixes + 6 triplet mixes = 13 local maps per staff per pass**, and two passes per round (26 per staff; 416 maps over all 16 staffs). This count excludes the unchanged butterfly and bridges. Windows are exactly `(0,1,2), (1,2,3), (2,3,4), (3,4,5), (4,5,6), (5,6,7)`. **No wrap** `(6,7,0)` or `(7,0,1)`, and no direct join of beat 8 to beat 1. Overlapping passes can transmit dependence along the open line; no-wrap does not prohibit such indirect dependence.
 
-Round order:
+Round order (historical; **[Superseded — see Implementer's reference R4]**, which adds bow, odd_restack and cross after each pass):
 ```
 XOR rk -> S -> weave -> butterfly -> bridges
        -> bars (B0,B1,M2,B2,M3,B3,B4) -> triplets (T0..T5)

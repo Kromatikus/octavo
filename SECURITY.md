@@ -66,6 +66,7 @@ Anyone porting Octavo to Rust, C, Go or WASM must not copy the Python structure.
 6. **Comparisons and padding (M1, L4):** use the `subtle` crate (`ConstantTimeEq`, `Choice`, `ConditionallySelectable`) for commitment, tag, cadence, coda and SIV checks and for the padding/length check. One combined `Choice` and one error return for single-block.
 7. **Hygiene:** `zeroize` the seed and all derived keys and tables; use `black_box` / `#[inline(never)]` around constant-time selects.
 8. **Verification:** dudect-style tests, Valgrind/ctgrind secret marking, and binary-level checks in CI.
+9. **Conformance:** a port must reproduce all 79 score vectors and the 6 app vectors. `independent_check/` is a from-scratch Python reimplementation, written from `SPEC.md` alone, that does (`python3 independent_check/run_check.py`). It is a reference for correctness, not a constant-time model.
 
 ## Format limits (Info 8)
 

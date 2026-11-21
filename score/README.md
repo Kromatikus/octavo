@@ -57,7 +57,7 @@ and SHA-256 are in the JSON). This seed is public; it is not a key.
 - **24 movements-mode vectors.** Étude blobs. Payloads of 0, 128, 1000 and
   4096 bytes, plus 128- and 1000-byte messages with AD, at 2, 4, 6 and 16
   rounds. Messages longer than 128 bytes are identified by SHA-256 and
-  length (the generator rebuilds them). Blobs longer than 2048 bytes
+  length (the generator rebuilds them; definitions in "Test messages" below). Blobs longer than 2048 bytes
   (`blob_hex_limit`) are recorded the same way; that is the four 4096-byte
   movements blobs (5384 bytes each).
 - **8 live format-version-9 rehearsal stream vectors.** Full 16 rounds,
@@ -99,6 +99,19 @@ rehearsal-chainfix and rehearsal-seedguard. The non-demo seed is read
 through the explicit-path `load_seed`, which is cipher-core code since
 rehearsal-seedguard.
 
+## Test messages
+
+Plaintexts behind vectors recorded only by SHA-256 and length (confirmed by an
+independent rebuild of all 79 vectors, 2026-11-21):
+
+- `MSG_1 = b"A"`, `MSG_127 = bytes(range(127))`, `MV_128 = bytes(range(128))`
+- `MV_1000 = bytes((3*i + 1) % 256 for i in range(1000))`
+- `MV_4096 = bytes((7*i + 13) % 256 for i in range(4096))` (movements and `rehearsal-4096-cs1024`)
+- `RH_70000 = bytes((11*i + 5) % 256 for i in range(70000))`
+- `nondemo-v6-hello` is `b"hello world"`; AD is `b"from:alice"`
+
+Full wire-level definitions are in SPEC.md, "Implementer's reference (2026-11-21)".
+
 ## Études, not the normal APIs
 
 The 64 permutation, single-block and movements vectors are **étude blobs**
@@ -118,6 +131,7 @@ commitment):
 **Key separation.** Every étude runs under its own derived key
 `K_e = StaffSponge(b"E", seed, bytes([rounds]) + 15 zero bytes).take(128)`
 (SHA-256 of each `K_e` is in the JSON), used for clef, commitment, MAC,
+`key_sig` (étude tags bind `key_sig(K_e)`, not key_sig(seed)),
 Schedule, theme, tweak, cadence and coda. The étude version byte is also
 hashed into the SIV nonce. So no étude vector shares round material with a
 live blob, and an étude handle cannot open a live ciphertext.

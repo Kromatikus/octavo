@@ -53,6 +53,22 @@ not been attacked yet.
   `/workspace/sneak_n2_backups_rebuilt/pre_honest2/`. Work: `/workspace/honest2_work/`.
 
 
+## Independent check of the spec (2026-11-21)
+
+`SPEC.md` has been reimplemented from scratch, from the spec alone, without importing or copying
+`sneak_n2.py`. The reimplementation in `independent_check/` rebuilds **all 79 score-v11 vectors**
+byte for byte and opens the **6 app vectors**. It also opens the v6, v7 and v9 samples and
+rejects tampered copies. Run it from the repo root with no dependencies:
+
+    python3 independent_check/run_check.py      # about 15 s; --quick skips the 70,000-byte vector
+    python3 independent_check/check_samples.py
+
+The details it had to settle (bit orders, rejection rule, shuffle and rotation directions,
+signatures, v7/v9 layouts, score test inputs) are now written out in `SPEC.md`, "Implementer's
+reference (2026-11-21)". This was a docs-only change: the cipher, `sneak_n2.py` (SHA-256 `19181bc1…`)
+and every vector are unchanged. Passing it shows the spec is complete, not that the cipher is secure.
+**Octavo is still homemade; for real secrets use AES-GCM-SIV, age, or libsodium.**
+
 ## Using Octavo in an app
 
 Octavo is a homemade demo cipher. **Do not use it for real secrets.** Use
