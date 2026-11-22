@@ -1,0 +1,33 @@
+{
+ "mode": "diff",
+ "R": 1,
+ "seed": 20261122,
+ "sched": 0,
+ "start": 7,
+ "cap": 360.0,
+ "workers": 4,
+ "lb_in": 0,
+ "status": "OPTIMAL",
+ "time_s": 251.0,
+ "best_found": 14,
+ "proved_lower": 14,
+ "exact": false,
+ "input_active": [
+  38,
+  48
+ ],
+ "active_per_round_layer[S,B0,odd,S2,B0',odd']": [
+  [
+   2,
+   0,
+   4,
+   4,
+   0,
+   4
+  ]
+ ],
+ "round_output_active": [
+  30
+ ],
+ "state_trace_active": []
+}

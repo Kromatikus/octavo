@@ -1,0 +1,15 @@
+{
+ "mode": "lin",
+ "R": 2,
+ "seed": 20261121,
+ "sched": 0,
+ "start": 0,
+ "cap": 2700.0,
+ "workers": 4,
+ "lb_in": 28,
+ "status": "UNKNOWN(timeout)",
+ "time_s": 2083.0,
+ "best_found": null,
+ "proved_lower": 28,
+ "exact": false
+}

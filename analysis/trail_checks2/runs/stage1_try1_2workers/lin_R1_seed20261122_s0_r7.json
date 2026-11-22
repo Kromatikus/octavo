@@ -1,0 +1,35 @@
+{
+ "mode": "lin",
+ "R": 1,
+ "seed": 20261122,
+ "sched": 0,
+ "start": 7,
+ "cap": 420.0,
+ "workers": 2,
+ "lb_in": 0,
+ "status": "FEASIBLE(timeout)",
+ "time_s": 420.0,
+ "best_found": 14,
+ "proved_lower": 0,
+ "exact": false,
+ "input_active": [
+  76,
+  100,
+  106,
+  118
+ ],
+ "active_per_round_layer[S,B0,odd,S2,B0',odd']": [
+  [
+   4,
+   0,
+   6,
+   2,
+   0,
+   2
+  ]
+ ],
+ "round_output_active": [
+  24
+ ],
+ "state_trace_active": []
+}

@@ -1,0 +1,147 @@
+{
+ "single_stroke_composition_equals_octavo_np_bow": true,
+ "stroke0 diff u->uv'": [
+  0.15625,
+  0.157
+ ],
+ "stroke0 diff v->u'": [
+  0.0527344,
+  0.05264
+ ],
+ "stroke0 diff v->uv'": [
+  0.0527344,
+  0.05343
+ ],
+ "stroke0 diff uv->u'": [
+  0.5,
+  0.50022
+ ],
+ "stroke0 diff uv->v'": [
+  0.144531,
+  0.14436
+ ],
+ "stroke0 diff uv->uv'": [
+  0.078125,
+  0.07823
+ ],
+ "stroke0 lin u->v'": [
+  0.0625,
+  0.06281
+ ],
+ "stroke0 lin u->uv'": [
+  0.0625,
+  0.06231
+ ],
+ "stroke0 lin v->uv'": [
+  1,
+  1.0
+ ],
+ "stroke0 lin uv->u'": [
+  0.144531,
+  0.14526
+ ],
+ "stroke0 lin uv->v'": [
+  0.0527344,
+  0.0531
+ ],
+ "stroke0 lin uv->uv'": [
+  0.144531,
+  0.14384
+ ],
+ "stroke3 diff u->uv'": [
+  0.15625,
+  0.15626
+ ],
+ "stroke3 diff v->u'": [
+  0.0527344,
+  0.0527
+ ],
+ "stroke3 diff v->uv'": [
+  0.0527344,
+  0.05266
+ ],
+ "stroke3 diff uv->u'": [
+  0.5,
+  0.50051
+ ],
+ "stroke3 diff uv->v'": [
+  0.144531,
+  0.14477
+ ],
+ "stroke3 diff uv->uv'": [
+  0.078125,
+  0.07754
+ ],
+ "stroke3 lin u->v'": [
+  0.0625,
+  0.06081
+ ],
+ "stroke3 lin u->uv'": [
+  0.0625,
+  0.06283
+ ],
+ "stroke3 lin v->uv'": [
+  1,
+  1.0
+ ],
+ "stroke3 lin uv->u'": [
+  0.144531,
+  0.14546
+ ],
+ "stroke3 lin uv->v'": [
+  0.0527344,
+  0.05398
+ ],
+ "stroke3 lin uv->uv'": [
+  0.144531,
+  0.14437
+ ],
+ "stroke6 diff u->uv'": [
+  0.15625,
+  0.15577
+ ],
+ "stroke6 diff v->u'": [
+  0.0527344,
+  0.05266
+ ],
+ "stroke6 diff v->uv'": [
+  0.0527344,
+  0.0524
+ ],
+ "stroke6 diff uv->u'": [
+  0.5,
+  0.5006
+ ],
+ "stroke6 diff uv->v'": [
+  0.144531,
+  0.14507
+ ],
+ "stroke6 diff uv->uv'": [
+  0.078125,
+  0.07793
+ ],
+ "stroke6 lin u->v'": [
+  0.0625,
+  0.06099
+ ],
+ "stroke6 lin u->uv'": [
+  0.0625,
+  0.06252
+ ],
+ "stroke6 lin v->uv'": [
+  1,
+  1.0
+ ],
+ "stroke6 lin uv->u'": [
+  0.144531,
+  0.14495
+ ],
+ "stroke6 lin uv->v'": [
+  0.0527344,
+  0.05325
+ ],
+ "stroke6 lin uv->uv'": [
+  0.144531,
+  0.14412
+ ]
+}

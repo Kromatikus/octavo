@@ -1,0 +1,35 @@
+{
+ "mode": "lin",
+ "R": 1,
+ "seed": 20261122,
+ "sched": 6,
+ "start": 3,
+ "cap": 600.0,
+ "workers": 8,
+ "lb_in": 14,
+ "status": "OPTIMAL",
+ "time_s": 539.1,
+ "best_found": 15,
+ "proved_lower": 15,
+ "exact": false,
+ "input_active": [
+  90,
+  106,
+  120,
+  121
+ ],
+ "active_per_round_layer[S,B0,odd,S2,B0',odd']": [
+  [
+   4,
+   1,
+   2,
+   4,
+   0,
+   4
+  ]
+ ],
+ "round_output_active": [
+  6
+ ],
+ "state_trace_active": []
+}

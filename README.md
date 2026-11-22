@@ -75,6 +75,7 @@ In-house analysis of the live 16-round cipher is in [`analysis/`](analysis/). Th
 
 - **Reduced-round tests (OCT-2):** no empirical distinguisher past about half a round of 16 (differential, linear, integral and cube tests; one schedule; modest sample sizes).
 - **Automated trail search (OCT-3):** a CP-SAT model proved at least 12–15 active S-boxes in one round, 31 (diff) / 28 (linear) in two rounds, and (by adding those bounds) 43/40 and 55/52 in three and four rounds. A path cannot stay in one shell, even for one round. The 3- and 4-round figures are summed bounds; two-round runs hit a time cap.
+- **Extra trail-search checks:** 20 key-and-round points still have a 1-round minimum of 12 (median 14). The 2-round bounds stay at 31/28 (not closed). Clustering is about 1–1.2 bits per active S-box. The bow gives some differential credit (4-round bound 346 bits; none for linear); the triplets give none. The 2^-256 margin is about 9–10 of 16 rounds; the strict 2^-1024 target still falls short.
 
 A negative result or a truncated-trail bound is not a proof of security, and no outside cryptanalyst has reviewed this work.
 **Octavo is still homemade; for real secrets use AES-GCM-SIV, age, or libsodium.**

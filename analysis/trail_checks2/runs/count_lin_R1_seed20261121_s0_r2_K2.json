@@ -1,0 +1,45 @@
+{
+ "mode": "lin",
+ "R": 1,
+ "seed": 20261121,
+ "sched": 0,
+ "start": 2,
+ "amin": 12,
+ "amin_optimal": true,
+ "K": 2,
+ "input_active": 4,
+ "output_active": 6,
+ "levels": {
+  "12": {
+   "count": 121940,
+   "distinct_sbox_sets": 1,
+   "complete": false,
+   "status": "FEASIBLE",
+   "time_s": 150.0
+  },
+  "13": {
+   "count": 261720,
+   "distinct_sbox_sets": 1,
+   "complete": false,
+   "status": "FEASIBLE",
+   "time_s": 150.0
+  },
+  "14": {
+   "count": 272345,
+   "distinct_sbox_sets": 1,
+   "complete": false,
+   "status": "FEASIBLE",
+   "time_s": 150.0
+  }
+ },
+ "time_s": 450.0,
+ "count_by_active": {
+  "12": 121940,
+  "13": 261720,
+  "14": 272345
+ },
+ "total": 656005,
+ "cluster_factor_6bit_lower": 126095.86547851562,
+ "cluster_factor_distinct_sbox_sets_lower": 1.015869140625,
+ "note": "per level: complete=True means every truncated trail at that exact active count was enumerated; otherwise the count is a lower count, so the factor is a lower estimate"
+}

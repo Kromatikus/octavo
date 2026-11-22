@@ -1,0 +1,21 @@
+{
+ "mode": "diff",
+ "R": 1,
+ "seed": 20261121,
+ "sched": 0,
+ "start": 2,
+ "amin": 12,
+ "amin_optimal": true,
+ "K": 4,
+ "input_active": 4,
+ "output_active": 24,
+ "enum_status": "FEASIBLE",
+ "enum_complete": false,
+ "time_s": 590.2,
+ "count_by_active": {
+  "16": 548601
+ },
+ "total": 548601,
+ "cluster_factor_6bit": 0.03269916772842407,
+ "note": "enum_status OPTIMAL = enumeration finished (all trails within amin+K found); otherwise counts are partial (lower counts)"
+}

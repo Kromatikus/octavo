@@ -1,0 +1,27 @@
+{
+ "mode": "lin",
+ "R": 1,
+ "seed": 20261121,
+ "sched": 0,
+ "start": 1,
+ "cap": 600.0,
+ "workers": 4,
+ "bow_weights_tenths": {
+  "1->1": null,
+  "1->2": 80,
+  "1->3": 80,
+  "2->1": null,
+  "2->2": null,
+  "2->3": 0,
+  "3->1": 55,
+  "3->2": 84,
+  "3->3": 55
+ },
+ "status": "OPTIMAL",
+ "time_s": 105.3,
+ "best_weight_bits": 78.0,
+ "proved_weight_bits": 78.0,
+ "sboxes_in_best": 13,
+ "bow_bits_in_best": 0.0,
+ "bow_terms_active": 0
+}

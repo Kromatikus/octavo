@@ -1,0 +1,2 @@
+lin 1 --seed 20261122 --sched 0 --start 0 --cap 600 --workers 8 --lb 13 --tag _retry
+lin 1 --seed 20261122 --sched 6 --start 3 --cap 600 --workers 8 --lb 14 --tag _retry
