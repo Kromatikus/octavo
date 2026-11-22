@@ -6,6 +6,7 @@ Octavo is an experimental, homemade cipher made for learning and for fun. It is 
 
 Found a weakness? That's the point of publishing it. Please open an issue with a description and, ideally, a script that reproduces it. Credible findings get added to [ATTACKS.md](ATTACKS.md) with credit.
 
+In-house reduced-round tests and an automated trail search (2026-11-21) are in [analysis/](analysis/). A negative result or a truncated-trail bound is not a proof.
 
 ## The demo seed is public
 

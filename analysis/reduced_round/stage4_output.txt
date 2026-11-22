@@ -1,0 +1,37 @@
+== 1 active byte (256 texts), 8 trials (fresh schedule + constants each) ==
+  0.25 (after shell bridge)   : balanced bytes per trial raw min 128 mean  128.0 (inner/outer mean 64.0/64.0), peeled min 128 mean  128.0, all-distinct min 16  (random ~0.5)  [0s]
+  0.4 (after bar)             : balanced bytes per trial raw min 128 mean  128.0 (inner/outer mean 64.0/64.0), peeled min 128 mean  128.0, all-distinct min 23  (random ~0.5)  [0s]
+  0.45 (after bow)            : balanced bytes per trial raw min  66 mean   74.9 (inner/outer mean 37.6/37.2), peeled min   0 mean    0.5, all-distinct min 0  (random ~0.5)  [1s]
+  0.5 (after odd_restack)     : balanced bytes per trial raw min  64 mean   76.0 (inner/outer mean 34.0/42.0), peeled min   0 mean    0.4, all-distinct min 0  (random ~0.5)  [1s]
+  0.5 (after cross)           : balanced bytes per trial raw min   0 mean    0.2 (inner/outer mean 0.1/0.1), peeled min  72 mean   76.1, all-distinct min 0  (random ~0.5)  [1s]
+  0.6 (after S2)              : balanced bytes per trial raw min   0 mean    0.1 (inner/outer mean 0.0/0.1), peeled min   0 mean    0.8, all-distinct min 0  (random ~0.5)  [1s]
+  0.9 (after bow2)            : balanced bytes per trial raw min   0 mean    0.8 (inner/outer mean 0.4/0.4), peeled min   0 mean    0.4, all-distinct min 0  (random ~0.5)  [1s]
+  1 (peeled=odd2)             : balanced bytes per trial raw min   0 mean    0.5 (inner/outer mean 0.4/0.1), peeled min   0 mean    0.6, all-distinct min 0  (random ~0.5)  [2s]
+  1.5 (after cross, round 2)  : balanced bytes per trial raw min   0 mean    0.1 (inner/outer mean 0.0/0.1), peeled min   0 mean    0.5, all-distinct min 0  (random ~0.5)  [2s]
+  2                           : balanced bytes per trial raw min   0 mean    0.5 (inner/outer mean 0.1/0.4), peeled min   0 mean    0.4, all-distinct min 0  (random ~0.5)  [2s]
+  -> last checkpoint with a balanced byte: 0.5 (after cross)
+== 2 active bytes, same face (2^16), 8 trials (fresh schedule + constants each) ==
+  0.25 (after shell bridge)   : balanced bytes per trial raw min 128 mean  128.0 (inner/outer mean 64.0/64.0), peeled min 128 mean  128.0  (random ~0.5)  [4s]
+  0.4 (after bar)             : balanced bytes per trial raw min 128 mean  128.0 (inner/outer mean 64.0/64.0), peeled min 128 mean  128.0  (random ~0.5)  [7s]
+  0.45 (after bow)            : balanced bytes per trial raw min 106 mean  114.0 (inner/outer mean 59.0/55.0), peeled min   0 mean   32.0  (random ~0.5)  [12s]
+  0.5 (after odd_restack)     : balanced bytes per trial raw min  89 mean  107.2 (inner/outer mean 61.0/46.2), peeled min   0 mean   17.8  (random ~0.5)  [16s]
+  0.5 (after cross)           : balanced bytes per trial raw min   0 mean   20.8 (inner/outer mean 10.4/10.4), peeled min  88 mean  104.2  (random ~0.5)  [21s]
+  0.6 (after S2)              : balanced bytes per trial raw min   0 mean    0.1 (inner/outer mean 0.0/0.1), peeled min   0 mean    0.9  (random ~0.5)  [26s]
+  0.9 (after bow2)            : balanced bytes per trial raw min   0 mean    0.6 (inner/outer mean 0.4/0.2), peeled min   0 mean    0.8  (random ~0.5)  [32s]
+  1 (peeled=odd2)             : balanced bytes per trial raw min   0 mean    0.5 (inner/outer mean 0.4/0.1), peeled min   0 mean    0.8  (random ~0.5)  [40s]
+  1.5 (after cross, round 2)  : balanced bytes per trial raw min   0 mean    0.6 (inner/outer mean 0.5/0.1), peeled min   0 mean    0.5  (random ~0.5)  [50s]
+  2                           : balanced bytes per trial raw min   0 mean    0.2 (inner/outer mean 0.1/0.1), peeled min   0 mean    0.4  (random ~0.5)  [62s]
+  -> last checkpoint with a balanced byte: 0.5 (after cross)
+== 2 active bytes, one per shell (2^16), 8 trials (fresh schedule + constants each) ==
+  0.25 (after shell bridge)   : balanced bytes per trial raw min 128 mean  128.0 (inner/outer mean 64.0/64.0), peeled min 128 mean  128.0  (random ~0.5)  [64s]
+  0.4 (after bar)             : balanced bytes per trial raw min 128 mean  128.0 (inner/outer mean 64.0/64.0), peeled min 128 mean  128.0  (random ~0.5)  [67s]
+  0.45 (after bow)            : balanced bytes per trial raw min  97 mean  108.6 (inner/outer mean 52.5/56.1), peeled min   0 mean   10.0  (random ~0.5)  [71s]
+  0.5 (after odd_restack)     : balanced bytes per trial raw min  96 mean  113.0 (inner/outer mean 61.0/52.0), peeled min   0 mean   40.2  (random ~0.5)  [75s]
+  0.5 (after cross)           : balanced bytes per trial raw min   0 mean   16.2 (inner/outer mean 8.0/8.2), peeled min  96 mean  109.0  (random ~0.5)  [80s]
+  0.6 (after S2)              : balanced bytes per trial raw min   0 mean    0.6 (inner/outer mean 0.2/0.4), peeled min   0 mean    0.4  (random ~0.5)  [85s]
+  0.9 (after bow2)            : balanced bytes per trial raw min   0 mean    0.5 (inner/outer mean 0.0/0.5), peeled min   0 mean    0.4  (random ~0.5)  [91s]
+  1 (peeled=odd2)             : balanced bytes per trial raw min   0 mean    0.1 (inner/outer mean 0.0/0.1), peeled min   0 mean    0.5  (random ~0.5)  [99s]
+  1.5 (after cross, round 2)  : balanced bytes per trial raw min   0 mean    0.2 (inner/outer mean 0.0/0.2), peeled min   0 mean    0.5  (random ~0.5)  [109s]
+  2                           : balanced bytes per trial raw min   0 mean    0.2 (inner/outer mean 0.1/0.1), peeled min   0 mean    0.5  (random ~0.5)  [121s]
+  -> last checkpoint with a balanced byte: 0.5 (after cross)
+== 3 active bytes in one face (2^24 texts), r=1 peeled and r=0.9 (bow2), 2 trials ==

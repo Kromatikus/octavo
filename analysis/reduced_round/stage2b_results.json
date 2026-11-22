@@ -1,0 +1,139 @@
+{
+ "tests": [
+  {
+   "case": "0.5 raw (control: before cross)",
+   "diff": "byte",
+   "zc": 1331.8998708683346,
+   "zb": 256.0,
+   "inactive_bytes": 72,
+   "distinguished": true
+  },
+  {
+   "case": "0.5 raw (control: before cross)",
+   "diff": "bit",
+   "zc": 1331.8998708683346,
+   "zb": 256.0,
+   "inactive_bytes": 64,
+   "distinguished": true
+  },
+  {
+   "case": "0.5 raw (control: before cross)",
+   "diff": "inner-shell",
+   "zc": 2.521096543625291,
+   "zb": 3.859375,
+   "inactive_bytes": 0,
+   "distinguished": false
+  },
+  {
+   "case": "0.5 peeled",
+   "diff": "byte",
+   "zc": 1331.8998708683346,
+   "zb": 256.0,
+   "inactive_bytes": 72,
+   "distinguished": true
+  },
+  {
+   "case": "0.5 peeled",
+   "diff": "bit",
+   "zc": 1331.8998708683346,
+   "zb": 256.0,
+   "inactive_bytes": 72,
+   "distinguished": true
+  },
+  {
+   "case": "0.5 peeled",
+   "diff": "inner-shell",
+   "zc": 2.9480012093309873,
+   "zb": 3.8203125,
+   "inactive_bytes": 0,
+   "distinguished": false
+  },
+  {
+   "case": "1 peeled",
+   "diff": "byte",
+   "zc": 2.86718316772788,
+   "zb": 3.234375,
+   "inactive_bytes": 0,
+   "distinguished": false
+  },
+  {
+   "case": "1 peeled",
+   "diff": "bit",
+   "zc": 3.401598022135182,
+   "zb": 3.5390625,
+   "inactive_bytes": 0,
+   "distinguished": false
+  },
+  {
+   "case": "1 peeled",
+   "diff": "inner-shell",
+   "zc": 2.925995145273085,
+   "zb": 3.609375,
+   "inactive_bytes": 0,
+   "distinguished": false
+  },
+  {
+   "case": "1.5 peeled",
+   "diff": "byte",
+   "zc": 3.3253287078865674,
+   "zb": 3.6953125,
+   "inactive_bytes": 0,
+   "distinguished": false
+  },
+  {
+   "case": "1.5 peeled",
+   "diff": "bit",
+   "zc": 2.493761095596488,
+   "zb": 4.15625,
+   "inactive_bytes": 0,
+   "distinguished": false
+  },
+  {
+   "case": "1.5 peeled",
+   "diff": "inner-shell",
+   "zc": 2.572950907655453,
+   "zb": 3.53125,
+   "inactive_bytes": 0,
+   "distinguished": false
+  },
+  {
+   "case": "2 peeled",
+   "diff": "byte",
+   "zc": 2.289093806554121,
+   "zb": 4.203125,
+   "inactive_bytes": 0,
+   "distinguished": false
+  },
+  {
+   "case": "2 peeled",
+   "diff": "bit",
+   "zc": 3.1324023581423925,
+   "zb": 3.984375,
+   "inactive_bytes": 0,
+   "distinguished": false
+  },
+  {
+   "case": "2 peeled",
+   "diff": "inner-shell",
+   "zc": 4.352563232814948,
+   "zb": 3.8359375,
+   "inactive_bytes": 0,
+   "distinguished": false
+  },
+  {
+   "case": "1 peeled 2^20",
+   "diff": "byte",
+   "zc": 2.529817962370184,
+   "zb": 3.482421875,
+   "distinguished": false
+  },
+  {
+   "case": "1 peeled 2^20",
+   "diff": "bit",
+   "zc": 3.0262211794474574,
+   "zb": 3.5546875,
+   "distinguished": false
+  }
+ ],
+ "max_distinguished_peeled": "0.5 peeled"
+}

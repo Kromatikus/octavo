@@ -1,0 +1,18 @@
+== packed cubes, 3 trials per (checkpoint, d) ==
+  0.25 shell                : zero-sum on all 1024 bits at d=8; nonzero at d=6 -> degree in [6, 7] (last nonzero frac 0.9518229166666666)  [0s]
+  0.45 bow                  : no zero-sum up to d=20 (zero-bit frac at d=20: 0.978, random 0.5) -> degree >= 20  [31s]
+  0.5 = odd (peeled cross)  : skipped (previous checkpoint already had no zero-sum up to d=20)
+  0.6 S2                    : skipped (previous checkpoint already had no zero-sum up to d=20)
+  0.9 bow2                  : skipped (previous checkpoint already had no zero-sum up to d=20)
+  1 peeled (odd2)           : skipped (previous checkpoint already had no zero-sum up to d=20)
+  1.5 peeled                : skipped (previous checkpoint already had no zero-sum up to d=20)
+  2 peeled                  : skipped (previous checkpoint already had no zero-sum up to d=20)
+== spread cubes, 3 trials per (checkpoint, d) ==
+  0.25 shell                : zero-sum on all 1024 bits at d=2; nonzero at d=0 -> degree in [0, 1] (last nonzero frac n/a)  [31s]
+  0.45 bow                  : zero-sum on all 1024 bits at d=6; nonzero at d=4 -> degree in [4, 5] (last nonzero frac 0.982421875)  [31s]
+  0.5 = odd (peeled cross)  : zero-sum on all 1024 bits at d=6; nonzero at d=4 -> degree in [4, 5] (last nonzero frac 0.9915364583333334)  [31s]
+  0.6 S2                    : no zero-sum up to d=20 (zero-bit frac at d=20: 0.502, random 0.5) -> degree >= 20  [67s]
+  0.9 bow2                  : skipped (previous checkpoint already had no zero-sum up to d=20)
+  1 peeled (odd2)           : skipped (previous checkpoint already had no zero-sum up to d=20)
+  1.5 peeled                : skipped (previous checkpoint already had no zero-sum up to d=20)
+  2 peeled                  : skipped (previous checkpoint already had no zero-sum up to d=20)

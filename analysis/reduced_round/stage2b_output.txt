@@ -1,0 +1,24 @@
+cross_unmix verified: peeling the unkeyed cross_staff_mix maps 'cross'->'odd' and round output->'odd2' exactly
+  r=0.5 raw (control: before cross)  byte       : max byte-chi z   1331.90  max bit z   256.00  always-zero diff bytes  72  DISTINGUISHED
+  r=0.5 raw (control: before cross)  bit        : max byte-chi z   1331.90  max bit z   256.00  always-zero diff bytes  64  DISTINGUISHED
+  r=0.5 raw (control: before cross)  inner-shell: max byte-chi z      2.52  max bit z     3.86  always-zero diff bytes   0  -
+r=0.5 raw (control: before cross): 2/3 distinguished  [11s]
+  r=0.5 peeled                       byte       : max byte-chi z   1331.90  max bit z   256.00  always-zero diff bytes  72  DISTINGUISHED
+  r=0.5 peeled                       bit        : max byte-chi z   1331.90  max bit z   256.00  always-zero diff bytes  72  DISTINGUISHED
+  r=0.5 peeled                       inner-shell: max byte-chi z      2.95  max bit z     3.82  always-zero diff bytes   0  -
+r=0.5 peeled: 2/3 distinguished  [21s]
+  r=1 peeled                         byte       : max byte-chi z      2.87  max bit z     3.23  always-zero diff bytes   0  -
+  r=1 peeled                         bit        : max byte-chi z      3.40  max bit z     3.54  always-zero diff bytes   0  -
+  r=1 peeled                         inner-shell: max byte-chi z      2.93  max bit z     3.61  always-zero diff bytes   0  -
+r=1 peeled: 0/3 distinguished  [36s]
+  r=1.5 peeled                       byte       : max byte-chi z      3.33  max bit z     3.70  always-zero diff bytes   0  -
+  r=1.5 peeled                       bit        : max byte-chi z      2.49  max bit z     4.16  always-zero diff bytes   0  -
+  r=1.5 peeled                       inner-shell: max byte-chi z      2.57  max bit z     3.53  always-zero diff bytes   0  -
+r=1.5 peeled: 0/3 distinguished  [58s]
+  r=2 peeled                         byte       : max byte-chi z      2.29  max bit z     4.20  always-zero diff bytes   0  -
+  r=2 peeled                         bit        : max byte-chi z      3.13  max bit z     3.98  always-zero diff bytes   0  -
+  r=2 peeled                         inner-shell: max byte-chi z      4.35  max bit z     3.84  always-zero diff bytes   0  -
+r=2 peeled: 0/3 distinguished  [85s]
+  r=1 peeled, 2^20 pairs, byte: max byte-chi z 2.53  max bit z 3.48  -  [112s]
+  r=1 peeled, 2^20 pairs, bit: max byte-chi z 3.03  max bit z 3.55  -  [140s]
+max distinguished (with free peel of final cross_staff_mix): 0.5 peeled

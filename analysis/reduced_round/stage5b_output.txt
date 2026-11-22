@@ -1,0 +1,8 @@
+r=1 peeled packed d=16: zero-sum bit fraction 0.503 (random 0.5)  [3s]
+r=1 peeled packed d=20: zero-sum bit fraction 0.488 (random 0.5)  [60s]
+r=1 peeled spread d=16: zero-sum bit fraction 0.497 (random 0.5)  [63s]
+r=1 peeled spread d=20: zero-sum bit fraction 0.505 (random 0.5)  [121s]
+r=2 peeled packed d=16: zero-sum bit fraction 0.492 (random 0.5)  [126s]
+r=2 peeled packed d=20: zero-sum bit fraction 0.494 (random 0.5)  [226s]
+r=2 peeled spread d=16: zero-sum bit fraction 0.510 (random 0.5)  [231s]
+r=2 peeled spread d=20: zero-sum bit fraction 0.486 (random 0.5)  [330s]

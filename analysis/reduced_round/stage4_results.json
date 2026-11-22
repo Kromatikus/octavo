@@ -1,0 +1,219 @@
+{
+ "tests": [
+  {
+   "set": "1 active byte (256 texts)",
+   "checkpoint": "0.25 (after shell bridge)",
+   "balanced_raw": 128,
+   "balanced_peeled": 128,
+   "all_distinct": 16
+  },
+  {
+   "set": "1 active byte (256 texts)",
+   "checkpoint": "0.4 (after bar)",
+   "balanced_raw": 128,
+   "balanced_peeled": 128,
+   "all_distinct": 23
+  },
+  {
+   "set": "1 active byte (256 texts)",
+   "checkpoint": "0.45 (after bow)",
+   "balanced_raw": 66,
+   "balanced_peeled": 0,
+   "all_distinct": 0
+  },
+  {
+   "set": "1 active byte (256 texts)",
+   "checkpoint": "0.5 (after odd_restack)",
+   "balanced_raw": 64,
+   "balanced_peeled": 0,
+   "all_distinct": 0
+  },
+  {
+   "set": "1 active byte (256 texts)",
+   "checkpoint": "0.5 (after cross)",
+   "balanced_raw": 0,
+   "balanced_peeled": 72,
+   "all_distinct": 0
+  },
+  {
+   "set": "1 active byte (256 texts)",
+   "checkpoint": "0.6 (after S2)",
+   "balanced_raw": 0,
+   "balanced_peeled": 0,
+   "all_distinct": 0
+  },
+  {
+   "set": "1 active byte (256 texts)",
+   "checkpoint": "0.9 (after bow2)",
+   "balanced_raw": 0,
+   "balanced_peeled": 0,
+   "all_distinct": 0
+  },
+  {
+   "set": "1 active byte (256 texts)",
+   "checkpoint": "1 (peeled=odd2)",
+   "balanced_raw": 0,
+   "balanced_peeled": 0,
+   "all_distinct": 0
+  },
+  {
+   "set": "1 active byte (256 texts)",
+   "checkpoint": "1.5 (after cross, round 2)",
+   "balanced_raw": 0,
+   "balanced_peeled": 0,
+   "all_distinct": 0
+  },
+  {
+   "set": "1 active byte (256 texts)",
+   "checkpoint": "2",
+   "balanced_raw": 0,
+   "balanced_peeled": 0,
+   "all_distinct": 0
+  },
+  {
+   "set": "2 active bytes, same face (2^16)",
+   "checkpoint": "0.25 (after shell bridge)",
+   "balanced_raw": 128,
+   "balanced_peeled": 128,
+   "all_distinct": null
+  },
+  {
+   "set": "2 active bytes, same face (2^16)",
+   "checkpoint": "0.4 (after bar)",
+   "balanced_raw": 128,
+   "balanced_peeled": 128,
+   "all_distinct": null
+  },
+  {
+   "set": "2 active bytes, same face (2^16)",
+   "checkpoint": "0.45 (after bow)",
+   "balanced_raw": 106,
+   "balanced_peeled": 0,
+   "all_distinct": null
+  },
+  {
+   "set": "2 active bytes, same face (2^16)",
+   "checkpoint": "0.5 (after odd_restack)",
+   "balanced_raw": 89,
+   "balanced_peeled": 0,
+   "all_distinct": null
+  },
+  {
+   "set": "2 active bytes, same face (2^16)",
+   "checkpoint": "0.5 (after cross)",
+   "balanced_raw": 0,
+   "balanced_peeled": 88,
+   "all_distinct": null
+  },
+  {
+   "set": "2 active bytes, same face (2^16)",
+   "checkpoint": "0.6 (after S2)",
+   "balanced_raw": 0,
+   "balanced_peeled": 0,
+   "all_distinct": null
+  },
+  {
+   "set": "2 active bytes, same face (2^16)",
+   "checkpoint": "0.9 (after bow2)",
+   "balanced_raw": 0,
+   "balanced_peeled": 0,
+   "all_distinct": null
+  },
+  {
+   "set": "2 active bytes, same face (2^16)",
+   "checkpoint": "1 (peeled=odd2)",
+   "balanced_raw": 0,
+   "balanced_peeled": 0,
+   "all_distinct": null
+  },
+  {
+   "set": "2 active bytes, same face (2^16)",
+   "checkpoint": "1.5 (after cross, round 2)",
+   "balanced_raw": 0,
+   "balanced_peeled": 0,
+   "all_distinct": null
+  },
+  {
+   "set": "2 active bytes, same face (2^16)",
+   "checkpoint": "2",
+   "balanced_raw": 0,
+   "balanced_peeled": 0,
+   "all_distinct": null
+  },
+  {
+   "set": "2 active bytes, one per shell (2^16)",
+   "checkpoint": "0.25 (after shell bridge)",
+   "balanced_raw": 128,
+   "balanced_peeled": 128,
+   "all_distinct": null
+  },
+  {
+   "set": "2 active bytes, one per shell (2^16)",
+   "checkpoint": "0.4 (after bar)",
+   "balanced_raw": 128,
+   "balanced_peeled": 128,
+   "all_distinct": null
+  },
+  {
+   "set": "2 active bytes, one per shell (2^16)",
+   "checkpoint": "0.45 (after bow)",
+   "balanced_raw": 97,
+   "balanced_peeled": 0,
+   "all_distinct": null
+  },
+  {
+   "set": "2 active bytes, one per shell (2^16)",
+   "checkpoint": "0.5 (after odd_restack)",
+   "balanced_raw": 96,
+   "balanced_peeled": 0,
+   "all_distinct": null
+  },
+  {
+   "set": "2 active bytes, one per shell (2^16)",
+   "checkpoint": "0.5 (after cross)",
+   "balanced_raw": 0,
+   "balanced_peeled": 96,
+   "all_distinct": null
+  },
+  {
+   "set": "2 active bytes, one per shell (2^16)",
+   "checkpoint": "0.6 (after S2)",
+   "balanced_raw": 0,
+   "balanced_peeled": 0,
+   "all_distinct": null
+  },
+  {
+   "set": "2 active bytes, one per shell (2^16)",
+   "checkpoint": "0.9 (after bow2)",
+   "balanced_raw": 0,
+   "balanced_peeled": 0,
+   "all_distinct": null
+  },
+  {
+   "set": "2 active bytes, one per shell (2^16)",
+   "checkpoint": "1 (peeled=odd2)",
+   "balanced_raw": 0,
+   "balanced_peeled": 0,
+   "all_distinct": null
+  },
+  {
+   "set": "2 active bytes, one per shell (2^16)",
+   "checkpoint": "1.5 (after cross, round 2)",
+   "balanced_raw": 0,
+   "balanced_peeled": 0,
+   "all_distinct": null
+  },
+  {
+   "set": "2 active bytes, one per shell (2^16)",
+   "checkpoint": "2",
+   "balanced_raw": 0,
+   "balanced_peeled": 0,
+   "all_distinct": null
+  }
+ ],
+ "last_balanced": {
+  "1 active byte (256 texts)": "0.5 (after cross)",
+  "2 active bytes, same face (2^16)": "0.5 (after cross)",
+  "2 active bytes, one per shell (2^16)": "0.5 (after cross)"
+ }
+}

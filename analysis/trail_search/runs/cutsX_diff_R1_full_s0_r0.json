@@ -1,0 +1,33 @@
+{
+ "mode": "diff",
+ "R": 1,
+ "sched": 0,
+ "start": 0,
+ "shell": null,
+ "iterations": 1,
+ "cuts": 0,
+ "history": [
+  {
+   "it": 1,
+   "status": "FEASIBLE",
+   "val": 20,
+   "lb": 15,
+   "cuts_added": 0,
+   "t": 664
+  }
+ ],
+ "final": {
+  "val": 20,
+  "lb": 15,
+  "optimal": false,
+  "realisable_stretch1": true,
+  "input_active": [
+   33,
+   118
+  ],
+  "round_output_active": [
+   76
+  ]
+ },
+ "note": "lb from the last iteration is a proved lower bound for the cut-strengthened model (cuts are valid), so it is a proved lower bound on active S-boxes for real trails under the model assumptions"
+}

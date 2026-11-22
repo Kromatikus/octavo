@@ -1,0 +1,3 @@
+{'it': 1, 'status': 'OPTIMAL', 'val': 15, 'lb': 15, 'cuts_added': 1, 't': 93}
+{'it': 2, 'status': 'OPTIMAL', 'val': 15, 'lb': 15, 'cuts_added': 1, 't': 189}
+{'it': 3, 'status': 'OPTIMAL', 'val': 15, 'lb': 15, 'cuts_added': 1, 't': 256}

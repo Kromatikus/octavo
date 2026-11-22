@@ -1,0 +1,161 @@
+{
+ "byte_dependency": {
+  "filled_pct": {
+   "1": 100.0,
+   "2": 100.0,
+   "3": 100.0,
+   "4": 100.0
+  },
+  "min_active": {
+   "1": 122,
+   "2": 123,
+   "3": 122,
+   "4": 121
+  },
+  "mean_active": {
+   "1": 127.5042724609375,
+   "2": 127.49908447265625,
+   "3": 127.49755859375,
+   "4": 127.49517822265625
+  },
+  "rounds_to_full": 1
+ },
+ "sac": {
+  "1": {
+   "mean": 0.49996886122971773,
+   "max_dev": 0.111328125,
+   "mean_dev": 0.017627953551709652,
+   "zero_cells_frac": 0.0,
+   "pass": true
+  },
+  "2": {
+   "mean": 0.5000243633985519,
+   "max_dev": 0.119140625,
+   "mean_dev": 0.017636550590395927,
+   "zero_cells_frac": 0.0,
+   "pass": true
+  },
+  "3": {
+   "mean": 0.4999991897493601,
+   "max_dev": 0.11328125,
+   "mean_dev": 0.01763026788830757,
+   "zero_cells_frac": 0.0,
+   "pass": true
+  },
+  "4": {
+   "mean": 0.4999987566843629,
+   "max_dev": 0.111328125,
+   "mean_dev": 0.017625139094889164,
+   "zero_cells_frac": 0.0,
+   "pass": true
+  }
+ },
+ "sac_null_max": 0.11922639143170861,
+ "rounds_to_sac": 1,
+ "shell_confinement": {
+  "inner 1 byte": {
+   "1": {
+    "other_min_active": 60,
+    "other_frac": 0.9961233139038086,
+    "own_frac": 0.9961032867431641,
+    "other_bit_share": 0.4998813621298259
+   },
+   "2": {
+    "other_min_active": 60,
+    "other_frac": 0.9961557388305664,
+    "own_frac": 0.9960823059082031,
+    "other_bit_share": 0.5002715927117622
+   },
+   "3": {
+    "other_min_active": 60,
+    "other_frac": 0.9960622787475586,
+    "own_frac": 0.9960422515869141,
+    "other_bit_share": 0.49998946374153674
+   },
+   "4": {
+    "other_min_active": 61,
+    "other_frac": 0.9959936141967773,
+    "own_frac": 0.9960088729858398,
+    "other_bit_share": 0.4999914595628047
+   }
+  },
+  "inner all 64": {
+   "1": {
+    "other_min_active": 60,
+    "other_frac": 0.9961633682250977,
+    "own_frac": 0.9960575103759766,
+    "other_bit_share": 0.5000893437042335
+   },
+   "2": {
+    "other_min_active": 60,
+    "other_frac": 0.9961023330688477,
+    "own_frac": 0.9960517883300781,
+    "other_bit_share": 0.5002699928987191
+   },
+   "3": {
+    "other_min_active": 60,
+    "other_frac": 0.9961442947387695,
+    "own_frac": 0.9960908889770508,
+    "other_bit_share": 0.5000346996649594
+   },
+   "4": {
+    "other_min_active": 60,
+    "other_frac": 0.9962444305419922,
+    "own_frac": 0.996058464050293,
+    "other_bit_share": 0.5001813552723496
+   }
+  },
+  "outer 1 byte": {
+   "1": {
+    "other_min_active": 60,
+    "other_frac": 0.9961347579956055,
+    "own_frac": 0.99609375,
+    "other_bit_share": 0.499908436887625
+   },
+   "2": {
+    "other_min_active": 60,
+    "other_frac": 0.9961643218994141,
+    "own_frac": 0.9961185455322266,
+    "other_bit_share": 0.5001782466624582
+   },
+   "3": {
+    "other_min_active": 59,
+    "other_frac": 0.9961147308349609,
+    "own_frac": 0.9960107803344727,
+    "other_bit_share": 0.5000028160991848
+   },
+   "4": {
+    "other_min_active": 60,
+    "other_frac": 0.9962329864501953,
+    "own_frac": 0.9961404800415039,
+    "other_bit_share": 0.5001467728215414
+   }
+  },
+  "outer all 64": {
+   "1": {
+    "other_min_active": 60,
+    "other_frac": 0.9962005615234375,
+    "own_frac": 0.9961223602294922,
+    "other_bit_share": 0.49984387478293013
+   },
+   "2": {
+    "other_min_active": 60,
+    "other_frac": 0.9961280822753906,
+    "own_frac": 0.9960927963256836,
+    "other_bit_share": 0.5000841519687784
+   },
+   "3": {
+    "other_min_active": 60,
+    "other_frac": 0.9960212707519531,
+    "own_frac": 0.9960498809814453,
+    "other_bit_share": 0.5000206791633337
+   },
+   "4": {
+    "other_min_active": 59,
+    "other_frac": 0.9960031509399414,
+    "own_frac": 0.9960823059082031,
+    "other_bit_share": 0.5001776768933803
+   }
+  }
+ }
+}

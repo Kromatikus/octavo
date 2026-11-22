@@ -1,0 +1,39 @@
+{
+ "mode": "diff",
+ "R": 2,
+ "start": 0,
+ "shell": "inner",
+ "confine": false,
+ "sched": 0,
+ "cap": 300.0,
+ "status": "FEASIBLE(timeout)",
+ "time_s": 366.9,
+ "best_found": 38,
+ "proved_lower": 23,
+ "input_active": [
+  14,
+  28
+ ],
+ "active_per_round_layer[S,B0,odd,S2,B0',odd']": [
+  [
+   2,
+   0,
+   4,
+   8,
+   2,
+   6
+  ],
+  [
+   2,
+   2,
+   4,
+   4,
+   1,
+   3
+  ]
+ ],
+ "round_output_active": [
+  2,
+  33
+ ]
+}

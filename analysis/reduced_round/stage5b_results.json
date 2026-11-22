@@ -1,0 +1,50 @@
+[
+ {
+  "rounds": 1,
+  "flavor": "packed",
+  "d": 16,
+  "frac": 0.5026041666666666
+ },
+ {
+  "rounds": 1,
+  "flavor": "packed",
+  "d": 20,
+  "frac": 0.48828125
+ },
+ {
+  "rounds": 1,
+  "flavor": "spread",
+  "d": 16,
+  "frac": 0.4973958333333333
+ },
+ {
+  "rounds": 1,
+  "flavor": "spread",
+  "d": 20,
+  "frac": 0.5045572916666666
+ },
+ {
+  "rounds": 2,
+  "flavor": "packed",
+  "d": 16,
+  "frac": 0.4918619791666667
+ },
+ {
+  "rounds": 2,
+  "flavor": "packed",
+  "d": 20,
+  "frac": 0.494140625
+ },
+ {
+  "rounds": 2,
+  "flavor": "spread",
+  "d": 16,
+  "frac": 0.5104166666666666
+ },
+ {
+  "rounds": 2,
+  "flavor": "spread",
+  "d": 20,
+  "frac": 0.486328125
+ }
+]

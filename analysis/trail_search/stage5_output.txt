@@ -1,0 +1,14 @@
+status OPTIMAL active=15 in=[29, 44, 85, 105] after-bridges=4 after-pass1=4 end=3
+{
+ "active": 15,
+ "T_in": [
+  29,
+  44,
+  85,
+  105
+ ],
+ "n_after_bridges": 4,
+ "n_after_pass1": 4,
+ "n_end": 3,
+ "kernel_dim": 0
+}

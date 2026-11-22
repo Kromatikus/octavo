@@ -1,0 +1,466 @@
+{
+ "tests": [
+  {
+   "flavor": "packed",
+   "checkpoint": "0.25 shell",
+   "d": 4,
+   "zero_bit_frac": 0.947265625,
+   "all_zero": false
+  },
+  {
+   "flavor": "packed",
+   "checkpoint": "0.25 shell",
+   "d": 8,
+   "zero_bit_frac": 1.0,
+   "all_zero": true
+  },
+  {
+   "flavor": "packed",
+   "checkpoint": "0.25 shell",
+   "d": 12,
+   "zero_bit_frac": 1.0,
+   "all_zero": true
+  },
+  {
+   "flavor": "packed",
+   "checkpoint": "0.25 shell",
+   "d": 16,
+   "zero_bit_frac": 1.0,
+   "all_zero": true
+  },
+  {
+   "flavor": "packed",
+   "checkpoint": "0.25 shell",
+   "d": 20,
+   "zero_bit_frac": 1.0,
+   "all_zero": true
+  },
+  {
+   "flavor": "packed",
+   "checkpoint": "0.45 bow",
+   "d": 4,
+   "zero_bit_frac": 0.7952473958333334,
+   "all_zero": false
+  },
+  {
+   "flavor": "packed",
+   "checkpoint": "0.45 bow",
+   "d": 8,
+   "zero_bit_frac": 0.8258463541666666,
+   "all_zero": false
+  },
+  {
+   "flavor": "packed",
+   "checkpoint": "0.45 bow",
+   "d": 12,
+   "zero_bit_frac": 0.9404296875,
+   "all_zero": false
+  },
+  {
+   "flavor": "packed",
+   "checkpoint": "0.45 bow",
+   "d": 16,
+   "zero_bit_frac": 0.9127604166666666,
+   "all_zero": false
+  },
+  {
+   "flavor": "packed",
+   "checkpoint": "0.45 bow",
+   "d": 20,
+   "zero_bit_frac": 0.9814453125,
+   "all_zero": false
+  },
+  {
+   "flavor": "packed",
+   "checkpoint": "0.5 = odd (peeled cross)",
+   "d": 4,
+   "zero_bit_frac": 0.7763671875,
+   "all_zero": false
+  },
+  {
+   "flavor": "packed",
+   "checkpoint": "0.5 = odd (peeled cross)",
+   "d": 8,
+   "zero_bit_frac": 0.822265625,
+   "all_zero": false
+  },
+  {
+   "flavor": "packed",
+   "checkpoint": "0.5 = odd (peeled cross)",
+   "d": 12,
+   "zero_bit_frac": 0.9166666666666666,
+   "all_zero": false
+  },
+  {
+   "flavor": "packed",
+   "checkpoint": "0.5 = odd (peeled cross)",
+   "d": 16,
+   "zero_bit_frac": 0.9309895833333334,
+   "all_zero": false
+  },
+  {
+   "flavor": "packed",
+   "checkpoint": "0.5 = odd (peeled cross)",
+   "d": 20,
+   "zero_bit_frac": 0.9817708333333334,
+   "all_zero": false
+  },
+  {
+   "flavor": "packed",
+   "checkpoint": "0.6 S2",
+   "d": 4,
+   "zero_bit_frac": 0.5146484375,
+   "all_zero": false
+  },
+  {
+   "flavor": "packed",
+   "checkpoint": "0.6 S2",
+   "d": 8,
+   "zero_bit_frac": 0.5087890625,
+   "all_zero": false
+  },
+  {
+   "flavor": "packed",
+   "checkpoint": "0.6 S2",
+   "d": 12,
+   "zero_bit_frac": 0.5,
+   "all_zero": false
+  },
+  {
+   "flavor": "packed",
+   "checkpoint": "0.6 S2",
+   "d": 16,
+   "zero_bit_frac": 0.5003255208333334,
+   "all_zero": false
+  },
+  {
+   "flavor": "packed",
+   "checkpoint": "0.6 S2",
+   "d": 20,
+   "zero_bit_frac": 0.51171875,
+   "all_zero": false
+  },
+  {
+   "flavor": "packed",
+   "checkpoint": "0.9 bow2",
+   "d": 4,
+   "zero_bit_frac": 0.5227864583333334,
+   "all_zero": false
+  },
+  {
+   "flavor": "packed",
+   "checkpoint": "0.9 bow2",
+   "d": 8,
+   "zero_bit_frac": 0.515625,
+   "all_zero": false
+  },
+  {
+   "flavor": "packed",
+   "checkpoint": "0.9 bow2",
+   "d": 12,
+   "zero_bit_frac": 0.4977213541666667,
+   "all_zero": false
+  },
+  {
+   "flavor": "packed",
+   "checkpoint": "0.9 bow2",
+   "d": 16,
+   "zero_bit_frac": 0.5042317708333334,
+   "all_zero": false
+  },
+  {
+   "flavor": "packed",
+   "checkpoint": "0.9 bow2",
+   "d": 20,
+   "zero_bit_frac": 0.5107421875,
+   "all_zero": false
+  },
+  {
+   "flavor": "spread",
+   "checkpoint": "0.25 shell",
+   "d": 4,
+   "zero_bit_frac": 1.0,
+   "all_zero": true
+  },
+  {
+   "flavor": "spread",
+   "checkpoint": "0.25 shell",
+   "d": 8,
+   "zero_bit_frac": 1.0,
+   "all_zero": true
+  },
+  {
+   "flavor": "spread",
+   "checkpoint": "0.25 shell",
+   "d": 12,
+   "zero_bit_frac": 1.0,
+   "all_zero": true
+  },
+  {
+   "flavor": "spread",
+   "checkpoint": "0.25 shell",
+   "d": 16,
+   "zero_bit_frac": 1.0,
+   "all_zero": true
+  },
+  {
+   "flavor": "spread",
+   "checkpoint": "0.25 shell",
+   "d": 20,
+   "zero_bit_frac": 1.0,
+   "all_zero": true
+  },
+  {
+   "flavor": "spread",
+   "checkpoint": "0.45 bow",
+   "d": 4,
+   "zero_bit_frac": 0.9895833333333334,
+   "all_zero": false
+  },
+  {
+   "flavor": "spread",
+   "checkpoint": "0.45 bow",
+   "d": 8,
+   "zero_bit_frac": 1.0,
+   "all_zero": true
+  },
+  {
+   "flavor": "spread",
+   "checkpoint": "0.45 bow",
+   "d": 12,
+   "zero_bit_frac": 1.0,
+   "all_zero": true
+  },
+  {
+   "flavor": "spread",
+   "checkpoint": "0.45 bow",
+   "d": 16,
+   "zero_bit_frac": 1.0,
+   "all_zero": true
+  },
+  {
+   "flavor": "spread",
+   "checkpoint": "0.45 bow",
+   "d": 20,
+   "zero_bit_frac": 1.0,
+   "all_zero": true
+  },
+  {
+   "flavor": "spread",
+   "checkpoint": "0.5 = odd (peeled cross)",
+   "d": 4,
+   "zero_bit_frac": 0.9752604166666666,
+   "all_zero": false
+  },
+  {
+   "flavor": "spread",
+   "checkpoint": "0.5 = odd (peeled cross)",
+   "d": 8,
+   "zero_bit_frac": 1.0,
+   "all_zero": true
+  },
+  {
+   "flavor": "spread",
+   "checkpoint": "0.5 = odd (peeled cross)",
+   "d": 12,
+   "zero_bit_frac": 1.0,
+   "all_zero": true
+  },
+  {
+   "flavor": "spread",
+   "checkpoint": "0.5 = odd (peeled cross)",
+   "d": 16,
+   "zero_bit_frac": 1.0,
+   "all_zero": true
+  },
+  {
+   "flavor": "spread",
+   "checkpoint": "0.5 = odd (peeled cross)",
+   "d": 20,
+   "zero_bit_frac": 1.0,
+   "all_zero": true
+  },
+  {
+   "flavor": "spread",
+   "checkpoint": "0.6 S2",
+   "d": 4,
+   "zero_bit_frac": 0.4895833333333333,
+   "all_zero": false
+  },
+  {
+   "flavor": "spread",
+   "checkpoint": "0.6 S2",
+   "d": 8,
+   "zero_bit_frac": 0.4964192708333333,
+   "all_zero": false
+  },
+  {
+   "flavor": "spread",
+   "checkpoint": "0.6 S2",
+   "d": 12,
+   "zero_bit_frac": 0.505859375,
+   "all_zero": false
+  },
+  {
+   "flavor": "spread",
+   "checkpoint": "0.6 S2",
+   "d": 16,
+   "zero_bit_frac": 0.5055338541666666,
+   "all_zero": false
+  },
+  {
+   "flavor": "spread",
+   "checkpoint": "0.6 S2",
+   "d": 20,
+   "zero_bit_frac": 0.4918619791666667,
+   "all_zero": false
+  },
+  {
+   "flavor": "spread",
+   "checkpoint": "0.9 bow2",
+   "d": 4,
+   "zero_bit_frac": 0.4983723958333333,
+   "all_zero": false
+  },
+  {
+   "flavor": "spread",
+   "checkpoint": "0.9 bow2",
+   "d": 8,
+   "zero_bit_frac": 0.5084635416666666,
+   "all_zero": false
+  },
+  {
+   "flavor": "spread",
+   "checkpoint": "0.9 bow2",
+   "d": 12,
+   "zero_bit_frac": 0.5065104166666666,
+   "all_zero": false
+  },
+  {
+   "flavor": "spread",
+   "checkpoint": "0.9 bow2",
+   "d": 16,
+   "zero_bit_frac": 0.4921875,
+   "all_zero": false
+  },
+  {
+   "flavor": "spread",
+   "checkpoint": "0.9 bow2",
+   "d": 20,
+   "zero_bit_frac": 0.4954427083333333,
+   "all_zero": false
+  }
+ ],
+ "summary": {
+  "packed|0.25 shell": {
+   "fracs": {
+    "4": 0.947265625,
+    "8": 1.0,
+    "12": 1.0,
+    "16": 1.0,
+    "20": 1.0
+   },
+   "full_zero_sum_d": 8,
+   "distinguished": true
+  },
+  "packed|0.45 bow": {
+   "fracs": {
+    "4": 0.7952473958333334,
+    "8": 0.8258463541666666,
+    "12": 0.9404296875,
+    "16": 0.9127604166666666,
+    "20": 0.9814453125
+   },
+   "full_zero_sum_d": null,
+   "distinguished": true
+  },
+  "packed|0.5 = odd (peeled cross)": {
+   "fracs": {
+    "4": 0.7763671875,
+    "8": 0.822265625,
+    "12": 0.9166666666666666,
+    "16": 0.9309895833333334,
+    "20": 0.9817708333333334
+   },
+   "full_zero_sum_d": null,
+   "distinguished": true
+  },
+  "packed|0.6 S2": {
+   "fracs": {
+    "4": 0.5146484375,
+    "8": 0.5087890625,
+    "12": 0.5,
+    "16": 0.5003255208333334,
+    "20": 0.51171875
+   },
+   "full_zero_sum_d": null,
+   "distinguished": false
+  },
+  "packed|0.9 bow2": {
+   "fracs": {
+    "4": 0.5227864583333334,
+    "8": 0.515625,
+    "12": 0.4977213541666667,
+    "16": 0.5042317708333334,
+    "20": 0.5107421875
+   },
+   "full_zero_sum_d": null,
+   "distinguished": false
+  },
+  "spread|0.25 shell": {
+   "fracs": {
+    "4": 1.0,
+    "8": 1.0,
+    "12": 1.0,
+    "16": 1.0,
+    "20": 1.0
+   },
+   "full_zero_sum_d": 4,
+   "distinguished": true
+  },
+  "spread|0.45 bow": {
+   "fracs": {
+    "4": 0.9895833333333334,
+    "8": 1.0,
+    "12": 1.0,
+    "16": 1.0,
+    "20": 1.0
+   },
+   "full_zero_sum_d": 8,
+   "distinguished": true
+  },
+  "spread|0.5 = odd (peeled cross)": {
+   "fracs": {
+    "4": 0.9752604166666666,
+    "8": 1.0,
+    "12": 1.0,
+    "16": 1.0,
+    "20": 1.0
+   },
+   "full_zero_sum_d": 8,
+   "distinguished": true
+  },
+  "spread|0.6 S2": {
+   "fracs": {
+    "4": 0.4895833333333333,
+    "8": 0.4964192708333333,
+    "12": 0.505859375,
+    "16": 0.5055338541666666,
+    "20": 0.4918619791666667
+   },
+   "full_zero_sum_d": null,
+   "distinguished": false
+  },
+  "spread|0.9 bow2": {
+   "fracs": {
+    "4": 0.4983723958333333,
+    "8": 0.5084635416666666,
+    "12": 0.5065104166666666,
+    "16": 0.4921875,
+    "20": 0.4954427083333333
+   },
+   "full_zero_sum_d": null,
+   "distinguished": false
+  }
+ }
+}

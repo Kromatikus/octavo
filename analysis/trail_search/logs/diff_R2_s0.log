@@ -1,0 +1,1 @@
+{"mode": "diff", "R": 2, "shell": null, "confine": false, "sched": 0, "cap": 900.0, "status": "FEASIBLE(timeout)", "time_s": 900.1, "best_found": 55, "proved_lower": 31, "input_active": [68, 99], "active_per_round_layer[S,B0,odd,S2,B0',odd']": [[2, 1, 4, 5, 1, 4], [16, 2, 16, 2, 0, 2]], "round_output_active": [16, 12]}

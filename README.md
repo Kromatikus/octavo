@@ -69,6 +69,16 @@ reference (2026-11-21)". This was a docs-only change: the cipher, `sneak_n2.py` 
 and every vector are unchanged. Passing it shows the spec is complete, not that the cipher is secure.
 **Octavo is still homemade; for real secrets use AES-GCM-SIV, age, or libsodium.**
 
+## Reduced-round and trail-search analysis (2026-11-21)
+
+In-house analysis of the live 16-round cipher is in [`analysis/`](analysis/). The cipher, `sneak_n2.py` (SHA-256 `19181bc1…`) and every vector are unchanged.
+
+- **Reduced-round tests (OCT-2):** no empirical distinguisher past about half a round of 16 (differential, linear, integral and cube tests; one schedule; modest sample sizes).
+- **Automated trail search (OCT-3):** a CP-SAT model proved at least 12–15 active S-boxes in one round, 31 (diff) / 28 (linear) in two rounds, and (by adding those bounds) 43/40 and 55/52 in three and four rounds. A path cannot stay in one shell, even for one round. The 3- and 4-round figures are summed bounds; two-round runs hit a time cap.
+
+A negative result or a truncated-trail bound is not a proof of security, and no outside cryptanalyst has reviewed this work.
+**Octavo is still homemade; for real secrets use AES-GCM-SIV, age, or libsodium.**
+
 ## Using Octavo in an app
 
 Octavo is a homemade demo cipher. **Do not use it for real secrets.** Use

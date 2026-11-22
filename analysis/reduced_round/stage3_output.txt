@@ -1,0 +1,18 @@
+N = 2^18 random plaintexts per schedule, 2 schedules; 2044 input masks x 1024 output bits; null max |corr| ~ 0.0108; flag |corr|*sqrt(N) > 6.0
+  r=0.5 raw    sched 0: max |corr| 0.0096 (z 4.91) at input mask #697 / output bit 865; #|z|>6.0: 0  -
+  r=0.5 raw    sched 1: max |corr| 0.0096 (z 4.92) at input mask #490 / output bit 232; #|z|>6.0: 0  -
+r=0.5 raw: 0/2 schedules distinguished, max z 4.92  [17s]
+  r=0.5 peeled sched 0: max |corr| 0.0095 (z 4.89) at input mask #1149 / output bit 768; #|z|>6.0: 0  -
+  r=0.5 peeled sched 1: max |corr| 0.0098 (z 5.01) at input mask #672 / output bit 175; #|z|>6.0: 0  -
+r=0.5 peeled: 0/2 schedules distinguished, max z 5.01  [31s]
+  r=1 peeled   sched 0: max |corr| 0.0098 (z 5.00) at input mask #189 / output bit 379; #|z|>6.0: 0  -
+  r=1 peeled   sched 1: max |corr| 0.0097 (z 4.98) at input mask #291 / output bit 787; #|z|>6.0: 0  -
+r=1 peeled: 0/2 schedules distinguished, max z 5.00  [48s]
+  r=1.5 peeled sched 0: max |corr| 0.0103 (z 5.29) at input mask #1770 / output bit 489; #|z|>6.0: 0  -
+  r=1.5 peeled sched 1: max |corr| 0.0100 (z 5.10) at input mask #1749 / output bit 889; #|z|>6.0: 0  -
+r=1.5 peeled: 0/2 schedules distinguished, max z 5.29  [68s]
+  r=2 peeled   sched 0: max |corr| 0.0100 (z 5.14) at input mask #668 / output bit 99; #|z|>6.0: 0  -
+  r=2 peeled   sched 1: max |corr| 0.0104 (z 5.30) at input mask #1074 / output bit 61; #|z|>6.0: 0  -
+r=2 peeled: 0/2 schedules distinguished, max z 5.30  [90s]
+max linearly distinguished level: None
+LAT bound: keyed S-box max |corr| 2^-3; >=1 active S-box in each of 4 S-box layers per round -> trail |corr| <= 2^-12 per round (ELP 2^-24).

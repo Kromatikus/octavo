@@ -1,0 +1,13 @@
+{
+ "mode": "lin",
+ "R": 1,
+ "start": 0,
+ "shell": "inner",
+ "confine": true,
+ "sched": 0,
+ "cap": 120.0,
+ "status": "INFEASIBLE",
+ "time_s": 0.0,
+ "best_found": null,
+ "proved_lower": null
+}

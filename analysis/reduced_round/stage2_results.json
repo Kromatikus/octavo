@@ -1,0 +1,331 @@
+{
+ "tests": [
+  {
+   "rounds": "0.5",
+   "diff": "byte57^6e",
+   "max_byte_chi_z": 3.049183302710686,
+   "max_bit_z": 3.2734375,
+   "key_summed_chi_z": 1.936302196971486,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  },
+  {
+   "rounds": "0.5",
+   "diff": "byte26^99",
+   "max_byte_chi_z": 2.845080022006277,
+   "max_bit_z": 3.125,
+   "key_summed_chi_z": 3.075678735179259,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  },
+  {
+   "rounds": "0.5",
+   "diff": "byte111^30",
+   "max_byte_chi_z": 3.1373371626989606,
+   "max_bit_z": 3.3671875,
+   "key_summed_chi_z": 2.641040677121014,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  },
+  {
+   "rounds": "0.5",
+   "diff": "byte125^0d",
+   "max_byte_chi_z": 3.0509330149478897,
+   "max_bit_z": 3.2890625,
+   "key_summed_chi_z": 3.0982240666216914,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  },
+  {
+   "rounds": "0.5",
+   "diff": "bit280",
+   "max_byte_chi_z": 2.9588478444886914,
+   "max_bit_z": 3.453125,
+   "key_summed_chi_z": 1.7597470150998746,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  },
+  {
+   "rounds": "0.5",
+   "diff": "bit988",
+   "max_byte_chi_z": 3.2879401008790747,
+   "max_bit_z": 4.0625,
+   "key_summed_chi_z": 2.748636542683988,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  },
+  {
+   "rounds": "0.5",
+   "diff": "inner-shell all 64",
+   "max_byte_chi_z": 2.9163041274245267,
+   "max_bit_z": 3.4453125,
+   "key_summed_chi_z": 2.9621609983828563,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  },
+  {
+   "rounds": "0.5",
+   "diff": "face14 beats0,1 equal delta",
+   "max_byte_chi_z": 3.2285388926614247,
+   "max_bit_z": 3.3359375,
+   "key_summed_chi_z": 2.327060378585425,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  },
+  {
+   "rounds": "1",
+   "diff": "byte57^6e",
+   "max_byte_chi_z": 2.787486858709431,
+   "max_bit_z": 3.75,
+   "key_summed_chi_z": 1.838572865765606,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  },
+  {
+   "rounds": "1",
+   "diff": "byte26^99",
+   "max_byte_chi_z": 2.678897311881898,
+   "max_bit_z": 3.5,
+   "key_summed_chi_z": 2.5624344886362675,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  },
+  {
+   "rounds": "1",
+   "diff": "byte111^30",
+   "max_byte_chi_z": 2.679492453622538,
+   "max_bit_z": 3.8359375,
+   "key_summed_chi_z": 2.298204579248638,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  },
+  {
+   "rounds": "1",
+   "diff": "byte125^0d",
+   "max_byte_chi_z": 3.1938483252254004,
+   "max_bit_z": 3.3515625,
+   "key_summed_chi_z": 2.082773716887438,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  },
+  {
+   "rounds": "1",
+   "diff": "bit280",
+   "max_byte_chi_z": 2.7495834440641214,
+   "max_bit_z": 3.7734375,
+   "key_summed_chi_z": 3.2901837453463667,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  },
+  {
+   "rounds": "1",
+   "diff": "bit988",
+   "max_byte_chi_z": 2.739502140846367,
+   "max_bit_z": 3.9765625,
+   "key_summed_chi_z": 2.4337375140277473,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  },
+  {
+   "rounds": "1",
+   "diff": "inner-shell all 64",
+   "max_byte_chi_z": 2.92335264701115,
+   "max_bit_z": 3.640625,
+   "key_summed_chi_z": 2.399449555558975,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  },
+  {
+   "rounds": "1",
+   "diff": "face14 beats0,1 equal delta",
+   "max_byte_chi_z": 2.650307669857352,
+   "max_bit_z": 3.6875,
+   "key_summed_chi_z": 2.5170846559472695,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  },
+  {
+   "rounds": "1.5",
+   "diff": "byte57^6e",
+   "max_byte_chi_z": 4.012726083366424,
+   "max_bit_z": 3.4296875,
+   "key_summed_chi_z": 3.016802899635528,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  },
+  {
+   "rounds": "1.5",
+   "diff": "byte26^99",
+   "max_byte_chi_z": 2.5552830696055326,
+   "max_bit_z": 4.0078125,
+   "key_summed_chi_z": 1.537212036233956,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  },
+  {
+   "rounds": "1.5",
+   "diff": "byte111^30",
+   "max_byte_chi_z": 2.2763200055868844,
+   "max_bit_z": 4.328125,
+   "key_summed_chi_z": 1.7312891256403353,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  },
+  {
+   "rounds": "1.5",
+   "diff": "byte125^0d",
+   "max_byte_chi_z": 2.572651595566615,
+   "max_bit_z": 3.7890625,
+   "key_summed_chi_z": 2.6807251840988133,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  },
+  {
+   "rounds": "1.5",
+   "diff": "bit280",
+   "max_byte_chi_z": 2.524698152544268,
+   "max_bit_z": 3.9140625,
+   "key_summed_chi_z": 2.112206819899448,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  },
+  {
+   "rounds": "1.5",
+   "diff": "bit988",
+   "max_byte_chi_z": 3.336243490587739,
+   "max_bit_z": 3.71875,
+   "key_summed_chi_z": 1.9179434004575509,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  },
+  {
+   "rounds": "1.5",
+   "diff": "inner-shell all 64",
+   "max_byte_chi_z": 3.3890036029687876,
+   "max_bit_z": 4.3359375,
+   "key_summed_chi_z": 2.91558465696841,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  },
+  {
+   "rounds": "1.5",
+   "diff": "face14 beats0,1 equal delta",
+   "max_byte_chi_z": 3.023209725937903,
+   "max_bit_z": 3.8203125,
+   "key_summed_chi_z": 2.4294996905162627,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  },
+  {
+   "rounds": "2",
+   "diff": "byte57^6e",
+   "max_byte_chi_z": 2.8161583840117945,
+   "max_bit_z": 3.6640625,
+   "key_summed_chi_z": 2.331682167326337,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  },
+  {
+   "rounds": "2",
+   "diff": "byte26^99",
+   "max_byte_chi_z": 2.8872003739468517,
+   "max_bit_z": 3.28125,
+   "key_summed_chi_z": 2.8345880122419813,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  },
+  {
+   "rounds": "2",
+   "diff": "byte111^30",
+   "max_byte_chi_z": 2.3431304075465547,
+   "max_bit_z": 4.015625,
+   "key_summed_chi_z": 2.3139306771046737,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  },
+  {
+   "rounds": "2",
+   "diff": "byte125^0d",
+   "max_byte_chi_z": 3.0036324117832796,
+   "max_bit_z": 3.8828125,
+   "key_summed_chi_z": 2.9907605652505023,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  },
+  {
+   "rounds": "2",
+   "diff": "bit280",
+   "max_byte_chi_z": 2.5519871684022117,
+   "max_bit_z": 3.5859375,
+   "key_summed_chi_z": 2.531229265557367,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  },
+  {
+   "rounds": "2",
+   "diff": "bit988",
+   "max_byte_chi_z": 3.492938651565702,
+   "max_bit_z": 3.6328125,
+   "key_summed_chi_z": 3.1801503800918685,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  },
+  {
+   "rounds": "2",
+   "diff": "inner-shell all 64",
+   "max_byte_chi_z": 3.0716253542505525,
+   "max_bit_z": 3.59375,
+   "key_summed_chi_z": 2.6313403363027885,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  },
+  {
+   "rounds": "2",
+   "diff": "face14 beats0,1 equal delta",
+   "max_byte_chi_z": 2.769729403863527,
+   "max_bit_z": 3.5078125,
+   "key_summed_chi_z": 2.215741075507492,
+   "distinguished": false,
+   "pairs_per_schedule": 65536,
+   "schedules": 3
+  }
+ ],
+ "ddt_max": [
+  4
+ ],
+ "lat_max": [
+  16
+ ],
+ "max_distinguished_level": 0
+}

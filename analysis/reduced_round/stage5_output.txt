@@ -1,0 +1,18 @@
+== packed cubes, 3 trials per (checkpoint, d); distinguisher if zero-sum bit fraction > 0.55 (random 0.5) ==
+  0.25 shell                : zero-sum frac d4:0.947 d8:1.000 d12:1.000 d16:1.000 d20:1.000 | full zero-sum from d=8 (degree < 8) DISTINGUISHED  [8s]
+  0.45 bow                  : zero-sum frac d4:0.795 d8:0.826 d12:0.940 d16:0.913 d20:0.981 DISTINGUISHED  [34s]
+  0.5 = odd (peeled cross)  : zero-sum frac d4:0.776 d8:0.822 d12:0.917 d16:0.931 d20:0.982 DISTINGUISHED  [61s]
+  0.6 S2                    : zero-sum frac d4:0.515 d8:0.509 d12:0.500 d16:0.500 d20:0.512 random  [90s]
+  0.9 bow2                  : zero-sum frac d4:0.523 d8:0.516 d12:0.498 d16:0.504 d20:0.511 random  [138s]
+  1 peeled (odd2)           : skipped (two earlier checkpoints already random at every d)
+  1.5 peeled                : skipped (two earlier checkpoints already random at every d)
+  2 peeled                  : skipped (two earlier checkpoints already random at every d)
+== spread cubes, 3 trials per (checkpoint, d); distinguisher if zero-sum bit fraction > 0.55 (random 0.5) ==
+  0.25 shell                : zero-sum frac d4:1.000 d8:1.000 d12:1.000 d16:1.000 d20:1.000 | full zero-sum from d=4 (degree < 4) DISTINGUISHED  [146s]
+  0.45 bow                  : zero-sum frac d4:0.990 d8:1.000 d12:1.000 d16:1.000 d20:1.000 | full zero-sum from d=8 (degree < 8) DISTINGUISHED  [171s]
+  0.5 = odd (peeled cross)  : zero-sum frac d4:0.975 d8:1.000 d12:1.000 d16:1.000 d20:1.000 | full zero-sum from d=8 (degree < 8) DISTINGUISHED  [198s]
+  0.6 S2                    : zero-sum frac d4:0.490 d8:0.496 d12:0.506 d16:0.506 d20:0.492 random  [227s]
+  0.9 bow2                  : zero-sum frac d4:0.498 d8:0.508 d12:0.507 d16:0.492 d20:0.495 random  [273s]
+  1 peeled (odd2)           : skipped (two earlier checkpoints already random at every d)
+  1.5 peeled                : skipped (two earlier checkpoints already random at every d)
+  2 peeled                  : skipped (two earlier checkpoints already random at every d)

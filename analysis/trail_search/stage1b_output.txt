@@ -1,0 +1,2 @@
+random vectors whose support pair is missing from the exact tables: 0/16000 (must be 0)
+face-0 butterfly table rows of weight 6-7 reproduced by a real vector via octavo_np: 136/136

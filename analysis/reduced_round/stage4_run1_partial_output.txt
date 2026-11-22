@@ -1,0 +1,6 @@
+Stage 4 first run (stage4_integral.py v1) - superseded by stage4_output.txt. Kept for the record.
+Flaw in v1: "balanced in ALL trials" was ANDed across trials whose active positions and schedules differ,
+so position-dependent balanced bytes were undercounted. v2 reports per-trial counts (min/mean) instead.
+The one completed 2^24 trial (3 active bytes in one face, chunked):
+  trial 0: r=1 peeled balanced bytes 2/128 (random expectation 0.5); r=0.9 (after bow2) balanced 0/128  [517 s]
+  (second trial stopped by the 775 s stage time cap)

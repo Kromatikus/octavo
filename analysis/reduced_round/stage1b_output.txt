@@ -1,0 +1,21 @@
+Round-1 checkpoints, single-byte input differences (4 schedules x 128 positions x 32 bases)
+checkpoint | dep.matrix filled | mean active bytes | inner-1-byte diff: outer active frac | outer-1-byte diff: inner active frac
+  key+S     |   0.78% |   1.00 | 0.000 | 0.000
+  weave     |   3.07% |   1.00 | 0.006 | 0.006
+  butterfly |  22.31% |   8.00 | 0.051 | 0.051
+  shell     |  41.14% |  16.00 | 0.125 | 0.125
+  bar       |  76.06% |  40.78 | 0.354 | 0.364
+  trip      |  84.91% |  48.66 | 0.426 | 0.435
+  bow       |  88.57% |  52.93 | 0.469 | 0.471
+  odd       |  89.31% |  54.00 | 0.480 | 0.479
+  cross     | 100.00% | 127.50 | 0.996 | 0.996
+  S2        | 100.00% | 127.50 | 0.996 | 0.996
+  bar2      | 100.00% | 127.49 | 0.996 | 0.996
+  trip2     | 100.00% | 127.50 | 0.996 | 0.996
+  bow2      | 100.00% | 127.49 | 0.996 | 0.996
+  odd2      | 100.00% | 127.51 | 0.996 | 0.996
+  cross2    | 100.00% | 127.49 | 0.996 | 0.996
+SAC at round-1 checkpoint 'cross': mean 0.5000 max|p-0.5| 0.145 (null ~0.169) never-flip cells 0.00%
+SAC at round-1 checkpoint 'S2': mean 0.5000 max|p-0.5| 0.156 (null ~0.169) never-flip cells 0.00%
+SAC at round-1 checkpoint 'cross2': mean 0.5000 max|p-0.5| 0.148 (null ~0.169) never-flip cells 0.00%
+elapsed 18 s

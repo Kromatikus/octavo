@@ -1,0 +1,32 @@
+{
+ "mode": "lin",
+ "R": 1,
+ "start": 1,
+ "shell": null,
+ "confine": false,
+ "sched": 0,
+ "cap": 300.0,
+ "status": "OPTIMAL",
+ "time_s": 101.5,
+ "best_found": 13,
+ "proved_lower": 13,
+ "input_active": [
+  21,
+  27,
+  30,
+  116
+ ],
+ "active_per_round_layer[S,B0,odd,S2,B0',odd']": [
+  [
+   4,
+   0,
+   5,
+   2,
+   0,
+   2
+  ]
+ ],
+ "round_output_active": [
+  24
+ ]
+}

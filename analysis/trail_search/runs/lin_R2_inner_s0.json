@@ -1,0 +1,39 @@
+{
+ "mode": "lin",
+ "R": 2,
+ "start": 0,
+ "shell": "inner",
+ "confine": false,
+ "sched": 0,
+ "cap": 300.0,
+ "status": "FEASIBLE(timeout)",
+ "time_s": 300.1,
+ "best_found": 32,
+ "proved_lower": 27,
+ "input_active": [
+  6,
+  59
+ ],
+ "active_per_round_layer[S,B0,odd,S2,B0',odd']": [
+  [
+   2,
+   2,
+   5,
+   4,
+   1,
+   3
+  ],
+  [
+   2,
+   3,
+   2,
+   4,
+   1,
+   3
+  ]
+ ],
+ "round_output_active": [
+  2,
+  24
+ ]
+}

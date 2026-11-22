@@ -1,0 +1,2 @@
+OK: round-trips at 1,2,4,16 rounds; 16-round harness matches live encrypt_grid
+Schedule build 17.4 ms; one round 0.44 ms per block (pure Python)

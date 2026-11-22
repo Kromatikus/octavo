@@ -1,0 +1,31 @@
+(a) single-byte input difference (4 schedules x 128 positions x 64 bases, random nonzero delta)
+  r=1: dependency matrix filled 100.00%  min/mean active output bytes 122/127.50 of 128
+  r=2: dependency matrix filled 100.00%  min/mean active output bytes 123/127.50 of 128
+  r=3: dependency matrix filled 100.00%  min/mean active output bytes 122/127.50 of 128
+  r=4: dependency matrix filled 100.00%  min/mean active output bytes 121/127.50 of 128
+  rounds to full byte dependency (every input byte reaches every output byte): 1
+(b) bit avalanche: 2 schedules x 1024 input bits x 512 bases; SAC matrix 1024x1024 per round
+  null (ideal cipher) expected max |p-0.5| ~ 0.119 at 512 samples per cell
+  r=1: mean flip prob 0.5000  max|p-0.5| 0.111  mean|p-0.5| 0.0176  never-flipping cells 0.00%  SAC PASS
+  r=2: mean flip prob 0.5000  max|p-0.5| 0.119  mean|p-0.5| 0.0176  never-flipping cells 0.00%  SAC PASS
+  r=3: mean flip prob 0.5000  max|p-0.5| 0.113  mean|p-0.5| 0.0176  never-flipping cells 0.00%  SAC PASS
+  r=4: mean flip prob 0.5000  max|p-0.5| 0.111  mean|p-0.5| 0.0176  never-flipping cells 0.00%  SAC PASS
+  rounds to bit-level SAC indistinguishable at this sample size: 1
+(c) shell confinement: input difference confined to one shell
+  inner 1 byte  r=1: other-shell active bytes min 60/64, mean frac 0.996; own-shell frac 0.996; other-shell share of flipped bits 0.500 (ideal 0.5)
+  inner 1 byte  r=2: other-shell active bytes min 60/64, mean frac 0.996; own-shell frac 0.996; other-shell share of flipped bits 0.500 (ideal 0.5)
+  inner 1 byte  r=3: other-shell active bytes min 60/64, mean frac 0.996; own-shell frac 0.996; other-shell share of flipped bits 0.500 (ideal 0.5)
+  inner 1 byte  r=4: other-shell active bytes min 61/64, mean frac 0.996; own-shell frac 0.996; other-shell share of flipped bits 0.500 (ideal 0.5)
+  inner all 64  r=1: other-shell active bytes min 60/64, mean frac 0.996; own-shell frac 0.996; other-shell share of flipped bits 0.500 (ideal 0.5)
+  inner all 64  r=2: other-shell active bytes min 60/64, mean frac 0.996; own-shell frac 0.996; other-shell share of flipped bits 0.500 (ideal 0.5)
+  inner all 64  r=3: other-shell active bytes min 60/64, mean frac 0.996; own-shell frac 0.996; other-shell share of flipped bits 0.500 (ideal 0.5)
+  inner all 64  r=4: other-shell active bytes min 60/64, mean frac 0.996; own-shell frac 0.996; other-shell share of flipped bits 0.500 (ideal 0.5)
+  outer 1 byte  r=1: other-shell active bytes min 60/64, mean frac 0.996; own-shell frac 0.996; other-shell share of flipped bits 0.500 (ideal 0.5)
+  outer 1 byte  r=2: other-shell active bytes min 60/64, mean frac 0.996; own-shell frac 0.996; other-shell share of flipped bits 0.500 (ideal 0.5)
+  outer 1 byte  r=3: other-shell active bytes min 59/64, mean frac 0.996; own-shell frac 0.996; other-shell share of flipped bits 0.500 (ideal 0.5)
+  outer 1 byte  r=4: other-shell active bytes min 60/64, mean frac 0.996; own-shell frac 0.996; other-shell share of flipped bits 0.500 (ideal 0.5)
+  outer all 64  r=1: other-shell active bytes min 60/64, mean frac 0.996; own-shell frac 0.996; other-shell share of flipped bits 0.500 (ideal 0.5)
+  outer all 64  r=2: other-shell active bytes min 60/64, mean frac 0.996; own-shell frac 0.996; other-shell share of flipped bits 0.500 (ideal 0.5)
+  outer all 64  r=3: other-shell active bytes min 60/64, mean frac 0.996; own-shell frac 0.996; other-shell share of flipped bits 0.500 (ideal 0.5)
+  outer all 64  r=4: other-shell active bytes min 59/64, mean frac 0.996; own-shell frac 0.996; other-shell share of flipped bits 0.500 (ideal 0.5)
+elapsed 125 s
