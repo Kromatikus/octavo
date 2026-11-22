@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Python side of the octavo CLI cross-compat test. READ-ONLY use of /workspace/sneak_n2/sneak_n2.py.
-Run with python3 -B (and PYTHONDONTWRITEBYTECODE=1): no __pycache__ is written.
+"""Python side of the octavo CLI cross-compat test. READ-ONLY use of this repo's sneak_n2.py
+(or $OCTAVO_PY_DIR/sneak_n2.py). Run with python3 -B (and PYTHONDONTWRITEBYTECODE=1): no __pycache__ is written.
 Usage: py_compat.py JOBS.json   -> prints a JSON result list.
 Jobs: {"op":"enc","key":path,"src":path,"dst":path,"ad":hex,"cs":int}
       {"op":"dec","key":path,"src":path,"dst":path,"ad":hex}
@@ -8,10 +8,13 @@ Jobs: {"op":"enc","key":path,"src":path,"dst":path,"ad":hex,"cs":int}
       {"op":"loadkey","key":path}                  -> sha256 of the seed load_seed() returns
 """
 import hashlib, json, sys, warnings
+from pathlib import Path
 sys.dont_write_bytecode = True
-sys.path.insert(0, '/workspace/sneak_n2')
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from octavo_ref import EXPECT_SHA256, py_dir
+sys.path.insert(0, str(py_dir()))
 import sneak_n2 as S
-assert hashlib.sha256(open(S.__file__, 'rb').read()).hexdigest() == '19181bc1623115c075dc5dee25edec388f5413466777d47b7f19fa66d1e71eee'
+assert hashlib.sha256(open(S.__file__, 'rb').read()).hexdigest() == EXPECT_SHA256
 warnings.simplefilter('ignore')
 out = []
 for j in json.load(open(sys.argv[1])):

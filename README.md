@@ -53,6 +53,14 @@ not been attacked yet.
   `/workspace/sneak_n2_backups_rebuilt/pre_honest2/`. Work: `/workspace/honest2_work/`.
 
 
+## Rust port and CLI
+
+A byte-compatible Rust implementation of the live Python cipher, plus the `octavo`
+command-line tool (keygen, seal, open, and the key earworm with WAV, MIDI and C64 SID
+output), lives in [`rust/`](rust/). See [`rust/README.md`](rust/README.md) and
+[`rust/CLI.md`](rust/CLI.md). It needs Rust 1.89 or newer ([rustup](https://rustup.rs)).
+**Octavo is still homemade; for real secrets use AES-GCM-SIV, age, or libsodium.**
+
 ## Independent check of the spec (2026-11-21)
 
 `SPEC.md` has been reimplemented from scratch, from the spec alone, without importing or copying

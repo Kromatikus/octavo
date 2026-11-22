@@ -2,11 +2,12 @@
 
 **Octavo is still homemade; for real secrets use AES-GCM-SIV, age, or libsodium.**
 
-Built on the Rust port (`crates/octavo-core`, copied from `/workspace/octavo_rust_port`, which is
-untouched). Local only; nothing pushed.
+Built on the Rust port in `crates/octavo-core`. This `rust/` folder lives in the
+[Kromatikus/octavo](https://github.com/Kromatikus/octavo) repository, next to the Python
+implementation.
 
 ```
-export PATH=$HOME/.cargo/bin:$PATH
+# Rust 1.89 or newer ([rustup](https://rustup.rs))
 cargo build --release -p octavo-cli          # -> target/release/octavo  (feature `parallel` on by default)
 ```
 
@@ -88,7 +89,8 @@ filesystem may keep old blocks.
 ## Tests
 
 See `PROGRESS.md` for counts. Re-run: `cargo test --release --workspace --all-features`
-(Python cross-compat needs `/workspace/sneak_n2/sneak_n2.py` at SHA 19181bc1…e71eee; it is imported
+(Python cross-compat uses this repository's `sneak_n2.py` at SHA 19181bc1…e71eee, or
+`$OCTAVO_PY_DIR/sneak_n2.py` if that environment variable is set; it is imported
 read-only with `python3 -B` / `PYTHONDONTWRITEBYTECODE=1`). Timed fuzz:
 `OCTAVO_FUZZ_SECS=180 cargo test --release -p octavo-cli --test fuzz_open -- --ignored --nocapture`.
 Throughput: `tools/bench_cli.sh 256`.

@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """Python side of the throughput comparison: sneak_n2.encrypt_grid per 128-byte block (read-only import)."""
-import sys, time
+import hashlib, sys, time
+from pathlib import Path
 sys.dont_write_bytecode = True
-sys.path.insert(0, '/workspace/sneak_n2')
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from octavo_ref import EXPECT_SHA256, py_dir
+sys.path.insert(0, str(py_dir()))
 import sneak_n2 as S
+assert hashlib.sha256(open(S.__file__, 'rb').read()).hexdigest() == EXPECT_SHA256
 import random; _r = random.Random(1)
 while True:
     seed = bytes(_r.getrandbits(8) for _ in range(128))

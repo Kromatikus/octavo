@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
 """Export the published Octavo vectors to one flat JSON file for the Rust tests.
 
-Reads (never writes) /workspace/sneak_n2/score/vectors.json (score v11, 79 vectors),
-score/app_vectors.json (6 app vectors) and the three live sample files. Every message is
-materialised as hex and every implied field (rounds, chunk size, pickup, nonce) is made explicit,
+Reads (never writes) this repo's score/vectors.json (score v11, 79 vectors),
+score/app_vectors.json (6 app vectors) and the three live sample files (or the
+tree in $OCTAVO_PY_DIR / a path argument). Every message is materialised as hex
+and every implied field (rounds, chunk size, pickup, nonce) is made explicit,
 so the Rust side needs no generator logic. Output: vectors/octavo_vectors.json
 """
 import hashlib, json, os, re, sys
+from pathlib import Path
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from octavo_ref import py_dir
 
-SRC = sys.argv[1] if len(sys.argv) > 1 else '/workspace/sneak_n2'
+SRC = sys.argv[1] if len(sys.argv) > 1 else str(py_dir())
 OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'vectors', 'octavo_vectors.json')
 V = json.load(open(os.path.join(SRC, 'score', 'vectors.json')))
 A = json.load(open(os.path.join(SRC, 'score', 'app_vectors.json')))

@@ -9,7 +9,7 @@ byte-compatible Rust implementation of `../sneak_n2.py`
 (SHA-256 `19181bc1623115c075dc5dee25edec388f5413466777d47b7f19fa66d1e71eee`), which it only reads. No cipher or
 format change versus that file.
 
-Toolchain: Rust >= 1.89 (`export PATH=$HOME/.cargo/bin:$PATH` on this box).
+Toolchain: Rust 1.89 or newer. Install with [rustup](https://rustup.rs) (`rustup default stable` is fine once it is 1.89+).
 
 | Path | What |
 |---|---|
@@ -20,10 +20,10 @@ Toolchain: Rust >= 1.89 (`export PATH=$HOME/.cargo/bin:$PATH` on this box).
 | `docs/` | Progress logs and READMEs of the two source folders (`octavo_decrypt_speed`, `octavo_cli`) |
 | `PROGRESS.md` | What was done in this merge, with test counts |
 
-Quick start:
+Quick start (from this `rust/` folder):
 
 ```
-cargo test --offline --release --workspace --all-features
+cargo test --release --workspace --all-features
 tools/run_all.sh
 cargo build --release -p octavo-cli && target/release/octavo --help
 ```

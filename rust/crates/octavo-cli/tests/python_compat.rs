@@ -8,14 +8,34 @@ fn s(p: &Path) -> String {
     p.to_str().unwrap().to_string()
 }
 
+/// Python Octavo tree: $OCTAVO_PY_DIR, else the repo root (CARGO_MANIFEST_DIR/../../..).
+fn py_dir() -> std::path::PathBuf {
+    if let Some(d) = std::env::var_os("OCTAVO_PY_DIR") {
+        return std::path::PathBuf::from(d);
+    }
+    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../..")
+}
+
+fn sneak_n2_py() -> std::path::PathBuf {
+    py_dir().join("sneak_n2.py")
+}
+
 fn pycache_snapshot() -> Vec<(String, u128)> {
     let mut v = Vec::new();
-    for dir in ["/workspace/sneak_n2", "/workspace/sneak_n2/__pycache__"] {
-        if let Ok(rd) = std::fs::read_dir(dir) {
-            for e in rd.flatten() {
-                let m = e.metadata().unwrap();
-                let t = m.modified().unwrap().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
-                v.push((e.path().display().to_string(), t));
+    let root = py_dir();
+    // Only the Python module and its bytecode dir — not the whole repo root.
+    for path in [root.join("sneak_n2.py"), root.join("__pycache__")] {
+        if let Ok(m) = std::fs::metadata(&path) {
+            let t = m.modified().unwrap().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+            v.push((path.display().to_string(), t));
+        }
+        if path.is_dir() {
+            if let Ok(rd) = std::fs::read_dir(&path) {
+                for e in rd.flatten() {
+                    let m = e.metadata().unwrap();
+                    let t = m.modified().unwrap().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+                    v.push((e.path().display().to_string(), t));
+                }
             }
         }
     }
@@ -42,7 +62,7 @@ fn rand_tag() -> u64 {
 
 #[test]
 fn python_cross_compat_files_and_keys() {
-    let ref_sha = std::process::Command::new("sha256sum").arg("/workspace/sneak_n2/sneak_n2.py").output().unwrap();
+    let ref_sha = std::process::Command::new("sha256sum").arg(&sneak_n2_py()).output().unwrap();
     assert!(String::from_utf8_lossy(&ref_sha.stdout).starts_with("19181bc1623115c075dc5dee25edec388f5413466777d47b7f19fa66d1e71eee"));
     let before = pycache_snapshot();
     let d = scratch("pycompat");

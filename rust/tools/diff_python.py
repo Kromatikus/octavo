@@ -1,17 +1,57 @@
 #!/usr/bin/env python3
-"""Differential cases from the REAL reference (sneak_n2.py, imported read-only, no bytecode written).
-Random seeds / nonces / plaintexts / AD -> vectors/diff_random.json, checked by
-crates/octavo-core/tests/diff_python.rs. Usage: python3 tools/diff_python.py [N_BLOCK] [SEED]"""
+"""Differential cases from this repo's sneak_n2.py (imported read-only, no bytecode written).
+
+The committed file vectors/diff_random.json is the fixture used by
+crates/octavo-core/tests/diff_python.rs.
+
+sneak_n2.encrypt / encrypt_movements / encrypt_rehearsal draw a fresh pickup
+from the OS CSPRNG and have no public pickup argument, so regenerating the
+v6/v7/v9 blobs is not deterministic. By default this script --check's the
+committed fixture (recomputes the block ciphertexts; decrypts the format
+blobs) and does not write. Use --write only to regenerate a new fixture.
+
+Usage: python3 tools/diff_python.py [--check|--write] [N_BLOCK] [SEED]
+"""
 import hashlib, json, os, random, sys
+from pathlib import Path
 sys.dont_write_bytecode = True
-REF = '/workspace/sneak_n2'
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from octavo_ref import EXPECT_SHA256, py_dir
+REF = str(py_dir())
 sys.path.insert(0, REF)
 import sneak_n2 as S
-EXPECT = '19181bc1623115c075dc5dee25edec388f5413466777d47b7f19fa66d1e71eee'
-assert hashlib.sha256(open(os.path.join(REF, 'sneak_n2.py'), 'rb').read()).hexdigest() == EXPECT
+assert hashlib.sha256(open(os.path.join(REF, 'sneak_n2.py'), 'rb').read()).hexdigest() == EXPECT_SHA256
 
-n_block = int(sys.argv[1]) if len(sys.argv) > 1 else 40
-rng = random.Random(int(sys.argv[2]) if len(sys.argv) > 2 else 20261121)
+args = [a for a in sys.argv[1:] if not a.startswith("-")]
+flags = {a for a in sys.argv[1:] if a.startswith("-")}
+if flags - {"--check", "--write"} or ({"--check", "--write"} <= flags):
+    sys.exit("usage: python3 tools/diff_python.py [--check|--write] [N_BLOCK] [SEED]")
+write = "--write" in flags
+n_block = int(args[0]) if len(args) > 0 else 40
+rng_seed = int(args[1]) if len(args) > 1 else 20261121
+p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'vectors', 'diff_random.json')
+
+if not write:
+    v = json.load(open(p))
+    ok = 0
+    for c in v["block"]:
+        seed, nonce, pt = bytes.fromhex(c["seed"]), bytes.fromhex(c["nonce"]), bytes.fromhex(c["pt"])
+        ct = S.grid_to_bytes(S.encrypt_grid(S.bytes_to_grid(pt), S.Schedule(seed, nonce), c["rounds"]))
+        assert ct.hex() == c["ct"], "block mismatch"
+        ok += 1
+    for c in v["v6"]:
+        assert S.decrypt(bytes.fromhex(c["blob"]), bytes.fromhex(c["seed"]), ad=bytes.fromhex(c["ad"])) == bytes.fromhex(c["msg"])
+        ok += 1
+    for c in v["v7"]:
+        assert S.decrypt_movements(bytes.fromhex(c["blob"]), bytes.fromhex(c["seed"]), ad=bytes.fromhex(c["ad"])) == bytes.fromhex(c["msg"])
+        ok += 1
+    for c in v["v9"]:
+        assert S.decrypt_rehearsal(bytes.fromhex(c["blob"]), bytes.fromhex(c["seed"]), ad=bytes.fromhex(c["ad"])) == bytes.fromhex(c["msg"])
+        ok += 1
+    print("checked", p, "OK", ok, {k: len(v[k]) for k in ("block", "v6", "v7", "v9")})
+    sys.exit(0)
+
+rng = random.Random(rng_seed)
 rb = lambda n: bytes(rng.getrandbits(8) for _ in range(n))
 
 def good_seed():
@@ -19,7 +59,7 @@ def good_seed():
         s = rb(128)
         if S._weak_seed_reason(s) is None: return s
 
-out = dict(note='Generated from sneak_n2.py %s by tools/diff_python.py' % EXPECT, block=[], v6=[], v7=[], v9=[])
+out = dict(note='Generated from sneak_n2.py %s by tools/diff_python.py' % EXPECT_SHA256, block=[], v6=[], v7=[], v9=[])
 for i in range(n_block):
     seed, nonce, pt = good_seed(), rb(16), rb(128)
     rounds = [16, 16, 16, 2, 4, 6, rng.randint(1, 16)][i % 7]
@@ -35,6 +75,6 @@ for cs, ln in [(128, 0), (128, 127), (128, 128), (256, 1000), (1024, 3000), (409
     seed = good_seed(); msg = rb(ln); ad = rb(rng.choice([0, 7]))
     out['v9'].append(dict(seed=seed.hex(), ad=ad.hex(), msg=msg.hex(), chunk_size=cs,
                           blob=S.encrypt_rehearsal(msg, seed, ad=ad, chunk_size=cs).hex()))
-p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'vectors', 'diff_random.json')
 json.dump(out, open(p, 'w'), indent=1)
 print('wrote', p, {k: len(v) for k, v in out.items() if isinstance(v, list)})
+print('note: v6/v7/v9 blobs are not deterministic (fresh pickup); do not commit a rewrite unless intended')

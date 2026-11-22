@@ -1,10 +1,10 @@
-# octavo_merged: progress
+# rust/ progress
 
 **Octavo is still homemade; for real secrets use AES-GCM-SIV, age, or libsodium.**
 
-Started 2026-11-22 ~9:50 AM ET. Local only: local git repo, no remote, nothing pushed.
-Sources (read-only, untouched): /workspace/octavo_decrypt_speed (core base), /workspace/octavo_cli (CLI crate +
-zeroize/stream additions), /workspace/octavo_dudect (timing harness).
+Started 2026-11-22 ~9:50 AM ET. This tree is the `rust/` folder in
+[Kromatikus/octavo](https://github.com/Kromatikus/octavo), a merge of the local decrypt-speed
+core, the CLI crate (with zeroize/stream), and the dudect timing harness.
 
 ## Steps
 - [x] 1. New tree: decrypt_speed core (no target/, no baseline/ A/B copy) + octavo-cli crate + CLI's wipe.rs/stream.rs,
@@ -27,7 +27,7 @@ zeroize/stream additions), /workspace/octavo_dudect (timing harness).
 - [x] 6. Verify (9:57-10:03 AM ET): tools/run_all.sh -> exit 0 (logs/run_all.log, not committed):
       all 6 backends 79/79 (block 16 + formats 63) + app 6/6 + samples 3/3; Python->Rust 74/74 each;
       Rust->Python 21/21 each + default 21/21. Workspace tests: core 21 passed (1 ignored), CLI 25 passed
-      (1 ignored = timed fuzz) incl. python_compat 2/2 (python3 -B; no new __pycache__ anywhere in /workspace).
+      (1 ignored = timed fuzz) incl. python_compat 2/2 (python3 -B; no new __pycache__).
       Feature builds: core no-features, alloc, zeroize, formats, formats+zeroize, std, parallel, stream,
       stream+parallel, dudect-hooks, table-backend, default; CLI without parallel; workspace all-features
       release; check --all-targets: all clean (0 warnings).
@@ -56,11 +56,14 @@ zeroize/stream additions), /workspace/octavo_dudect (timing harness).
       (was 33/18 and 117/80 in octavo_cli). Library v9 (in memory, 4 MiB): 105/101 MB/s 1T, 548/514 MB/s 8T.
       The CLI's 8-thread gap: reading, the per-batch barrier and the file write are not yet pipelined.
 
-## octavo_sid: C64 SID output for the key earworm (started 2026-11-22 10:45 AM ET)
-Copy of /workspace/octavo_merged at 7378360 (`cp -a`); the source tree is not touched. Local commits only.
-- [ ] 1. `octavo hear --sid FILE`: PSID v2, own 6502 player assembled by a tiny in-crate assembler (src/sid.rs).
-- [ ] 2. `octavo hear --sid-wav FILE`: the same player run on an in-crate 6502 core, register writes fed to a
+## C64 SID output for the key earworm (added 2026-11-22 10:45 AM ET)
+
+Shipped in this `rust/` tree on GitHub. After the SID work, workspace tests are core 21 passed
+(1 ignored) and CLI 32 passed (1 ignored = timed fuzz).
+- [x] 1. `octavo hear --sid FILE`: PSID v2, own 6502 player assembled by a tiny in-crate assembler (src/sid.rs).
+- [x] 2. `octavo hear --sid-wav FILE`: the same player run on an in-crate 6502 core, register writes fed to a
       small pure-Rust SID-style synth (3 oscillators, ADSR, no filter).
-- [ ] 3. Tests (tests/hear_sid.rs): PSID header, independent 6502 emulator in the test, voice 1 notes, determinism, WAV.
-- [ ] 4. sidplayfp from apt (Debian trixie 2.12.0-1) to verify.
-- [ ] 5. CLI.md, samples/, full test rerun + run_all on gfni-simd and ct-soft, commit.
+- [x] 3. Tests (tests/hear_sid.rs): PSID header, independent 6502 emulator in the test, voice 1 notes, determinism, WAV.
+- [x] 4. sidplayfp 2.12 (when installed) to verify; the test is skipped if it is not present.
+- [x] 5. CLI.md, samples/, and tests included in the rust/ push.
+
