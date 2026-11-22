@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # VPSLLVW / bow micro-tests, v2 design (both classes read inputs from equal-size rings at the same index),
-# with A/A controls and 4x-work scaling checks. Hard timeouts as in run_suite.sh. Local only.
+# with A/A controls and 4x-work scaling checks. Hard timeouts as in run_suite.sh.
 set -u
 ROOT="$(cd "$(dirname "$0")" && pwd)"; source /dev/null
 BIN="$ROOT/harness/target/release/octavo-dudect"; OUT="$ROOT/results"; SECS="${SECS:-35}"

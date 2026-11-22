@@ -1,5 +1,5 @@
-//! Dudect-style constant-time timing harness for the merged Octavo tree (/workspace/octavo_merged).
-//! Ported from /workspace/octavo_dudect; new: batched data path, VPSLLVW rotation hooks, bow layers,
+//! Dudect-style constant-time timing harness for the Octavo rust/ tree.
+//! Ported from the earlier local dudect work; new: batched data path, VPSLLVW rotation hooks, bow layers,
 //! streaming open (1 thread and the 2-thread overlap path).
 //!
 //! Methodology (Oreparaz, Balasch, Faust, CHES 2018 / dudect):
@@ -106,7 +106,7 @@ fn cycles() -> u64 {
     }
     #[cfg(not(target_arch = "x86_64"))]
     {
-        // fallback, should not run on this box
+        // fallback, should not run on the intended target CPU
         0
     }
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Throughput of the octavo CLI (file -> file) on this box. Local only. Usage: tools/bench_cli.sh [MiB]
+# Throughput of the octavo CLI (file -> file). Usage: tools/bench_cli.sh [MiB]
 set -euo pipefail
 export PATH="$HOME/.cargo/bin:$PATH"
 cd "$(dirname "$0")/.."

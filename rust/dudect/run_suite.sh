@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Dudect suite for /workspace/octavo_merged. Two pinned lanes run in parallel; every case is
+# Dudect suite for this rust/ tree. Two pinned lanes run in parallel; every case is
 # time-bounded by the harness (--seconds) and by GNU timeout (hard = seconds + 45 s).
-# Local only. Usage: dudect/run_suite.sh [SECONDS]   (resumable: cases with a finished json are skipped)
+# Usage: dudect/run_suite.sh [SECONDS]   (resumable: cases with a finished json are skipped)
 set -u
 export PATH="$HOME/.cargo/bin:$PATH"
 ROOT="$(cd "$(dirname "$0")" && pwd)"

@@ -1,6 +1,131 @@
 <p align="center"><img src="sneak-staff-n2.png" alt="Octavo dual-octahedra picture" width="720"></p>
 <p align="center"><img src="logo.png" alt="Octavo logo" width="120"></p>
 
+# Octavo
+
+Octavo is a homemade, experimental, music-themed 1024-bit block cipher
+(working name N2). A 128-byte block is laid out as 16 staffs of 8 beats —
+the faces of two octahedra — and runs for 16 rounds in 4/4, with overlapping
+three-beat "triplet" mixes. The live Python reference is `sneak_n2.py`
+(revision **rehearsal-honest2**). A byte-compatible [Rust port](rust/) and
+the `octavo` command-line tool live in [`rust/`](rust/), including the key
+"earworm" (WAV, MIDI, and C64 SID).
+
+**Octavo is still homemade; for real secrets use AES-GCM-SIV, age, or libsodium.**
+
+It has in-house analysis (about 9–10 of 16 rounds of margin at a 2<sup>−256</sup>
+target) and one non-expert outside review. That is not a security proof.
+See [SECURITY.md](SECURITY.md) and [ATTACKS.md](ATTACKS.md).
+
+## Quick start
+
+### Python
+
+The cipher itself uses only the standard library. From the repository root:
+
+```python
+import sneak_n2 as N
+key = N.keygen()                       # fresh 1024-bit seed
+N.save_seed("my.key", key)             # 0600 file, will not overwrite
+blob = N.encrypt(b"hello world", key)  # v6 single-block message
+assert N.decrypt(blob, key) == b"hello world"
+```
+
+For an app-style 32- or 64-byte key (HKDF into a seed, always v6):
+
+```python
+import octavo
+key = octavo.generate_key()
+blob = octavo.seal(key, b"hello", ad=b"from:alice")
+assert octavo.open_(key, blob, ad=b"from:alice") == b"hello"
+```
+
+`pip install .` installs the package as `octavo-demo`. `sneak1024-seed.txt` is a
+**public demo seed** — anything sealed with it is readable by anyone.
+
+### Rust CLI
+
+Needs [Rust 1.89 or newer](https://rustup.rs). From the `rust/` folder:
+
+```bash
+cargo build --release -p octavo-cli
+./target/release/octavo keygen -o my.key
+./target/release/octavo seal -k my.key message.txt -o message.oct
+./target/release/octavo open -k my.key message.oct -o message.out
+./target/release/octavo hear -k my.key
+./target/release/octavo hear -k my.key --midi tune.mid --sid tune.sid --sid-wav tune.wav
+```
+
+See [rust/README.md](rust/README.md) and [rust/CLI.md](rust/CLI.md). The first
+run prints the homemade warning once (a marker file under `$OCTAVO_HOME`, or
+`$XDG_CONFIG_HOME/octavo`, or `~/.config/octavo`).
+
+## Running the tests
+
+```bash
+# Python (numpy is needed only for the test suite)
+pip install numpy
+python3 -B quick_check.py              # portable sanity check, a few seconds
+python3 -B test_octavo_app.py          # 21 app-API checks
+python3 -B test_sneak_n2.py            # 565 checks, about 10–13 minutes
+python3 -B independent_check/run_check.py   # 79 score vectors from the spec alone
+
+# Rust (from rust/; Rust 1.89+)
+cargo test --release --workspace --all-features
+tools/run_all.sh                       # vectors, Python cross-tests, benches
+```
+
+On a fresh clone, Python checks that need historical lab snapshots not in this
+repository are skipped; the rest of the suite still runs. Rust: 53 tests passed,
+2 ignored (a timed fuzz and a layer-timing bench).
+
+There is no CI on this repository yet; please run the tests locally.
+
+## Repository map
+
+| Path | What |
+|---|---|
+| `sneak_n2.py` | Live Python cipher (rehearsal-honest2) |
+| `octavo.py` | Small app API (`seal` / `open_`, 32- or 64-byte keys) |
+| `etudes.py` | Lab études (reduced-round / alternate keys) |
+| `score/` | Published test vectors (score v11, 79 vectors) and app vectors |
+| `rust/` | Byte-compatible Rust port, `octavo` CLI, earworm MIDI/SID, dudect results |
+| `independent_check/` | From-scratch checker written only from `SPEC.md` |
+| `analysis/` | Reduced-round tests and automated trail-search reports |
+| `ATTACKS.md`, `SECURITY.md` | Known attacks, limitations, how to report a finding |
+| `SPEC.md`, `LINER_NOTES.md` | Specification and design notes |
+| `hello-world.txt`, `movements-demo.txt`, `rehearsal-demo.txt` | Published sample blobs |
+
+## Docs and analysis
+
+- [SPEC.md](SPEC.md) — cipher and format specification, including the implementer's reference
+- [LINER_NOTES.md](LINER_NOTES.md) — design notes
+- [ATTACKS.md](ATTACKS.md) — in-house and outside findings
+- [analysis/](analysis/) — reduced-round tests (OCT-2) and trail search (OCT-3)
+- [rust/](rust/) — Rust port and CLI; timing report in [rust/dudect/REPORT.md](rust/dudect/REPORT.md)
+- [SECURITY.md](SECURITY.md) — why this is not for real secrets, and how to report a weakness
+
+## Status
+
+Current Python revision: **rehearsal-honest2** (2026-11-15). `sneak_n2.py` SHA-256
+`19181bc1623115c075dc5dee25edec388f5413466777d47b7f19fa66d1e71eee`. The Rust port
+matches that file byte for byte and is in [`rust/`](rust/) on GitHub.
+
+Speeds on the lab machine used for the Rust port (8 vCPU, Sapphire Rapids class),
+default `gfni-simd` backend: about **2.5 µs to encrypt a block** and **2.9 µs to
+decrypt** one. The CLI seals and opens at about **95 MB/s on one thread** and
+about **390 MB/s seal / 340 MB/s open on eight threads** (256 MiB file, including
+fsync). In-memory library v9 was higher (about 105/101 MB/s at 1 thread, 548/514
+MB/s at 8, 4 MiB). These are measurements, not a guarantee.
+
+In-house dudect timing tests (2026-11-22) found no evidence of a leak in the data
+path, tag compares, streaming open, or the VPSLLVW bow rotation. Expected flags
+remain for key-schedule rejection sampling, valid-vs-tampered early exit, and a
+known many-key cache effect on `gfni-simd`. Dudect cannot prove the absence of a
+leak. See [rust/dudect/REPORT.md](rust/dudect/REPORT.md).
+
+The sections below are the revision history of the Python tree, kept as a record.
+
 ## Current live revision — rehearsal-honest2 (2026-11-15, not frozen)
 
 Rehearsal-honest2 fixes every finding of the in-house attack on
@@ -52,14 +177,6 @@ not been attacked yet.
 - Tests: 544/544 passed, 27 skipped (about 13 min, 11:17–11:30 AM ET; `honest2_verification/test_run_final.txt`). Pre-change backup:
   `/workspace/sneak_n2_backups_rebuilt/pre_honest2/`. Work: `/workspace/honest2_work/`.
 
-
-## Rust port and CLI
-
-A byte-compatible Rust implementation of the live Python cipher, plus the `octavo`
-command-line tool (keygen, seal, open, and the key earworm with WAV, MIDI and C64 SID
-output), lives in [`rust/`](rust/). See [`rust/README.md`](rust/README.md) and
-[`rust/CLI.md`](rust/CLI.md). It needs Rust 1.89 or newer ([rustup](https://rustup.rs)).
-**Octavo is still homemade; for real secrets use AES-GCM-SIV, age, or libsodium.**
 
 ## Independent check of the spec (2026-11-21)
 

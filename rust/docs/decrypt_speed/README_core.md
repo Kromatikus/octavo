@@ -3,9 +3,9 @@
 **Octavo is still homemade; for real secrets use AES-GCM-SIV, age, or libsodium.**
 
 This is a byte-compatible Rust port of Octavo (working name N2), a homemade, experimental,
-music-themed 1024-bit block cipher. The source of truth is `/workspace/sneak_n2/sneak_n2.py`
+music-themed 1024-bit block cipher. The source of truth is this repository's `sneak_n2.py`
 (SHA-256 `19181bc1623115c075dc5dee25edec388f5413466777d47b7f19fa66d1e71eee`). The port only reads
-that file, as a reference. The work is local only: nothing has been pushed anywhere.
+that file, as a reference. This tree now lives in `rust/` on GitHub.
 
 Octavo has had in-house analysis (about 9–10 of its 16 rounds of margin at 2^-256) and one
 non-expert outside review. That is not a security proof. Treat this crate as a playground and a
@@ -13,9 +13,8 @@ conformance target, not as protection.
 
 ## What is in phase 1
 
-Toolchain: Rust ≥ 1.89, for the stable AVX-512/GFNI intrinsics. The box uses the user-local
-rustup stable (1.100.0) in `~/.cargo/bin`; run `export PATH=$HOME/.cargo/bin:$PATH` first. The
-system rustc 1.85 is too old now.
+Toolchain: Rust 1.89 or newer, for the stable AVX-512/GFNI intrinsics. Install with
+[rustup](https://rustup.rs) (`rustup default stable` is fine once it is 1.89+).
 
 `crates/octavo-core` (library, `#![deny(unsafe_code)]` except the `hw` module, `no_std` + `alloc` capable):
 
@@ -153,7 +152,7 @@ tools/run_all.sh              everything above
 - Legacy readers (v2, v3, v8, non-committing études) are deliberately not ported, per the sketch.
 - The key-signature nonces are pinned constants (`KEY_SIG_PIN`/`REHEARSAL_SIG_PIN` from
   `sneak_n2.py`). Python's import-time source attestation has no Rust equivalent.
-- Tauri desktop app, music, and the game, as in `/workspace/octavo_app_sketch/SKETCH.md`.
+- Tauri desktop app, music, and the game (sketched during the original lab work; not in this tree).
 
 **Octavo is still homemade; for real secrets use AES-GCM-SIV, age, or libsodium.**
 
@@ -177,7 +176,7 @@ uncross 2×515, unbutterfly 487, unbow 2×138). The S-box was never the bottlene
 6/6 app vectors, 3/3 samples, Python→Rust 74/74, Rust→Python 19/19; backends agree on random inputs; multi-block
 == single-block; threaded v9 byte-identical; no_std builds.
 
-**Speed (this box, 8 vCPU Sapphire Rapids class; v9 = 4 MiB, 64 KiB chunks)**
+**Speed (lab machine, 8 vCPU Sapphire Rapids class; v9 = 4 MiB, 64 KiB chunks)**
 
 | backend | enc 1 blk | dec 1 blk | enc batched | dec batched | key setup | v9 seal 1T | v9 seal 8T | v9 open 8T |
 |---|---|---|---|---|---|---|---|---|

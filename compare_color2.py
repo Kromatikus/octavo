@@ -1,5 +1,5 @@
 """Reproducible empirical comparison, not a security bound. Never writes snapshots."""
-import sys, importlib.util, random, json
+import sys, importlib.util, random, json, os
 sys.dont_write_bytecode=True
 import sneak_n2 as NEW
 spec=importlib.util.spec_from_file_location('precolor2','/tmp/sneak_n2_8bit_precolor2/sneak_n2.py')
@@ -26,5 +26,5 @@ def measure(N):
             hs[r].append(sum((a^b).bit_count() for a,b in zip(N.grid_to_bytes(g),N.grid_to_bytes(h))))
     return dict(dependence_min_union=mins,full_dependence_round=next((r+1 for r,m in enumerate(mins) if m==128),None),avalanche=[dict(round=r+1,mean=sum(v)/len(v),min=min(v),max=max(v),p01=sorted(v)[2]) for r,v in enumerate(hs)])
 result={'method':'dependence: Random(5), all 128 byte positions, four trials, three rounds; avalanche: Random(20261108), 300 matched inputs/nonces/bit flips, no whitening (XOR whitening does not affect distances)', 'bar_lines_only':measure(OLD),'second_coloring':measure(NEW)}
-open('/workspace/sneak_n2/color2_comparison.json','w').write(json.dumps(result,indent=2)+'\n')
+open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'color2_comparison.json'),'w').write(json.dumps(result,indent=2)+'\n')
 print(json.dumps(result,indent=2))

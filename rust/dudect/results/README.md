@@ -1,0 +1,1 @@
+JSON and log files from the 2026-11-22 dudect timing runs. Absolute paths in these files (for example `/workspace/octavo_merged`) are from the lab machine; they are kept as a record and were not rewritten.

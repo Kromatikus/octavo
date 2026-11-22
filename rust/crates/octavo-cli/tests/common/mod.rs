@@ -8,7 +8,7 @@ pub fn ws() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-/// A fresh scratch dir under target/ (inside /workspace/octavo_cli, never /tmp).
+/// A fresh scratch dir under rust/target/cli-test-scratch (not /tmp).
 pub fn scratch(name: &str) -> PathBuf {
     let d = ws().join("target/cli-test-scratch").join(format!("{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&d);

@@ -1,6 +1,6 @@
 Sneak staff-core N2 (Octavo) — conductor-polish: equal-time single-block and movements rejects; fixed-width unpad; Rejected base class; legacy helpers gated end to end.
 Homemade; NOT for real secrets. Use AES-GCM-SIV, age, or libsodium. Picture redrawn from this sample.
-seed: sneak1024-seed.txt next to sneak_n2.py (same bytes as /workspace/sneak1024-seed.txt)
+seed: sneak1024-seed.txt next to sneak_n2.py (the public demo seed)
 live sneak_n2.py SHA-256: 48d261e36671a35b15000e68dbd82469e631be14cc77a3f391e115d19e8b9786
 key_sig (16 bytes): 340dc1e062502bb13462a94ba490c3dc
 pickup (16 bytes; sha256(SN2/P || urandom || time_ns || counter || pid)[:16]): 2b87dc4e184cd78e6c77b829273b17a3

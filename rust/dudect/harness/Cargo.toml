@@ -3,7 +3,7 @@ name = "octavo-dudect"
 version = "0.2.0"
 edition = "2021"
 publish = false
-description = "Dudect-style constant-time timing tests for the merged Octavo tree (local only)."
+description = "Dudect-style constant-time timing tests for the Octavo rust/ tree."
 
 [dependencies]
 octavo-core = { path = "../../crates/octavo-core", default-features = false, features = ["std", "formats", "stream", "parallel", "dudect-hooks"] }

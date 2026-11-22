@@ -1,4 +1,6 @@
-# Dudect timing tests: merged Octavo tree (/workspace/octavo_merged)
+# Dudect timing tests: merged Octavo tree (`rust/` on GitHub)
+
+Absolute paths such as `/workspace/octavo_merged` in this report and in `results/` are from the lab machine; the result files were not rewritten.
 
 **Octavo is still homemade; for real secrets use AES-GCM-SIV, age, or libsodium.**
 

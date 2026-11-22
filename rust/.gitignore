@@ -6,3 +6,8 @@ logs/
 *.tmp
 __pycache__/
 *.pyc
+# CLI first-use warning marker if someone points OCTAVO_HOME here
+first-use-warning-shown
+.octavo/
+# integration-test scratch (written under rust/target/)
+cli-test-scratch/

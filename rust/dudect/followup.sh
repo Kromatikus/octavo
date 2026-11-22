@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Follow-up runs for flagged cases: plain reruns, A/A controls (OCTAVO_DUDECT_AA=1) and 4x-work scaling
-# (OCTAVO_DUDECT_ITERS / OCTAVO_DUDECT_REPS). Same hard timeouts as run_suite.sh. Local only.
+# (OCTAVO_DUDECT_ITERS / OCTAVO_DUDECT_REPS). Same hard timeouts as run_suite.sh.
 set -u
 ROOT="$(cd "$(dirname "$0")" && pwd)"; BIN="$ROOT/harness/target/release/octavo-dudect"; OUT="$ROOT/results"
 SECS="${SECS:-35}"

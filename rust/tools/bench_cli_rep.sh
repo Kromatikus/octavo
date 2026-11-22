@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Repeated CLI throughput (file -> file) for given thread counts; prints each run. Local only.
+# Repeated CLI throughput (file -> file) for given thread counts; prints each run.
 # Usage: tools/bench_cli_rep.sh [MiB] [reps] [threads...]
 set -euo pipefail
 cd "$(dirname "$0")/.."
