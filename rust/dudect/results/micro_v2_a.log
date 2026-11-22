@@ -1,0 +1,13 @@
+skip vrot128-amt_gfni-simd
+10:30:14 START vrot128-1v7_gfni-simd X=1
+10:30:30 END vrot128-1v7_gfni-simd rc=0 n0=10000000 n1=10000000 n0_crop=9906093 n1_crop=9905537 mean0=1617.0 mean1=1616.8 t_raw=0.019 t_crop=0.328 verdict=NO_EVIDENCE
+10:30:30 START vrot512-amt_gfni-simd X=1
+10:30:46 END vrot512-amt_gfni-simd rc=0 n0=10000000 n1=10000000 n0_crop=9905305 n1_crop=9905401 mean0=1649.7 mean1=1650.6 t_raw=-0.532 t_crop=-0.445 verdict=NO_EVIDENCE
+10:30:46 START vrot512-1v7_gfni-simd X=1
+10:31:03 END vrot512-1v7_gfni-simd rc=0 n0=10000000 n1=10000000 n0_crop=9901061 n1_crop=9900738 mean0=1704.6 mean1=1703.0 t_raw=0.186 t_crop=0.478 verdict=NO_EVIDENCE
+10:31:03 START vrot128-amt_gfni-simd_aa OCTAVO_DUDECT_AA=1
+10:31:20 END vrot128-amt_gfni-simd_aa rc=0 n0=10000000 n1=10000000 n0_crop=9901392 n1_crop=9901100 mean0=1703.4 mean1=1704.0 t_raw=-1.766 t_crop=-1.571 verdict=NO_EVIDENCE
+10:31:20 START vrot128-amt_gfni-simd_x4 OCTAVO_DUDECT_ITERS=2048
+10:31:56 END vrot128-amt_gfni-simd_x4 rc=0 n0=6730582 n1=6732455 n0_crop=6663419 n1_crop=6665120 mean0=6036.1 mean1=6035.8 t_raw=0.308 t_crop=-1.175 verdict=NO_EVIDENCE
+10:31:56 START vrot512-amt_gfni-simd_x4 OCTAVO_DUDECT_ITERS=2048
+10:32:31 END vrot512-amt_gfni-simd_x4 rc=0 n0=6405450 n1=6404254 n0_crop=6341269 n1_crop=6340352 mean0=6339.2 mean1=6338.1 t_raw=0.406 t_crop=1.398 verdict=NO_EVIDENCE

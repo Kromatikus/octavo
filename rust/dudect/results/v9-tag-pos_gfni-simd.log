@@ -1,0 +1,5 @@
+octavo-dudect experiment=v9-tag-pos backend=gfni-simd (requested gfni-simd) seconds=35 max_samples=20000000
+calibrating TSC...
+TSC ≈ 2.400 GHz
+wrote /workspace/octavo_merged/dudect/results/v9-tag-pos_gfni-simd.json
+n0=10000000 n1=10000000 n0_crop=9900386 n1_crop=9899719 mean0=3776.2 mean1=3777.4 t_raw=-0.270 t_crop=2.487 verdict=NO_EVIDENCE

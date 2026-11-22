@@ -1,0 +1,5 @@
+octavo-dudect experiment=stream-open-pt backend=gfni-256 (requested gfni-256) seconds=35 max_samples=20000000
+calibrating TSC...
+TSC ≈ 2.400 GHz
+wrote /workspace/octavo_merged/dudect/results/stream-open-pt_gfni-256.json
+n0=10090 n1=9910 n0_crop=9995 n1_crop=9805 mean0=4502567.0 mean1=4515119.3 t_raw=-0.983 t_crop=0.663 verdict=NO_EVIDENCE

@@ -1,0 +1,8 @@
+# build output
+target/
+dudect/harness/target/
+# local scratch / logs from test and bench runs
+logs/
+*.tmp
+__pycache__/
+*.pyc

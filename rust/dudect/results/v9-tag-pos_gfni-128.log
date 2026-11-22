@@ -1,0 +1,5 @@
+octavo-dudect experiment=v9-tag-pos backend=gfni-128 (requested gfni-128) seconds=35 max_samples=20000000
+calibrating TSC...
+TSC ≈ 2.400 GHz
+wrote /workspace/octavo_merged/dudect/results/v9-tag-pos_gfni-128.json
+n0=10000000 n1=10000000 n0_crop=9900930 n1_crop=9899439 mean0=3781.7 mean1=3787.6 t_raw=-1.509 t_crop=-1.969 verdict=NO_EVIDENCE

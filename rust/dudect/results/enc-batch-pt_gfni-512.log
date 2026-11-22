@@ -1,0 +1,5 @@
+octavo-dudect experiment=enc-batch-pt backend=gfni-512 (requested gfni-512) seconds=35 max_samples=20000000
+calibrating TSC...
+TSC ≈ 2.400 GHz
+wrote /workspace/octavo_merged/dudect/results/enc-batch-pt_gfni-512.json
+n0=46228 n1=46156 n0_crop=45759 n1_crop=45701 mean0=908899.6 mean1=908411.2 t_raw=0.903 t_crop=0.776 verdict=NO_EVIDENCE

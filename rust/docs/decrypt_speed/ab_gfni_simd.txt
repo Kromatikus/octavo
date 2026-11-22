@@ -1,0 +1,12 @@
+-- base 1
+| gfni-simd | 3.24 µs | 7.10 µs | 2.40 µs | 5.39 µs | 217 µs | 37.4 MB/s | 19.6 MB/s | 202.7 MB/s | 121.7 MB/s |
+-- new 1
+| gfni-simd | 2.51 µs | 2.99 µs | 0.75 µs | 0.80 µs | 207 µs | 124.6 MB/s | 118.4 MB/s | 637.9 MB/s | 555.5 MB/s |
+-- base 2
+| gfni-simd | 3.24 µs | 6.55 µs | 2.39 µs | 5.34 µs | 209 µs | 37.9 MB/s | 20.4 MB/s | 208.5 MB/s | 122.9 MB/s |
+-- new 2
+| gfni-simd | 2.67 µs | 2.88 µs | 0.76 µs | 0.87 µs | 210 µs | 116.2 MB/s | 115.6 MB/s | 540.3 MB/s | 563.5 MB/s |
+-- base 3
+| gfni-simd | 3.27 µs | 6.66 µs | 2.41 µs | 5.18 µs | 208 µs | 37.9 MB/s | 20.7 MB/s | 211.4 MB/s | 113.8 MB/s |
+-- new 3
+| gfni-simd | 2.52 µs | 2.91 µs | 0.73 µs | 0.78 µs | 252 µs | 121.0 MB/s | 110.8 MB/s | 599.2 MB/s | 540.2 MB/s |

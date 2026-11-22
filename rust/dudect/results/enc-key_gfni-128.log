@@ -1,0 +1,5 @@
+octavo-dudect experiment=enc-key backend=gfni-128 (requested gfni-128) seconds=35 max_samples=20000000
+calibrating TSC...
+TSC ≈ 2.400 GHz
+wrote /workspace/octavo_merged/dudect/results/enc-key_gfni-128.json
+n0=400220 n1=400156 n0_crop=396164 n1_crop=396208 mean0=104698.2 mean1=104732.3 t_raw=-0.111 t_crop=1.782 verdict=NO_EVIDENCE

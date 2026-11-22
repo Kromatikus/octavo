@@ -1,0 +1,5 @@
+octavo-dudect experiment=v9-valid-tamper backend=gfni-simd (requested gfni-simd) seconds=35 max_samples=20000000
+calibrating TSC...
+TSC ≈ 2.400 GHz
+wrote /workspace/octavo_merged/dudect/results/v9-valid-tamper_gfni-simd.json
+n0=160057 n1=159091 n0_crop=156866 n1_crop=159091 mean0=520003.3 mean1=4279.7 t_raw=2795.634 t_crop=3518.824 verdict=DEFINITE_LEAK

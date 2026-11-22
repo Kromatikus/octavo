@@ -1,0 +1,14 @@
+10:25:02 START unbow128-state_gfni-simd_rerun X=1
+10:25:29 END unbow128-state_gfni-simd_rerun rc=0 n0=10000000 n1=10000000 n0_crop=9900431 n1_crop=9899741 mean0=2899.7 mean1=2893.5 t_raw=1.034 t_crop=65.867 verdict=DEFINITE_LEAK
+10:25:29 START unbow128-state_gfni-simd_aa OCTAVO_DUDECT_AA=1
+10:25:58 END unbow128-state_gfni-simd_aa rc=0 n0=10000000 n1=10000000 n0_crop=9901402 n1_crop=9899308 mean0=3085.4 mean1=3082.5 t_raw=4.758 t_crop=15.997 verdict=DEFINITE_LEAK
+10:25:58 START unbow128-state_gfni-simd_x4 OCTAVO_DUDECT_REPS=128
+10:26:33 END unbow128-state_gfni-simd_x4 rc=0 n0=3530871 n1=3528811 n0_crop=3495586 n1_crop=3493515 mean0=11652.4 mean1=11638.5 t_raw=2.236 t_crop=21.950 verdict=DEFINITE_LEAK
+10:26:33 START vrot512-amt_gfni-simd_x4 OCTAVO_DUDECT_ITERS=2048
+10:27:09 END vrot512-amt_gfni-simd_x4 rc=0 n0=6096892 n1=6096002 n0_crop=6036194 n1_crop=6035001 mean0=6679.5 mean1=6679.4 t_raw=0.264 t_crop=-1.302 verdict=NO_EVIDENCE
+10:27:09 START enc-key_gfni-simd_rerun X=1
+10:27:44 END enc-key_gfni-simd_rerun rc=0 n0=5861654 n1=5859937 n0_crop=5802906 n1_crop=5801576 mean0=6978.8 mean1=6967.8 t_raw=8.182 t_crop=35.500 verdict=DEFINITE_LEAK
+10:27:44 START enc-key-twokey_gfni-simd X=1
+10:28:20 END enc-key-twokey_gfni-simd rc=0 n0=6129297 n1=6126831 n0_crop=6068206 n1_crop=6065479 mean0=6672.5 mean1=6670.2 t_raw=0.270 t_crop=2.508 verdict=NO_EVIDENCE
+10:28:20 START enc-key-interleaved_gfni-simd X=1
+10:28:55 END enc-key-interleaved_gfni-simd rc=0 n0=6076044 n1=6073255 n0_crop=6015503 n1_crop=6012413 mean0=6725.1 mean1=6738.4 t_raw=-1.293 t_crop=-14.122 verdict=DEFINITE_LEAK

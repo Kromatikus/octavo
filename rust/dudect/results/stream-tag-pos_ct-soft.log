@@ -1,0 +1,5 @@
+octavo-dudect experiment=stream-tag-pos backend=ct-soft (requested ct-soft) seconds=35 max_samples=20000000
+calibrating TSC...
+TSC ≈ 2.400 GHz
+wrote /workspace/octavo_merged/dudect/results/stream-tag-pos_ct-soft.json
+n0=111588 n1=111280 n0_crop=110515 n1_crop=110124 mean0=376177.6 mean1=377042.0 t_raw=-1.336 t_crop=-1.759 verdict=NO_EVIDENCE

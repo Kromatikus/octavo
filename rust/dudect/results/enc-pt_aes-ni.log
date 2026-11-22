@@ -1,0 +1,5 @@
+octavo-dudect experiment=enc-pt backend=aes-ni (requested aes-ni) seconds=35 max_samples=20000000
+calibrating TSC...
+TSC ≈ 2.400 GHz
+wrote /workspace/octavo_merged/dudect/results/enc-pt_aes-ni.json
+n0=342758 n1=342326 n0_crop=339302 n1_crop=338931 mean0=122258.5 mean1=122251.9 t_raw=0.156 t_crop=-0.486 verdict=NO_EVIDENCE

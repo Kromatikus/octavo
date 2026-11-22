@@ -1,0 +1,31 @@
+[package]
+name = "octavo-cli"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.89"
+description = "octavo: command-line tool for the homemade Octavo cipher. NOT for real secrets: use AES-GCM-SIV, age, or libsodium."
+license = "MIT"
+publish = false
+
+[[bin]]
+name = "octavo"
+path = "src/main.rs"
+
+[features]
+default = ["parallel"]
+# multi-threaded chunk crypto (byte-identical output for any thread count)
+parallel = ["octavo-core/parallel"]
+
+[dependencies]
+octavo-core = { path = "../octavo-core", features = ["stream"] }
+clap = { version = "4.5", features = ["derive"] }
+zeroize = { version = "1.8", features = ["alloc"] }
+getrandom = "0.2"
+sha2 = "0.10"
+libc = "0.2"
+
+[dev-dependencies]
+proptest = "1"
+serde_json = "1"
+hex = "0.4"
+libc = "0.2"

@@ -1,0 +1,5 @@
+octavo-dudect experiment=stream-tag-pos backend=gfni-simd (requested gfni-simd) seconds=35 max_samples=20000000
+calibrating TSC...
+TSC ≈ 2.400 GHz
+wrote /workspace/octavo_merged/dudect/results/stream-tag-pos_gfni-simd.json
+n0=89770 n1=89272 n0_crop=88885 n1_crop=88367 mean0=467800.1 mean1=469845.3 t_raw=-0.738 t_crop=-0.847 verdict=NO_EVIDENCE

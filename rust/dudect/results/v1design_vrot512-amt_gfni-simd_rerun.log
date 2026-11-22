@@ -1,0 +1,5 @@
+octavo-dudect experiment=vrot512-amt backend=gfni-simd (requested gfni-simd) seconds=35 max_samples=20000000
+calibrating TSC...
+TSC ≈ 2.400 GHz
+wrote /workspace/octavo_merged/dudect/results/vrot512-amt_gfni-simd_rerun.json
+n0=10000000 n1=10000000 n0_crop=9900479 n1_crop=9900160 mean0=1782.7 mean1=1782.3 t_raw=1.205 t_crop=9.122 verdict=LIKELY_LEAK

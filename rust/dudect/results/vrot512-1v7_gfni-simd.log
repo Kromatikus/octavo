@@ -1,0 +1,5 @@
+octavo-dudect experiment=vrot512-1v7 backend=gfni-simd (requested gfni-simd) seconds=35 max_samples=20000000
+calibrating TSC...
+TSC ≈ 2.400 GHz
+wrote /workspace/octavo_merged/dudect/results/vrot512-1v7_gfni-simd.json
+n0=10000000 n1=10000000 n0_crop=9901061 n1_crop=9900738 mean0=1704.6 mean1=1703.0 t_raw=0.186 t_crop=0.478 verdict=NO_EVIDENCE

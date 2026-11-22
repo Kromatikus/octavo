@@ -1,0 +1,66 @@
+10:04:28 START enc-pt_gfni-128 cpus=6
+10:05:03 END enc-pt_gfni-128 rc=0 n0=390415 n1=389563 n0_crop=386559 n1_crop=385619 mean0=107802.5 mean1=107012.6 t_raw=1.369 t_crop=-1.086 verdict=NO_EVIDENCE
+10:05:03 START enc-key_gfni-128 cpus=6
+10:05:39 END enc-key_gfni-128 rc=0 n0=400220 n1=400156 n0_crop=396164 n1_crop=396208 mean0=104698.2 mean1=104732.3 t_raw=-0.111 t_crop=1.782 verdict=NO_EVIDENCE
+10:05:39 START dec-pt_gfni-128 cpus=6
+10:06:14 END dec-pt_gfni-128 rc=0 n0=324124 n1=324877 n0_crop=320948 n1_crop=321563 mean0=129127.3 mean1=129159.2 t_raw=-0.689 t_crop=0.085 verdict=NO_EVIDENCE
+10:06:14 START dec-key_gfni-128 cpus=6
+10:06:49 END dec-key_gfni-128 rc=0 n0=327998 n1=327315 n0_crop=324743 n1_crop=324017 mean0=127721.2 mean1=128190.0 t_raw=-1.637 t_crop=-1.647 verdict=NO_EVIDENCE
+10:06:49 START enc-batch-pt_gfni-128 cpus=6
+10:07:25 END enc-batch-pt_gfni-128 rc=0 n0=49437 n1=49336 n0_crop=48969 n1_crop=48816 mean0=850280.5 mean1=849327.3 t_raw=0.498 t_crop=1.945 verdict=NO_EVIDENCE
+10:07:25 START dec-batch-pt_gfni-128 cpus=6
+10:08:01 END dec-batch-pt_gfni-128 rc=0 n0=41256 n1=41371 n0_crop=40841 n1_crop=40960 mean0=1015407.8 mean1=1016536.6 t_raw=-0.540 t_crop=-0.584 verdict=NO_EVIDENCE
+10:08:01 START v9-tag-pos_gfni-128 cpus=6
+10:08:36 END v9-tag-pos_gfni-128 rc=0 n0=10000000 n1=10000000 n0_crop=9900930 n1_crop=9899439 mean0=3781.7 mean1=3787.6 t_raw=-1.509 t_crop=-1.969 verdict=NO_EVIDENCE
+10:08:36 START stream-open-pt_gfni-128 cpus=6
+10:09:15 END stream-open-pt_gfni-128 rc=0 n0=10303 n1=10100 n0_crop=10204 n1_crop=9995 mean0=4114061.1 mean1=4119186.2 t_raw=-0.697 t_crop=-1.047 verdict=NO_EVIDENCE
+10:09:15 START stream-tag-pos_gfni-128 cpus=6
+10:09:50 END stream-tag-pos_gfni-128 rc=0 n0=105533 n1=105215 n0_crop=104439 n1_crop=104202 mean0=399127.6 mean1=397401.3 t_raw=1.607 t_crop=-0.998 verdict=NO_EVIDENCE
+10:09:50 START enc-pt_aes-ni cpus=6
+10:10:25 END enc-pt_aes-ni rc=0 n0=342758 n1=342326 n0_crop=339302 n1_crop=338931 mean0=122258.5 mean1=122251.9 t_raw=0.156 t_crop=-0.486 verdict=NO_EVIDENCE
+10:10:25 START enc-key_aes-ni cpus=6
+10:11:01 END enc-key_aes-ni rc=0 n0=352160 n1=352192 n0_crop=348672 n1_crop=348636 mean0=118994.6 mean1=118946.5 t_raw=0.239 t_crop=-0.279 verdict=NO_EVIDENCE
+10:11:01 START dec-pt_aes-ni cpus=6
+10:11:36 END dec-pt_aes-ni rc=0 n0=326712 n1=327443 n0_crop=323500 n1_crop=324113 mean0=128153.0 mean1=128170.0 t_raw=-0.436 t_crop=0.191 verdict=NO_EVIDENCE
+10:11:36 START dec-key_aes-ni cpus=6
+10:12:11 END dec-key_aes-ni rc=0 n0=314589 n1=313806 n0_crop=311426 n1_crop=310685 mean0=133454.9 mean1=133385.0 t_raw=0.427 t_crop=-0.180 verdict=NO_EVIDENCE
+10:12:11 START enc-batch-pt_aes-ni cpus=6
+10:12:47 END enc-batch-pt_aes-ni rc=0 n0=48483 n1=48395 n0_crop=48004 n1_crop=47905 mean0=866783.3 mean1=866134.6 t_raw=1.421 t_crop=1.842 verdict=NO_EVIDENCE
+10:12:47 START dec-batch-pt_aes-ni cpus=6
+10:13:23 END dec-batch-pt_aes-ni rc=0 n0=39172 n1=39302 n0_crop=38795 n1_crop=38894 mean0=1069700.6 mean1=1069858.6 t_raw=-0.166 t_crop=-0.203 verdict=NO_EVIDENCE
+10:13:24 START v9-tag-pos_aes-ni cpus=6
+10:13:58 END v9-tag-pos_aes-ni rc=0 n0=10000000 n1=10000000 n0_crop=9900538 n1_crop=9899607 mean0=3797.4 mean1=3807.8 t_raw=-1.363 t_crop=4.299 verdict=NO_EVIDENCE
+10:13:58 START stream-open-pt_aes-ni cpus=6
+10:14:38 END stream-open-pt_aes-ni rc=0 n0=10090 n1=9910 n0_crop=9985 n1_crop=9815 mean0=4279504.6 mean1=4286230.5 t_raw=-0.435 t_crop=0.673 verdict=NO_EVIDENCE
+10:14:38 START stream-tag-pos_aes-ni cpus=6
+10:15:13 END stream-tag-pos_aes-ni rc=0 n0=94133 n1=93602 n0_crop=93225 n1_crop=92633 mean0=447248.9 mean1=446879.3 t_raw=0.736 t_crop=0.552 verdict=NO_EVIDENCE
+10:15:13 START enc-pt_ct-soft cpus=6
+10:15:49 END enc-pt_ct-soft rc=0 n0=182190 n1=181955 n0_crop=180317 n1_crop=180187 mean0=230293.5 mean1=230300.7 t_raw=-0.062 t_crop=-1.018 verdict=NO_EVIDENCE
+10:15:49 START enc-key_ct-soft cpus=6
+10:16:24 END enc-key_ct-soft rc=0 n0=184727 n1=184424 n0_crop=182879 n1_crop=182581 mean0=226886.3 mean1=227576.6 t_raw=-1.519 t_crop=0.613 verdict=NO_EVIDENCE
+10:16:24 START dec-pt_ct-soft cpus=6
+10:17:00 END dec-pt_ct-soft rc=0 n0=173714 n1=173811 n0_crop=172004 n1_crop=172046 mean0=241347.8 mean1=241454.1 t_raw=-1.076 t_crop=-0.807 verdict=NO_EVIDENCE
+10:17:00 START dec-key_ct-soft cpus=6
+10:17:35 END dec-key_ct-soft rc=0 n0=179744 n1=179398 n0_crop=177919 n1_crop=177633 mean0=233581.9 mean1=233699.7 t_raw=-0.939 t_crop=-1.405 verdict=NO_EVIDENCE
+10:17:35 START enc-batch-pt_ct-soft cpus=6
+10:18:12 END enc-batch-pt_ct-soft rc=0 n0=25216 n1=25187 n0_crop=24967 n1_crop=24932 mean0=1667803.5 mean1=1663653.8 t_raw=1.325 t_crop=0.818 verdict=NO_EVIDENCE
+10:18:12 START dec-batch-pt_ct-soft cpus=6
+10:18:49 END dec-batch-pt_ct-soft rc=0 n0=21264 n1=21305 n0_crop=21048 n1_crop=21095 mean0=1970920.6 mean1=1974041.2 t_raw=-0.684 t_crop=-1.354 verdict=NO_EVIDENCE
+10:18:49 START v9-tag-pos_ct-soft cpus=6
+10:19:23 END v9-tag-pos_ct-soft rc=0 n0=10000000 n1=10000000 n0_crop=9900777 n1_crop=9899564 mean0=3844.3 mean1=3842.5 t_raw=1.102 t_crop=1.854 verdict=NO_EVIDENCE
+10:19:23 START stream-open-pt_ct-soft cpus=6
+10:20:31 END stream-open-pt_ct-soft rc=0 n0=10090 n1=9910 n0_crop=9994 n1_crop=9806 mean0=7231425.4 mean1=7239018.3 t_raw=-0.576 t_crop=-0.310 verdict=NO_EVIDENCE
+10:20:31 START stream-tag-pos_ct-soft cpus=6
+10:21:07 END stream-tag-pos_ct-soft rc=0 n0=111588 n1=111280 n0_crop=110515 n1_crop=110124 mean0=376177.6 mean1=377042.0 t_raw=-1.336 t_crop=-1.759 verdict=NO_EVIDENCE
+10:21:07 START bow128-state_gfni-simd cpus=6
+10:21:27 END bow128-state_gfni-simd rc=0 n0=10000000 n1=10000000 n0_crop=9900570 n1_crop=9899572 mean0=2156.4 mean1=2156.5 t_raw=-0.617 t_crop=2.948 verdict=NO_EVIDENCE
+10:21:27 START unbow128-state_gfni-simd cpus=6
+10:21:56 END unbow128-state_gfni-simd rc=0 n0=10000000 n1=10000000 n0_crop=9900653 n1_crop=9900067 mean0=3090.7 mean1=3085.3 t_raw=13.442 t_crop=32.766 verdict=DEFINITE_LEAK
+10:21:56 START bow512-state_gfni-simd cpus=6
+10:22:25 END bow512-state_gfni-simd rc=0 n0=10000000 n1=10000000 n0_crop=9900370 n1_crop=9899781 mean0=3162.2 mean1=3166.5 t_raw=-1.406 t_crop=0.885 verdict=NO_EVIDENCE
+10:22:25 START unbow512-state_gfni-simd cpus=6
+10:23:00 END unbow512-state_gfni-simd rc=0 n0=10000000 n1=10000000 n0_crop=9900477 n1_crop=9899797 mean0=3791.5 mean1=3790.6 t_raw=0.374 t_crop=-3.836 verdict=NO_EVIDENCE
+10:23:00 START stream-tag-pos-mt_gfni-simd cpus=6,7
+10:23:36 END stream-tag-pos-mt_gfni-simd rc=0 n0=64442 n1=63912 n0_crop=63789 n1_crop=63281 mean0=652882.9 mean1=655014.2 t_raw=-1.697 t_crop=0.657 verdict=NO_EVIDENCE
+10:23:36 START schedule-key_gfni-simd cpus=6
+10:24:12 END schedule-key_gfni-simd rc=0 n0=86419 n1=85850 n0_crop=86101 n1_crop=84445 mean0=450762.1 mean1=521925.2 t_raw=-83.990 t_crop=-276.084 verdict=DEFINITE_LEAK

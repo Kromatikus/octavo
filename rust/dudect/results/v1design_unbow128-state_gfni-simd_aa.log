@@ -1,0 +1,5 @@
+octavo-dudect experiment=unbow128-state backend=gfni-simd (requested gfni-simd) seconds=35 max_samples=20000000
+calibrating TSC...
+TSC ≈ 2.400 GHz
+wrote /workspace/octavo_merged/dudect/results/unbow128-state_gfni-simd_aa.json
+n0=10000000 n1=10000000 n0_crop=9901402 n1_crop=9899308 mean0=3085.4 mean1=3082.5 t_raw=4.758 t_crop=15.997 verdict=DEFINITE_LEAK

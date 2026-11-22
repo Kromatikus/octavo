@@ -1,0 +1,10 @@
+| backend | enc 1 block | dec 1 block | enc batched/block | dec batched/block | key setup | v9 seal 1T | v9 seal 8T | v9 open 8T |
+|---|---|---|---|---|---|---|---|---|
+| gfni-simd | 3.40 µs | 6.71 µs | 2.43 µs | 5.57 µs | 237 µs | 27.7 MB/s | 172.3 MB/s | 98.2 MB/s |
+| gfni-512 | 44.48 µs | 65.13 µs | 45.56 µs | 72.04 µs | 181 µs | 2.7 MB/s | 16.4 MB/s | 12.3 MB/s |
+| gfni-256 | 44.29 µs | 66.60 µs | 44.76 µs | 66.35 µs | 182 µs | 2.8 MB/s | 19.3 MB/s | 13.3 MB/s |
+| gfni-128 | 48.21 µs | 67.17 µs | 48.06 µs | 69.99 µs | 181 µs | 2.8 MB/s | 18.7 MB/s | 10.9 MB/s |
+| aes-ni | 43.12 µs | 65.85 µs | 44.83 µs | 68.44 µs | 201 µs | 2.8 MB/s | 17.4 MB/s | 10.3 MB/s |
+| ct-soft | 84.74 µs | 123.02 µs | 81.60 µs | 103.74 µs | 181 µs | 1.5 MB/s | 8.6 MB/s | 8.0 MB/s |
+auto-detected default: gfni-simd
+AES-256-GCM (aes-gcm 0.10, 1 thread, 8 MiB): 1591 MB/s  (v9 runs above use 4 MiB, chunk 64 KiB)

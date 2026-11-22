@@ -1,0 +1,5 @@
+octavo-dudect experiment=stream-tag-pos backend=aes-ni (requested aes-ni) seconds=35 max_samples=20000000
+calibrating TSC...
+TSC ≈ 2.400 GHz
+wrote /workspace/octavo_merged/dudect/results/stream-tag-pos_aes-ni.json
+n0=94133 n1=93602 n0_crop=93225 n1_crop=92633 mean0=447248.9 mean1=446879.3 t_raw=0.736 t_crop=0.552 verdict=NO_EVIDENCE

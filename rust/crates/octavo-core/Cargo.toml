@@ -1,0 +1,41 @@
+[package]
+name = "octavo-core"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.89"  # 1.88+ for as_chunks_mut, 1.89+ for AVX-512/GFNI intrinsics
+description = "Octavo (N2) homemade experimental block cipher - Rust port, phase 1. NOT for real secrets: use AES-GCM-SIV, age, or libsodium."
+license = "MIT"
+publish = false
+
+[features]
+default = ["std", "formats"]
+std = ["alloc"]
+alloc = []
+# v6 / v7 / v9 / étude AEAD formats and the app HKDF (need HMAC + alloc)
+formats = ["alloc", "dep:hmac", "dep:subtle"]
+# Multi-threaded v9 rehearsal (seal_rehearsal_threads / open_rehearsal_threads)
+parallel = ["std", "formats"]
+# best-effort wiping of key schedules / backend tables / Ctx on drop
+zeroize = ["dep:zeroize", "alloc", "zeroize/alloc"]
+# constant-memory streaming v9 seal/open over std::io::{Read, Write}
+stream = ["std", "formats", "zeroize"]
+# Timing-test hooks for the dudect harness only (simd::dudect_hooks); never needed by users
+dudect-hooks = ["std"]
+# Non-constant-time lookup-table S-box backend (reference / speed comparison only)
+table-backend = ["alloc"]
+# Hardware S-box backends (GFNI, AES-NI) are always compiled on x86_64 and picked at runtime.
+# These names are kept for compatibility and do nothing.
+gfni = []
+aesni = []
+
+[dependencies]
+sha2 = { version = "0.10", default-features = false, features = ["compress"] }  # compress256 for the sponge template path
+hmac = { version = "0.12", default-features = false, optional = true }
+subtle = { version = "2.5", default-features = false, optional = true }
+zeroize = { version = "1.8", default-features = false, optional = true }
+
+[dev-dependencies]
+aes-gcm = "0.10"
+serde_json = "1"
+hex = "0.4"
+sha3 = "0.10"

@@ -1,0 +1,5 @@
+octavo-dudect experiment=enc-key backend=gfni-simd (requested gfni-simd) seconds=35 max_samples=20000000
+calibrating TSC...
+TSC ≈ 2.400 GHz
+wrote /workspace/octavo_merged/dudect/results/enc-key_gfni-simd_rerun.json
+n0=5861654 n1=5859937 n0_crop=5802906 n1_crop=5801576 mean0=6978.8 mean1=6967.8 t_raw=8.182 t_crop=35.500 verdict=DEFINITE_LEAK

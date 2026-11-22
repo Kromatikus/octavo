@@ -1,0 +1,14 @@
+10:30:14 START bow128-state_gfni-simd X=1
+10:30:34 END bow128-state_gfni-simd rc=0 n0=10000000 n1=10000000 n0_crop=9902331 n1_crop=9902457 mean0=2052.4 mean1=2052.2 t_raw=1.353 t_crop=0.707 verdict=NO_EVIDENCE
+10:30:34 START unbow128-state_gfni-simd X=1
+10:31:00 END unbow128-state_gfni-simd rc=0 n0=10000000 n1=10000000 n0_crop=9900294 n1_crop=9900635 mean0=2807.6 mean1=2809.8 t_raw=-0.939 t_crop=1.241 verdict=NO_EVIDENCE
+10:31:00 START bow512-state_gfni-simd X=1
+10:31:27 END bow512-state_gfni-simd rc=0 n0=10000000 n1=10000000 n0_crop=9900273 n1_crop=9899856 mean0=2872.7 mean1=2874.9 t_raw=-1.067 t_crop=-0.771 verdict=NO_EVIDENCE
+10:31:27 START unbow512-state_gfni-simd X=1
+10:31:59 END unbow512-state_gfni-simd rc=0 n0=10000000 n1=10000000 n0_crop=9900105 n1_crop=9899918 mean0=3445.9 mean1=3445.9 t_raw=0.044 t_crop=-0.603 verdict=NO_EVIDENCE
+10:31:59 START unbow128-state_gfni-simd_aa OCTAVO_DUDECT_AA=1
+10:32:25 END unbow128-state_gfni-simd_aa rc=0 n0=10000000 n1=10000000 n0_crop=9900672 n1_crop=9900186 mean0=2780.6 mean1=2780.2 t_raw=1.350 t_crop=-0.164 verdict=NO_EVIDENCE
+10:32:25 START unbow128-state_gfni-simd_x4 OCTAVO_DUDECT_REPS=128
+10:33:00 END unbow128-state_gfni-simd_x4 rc=0 n0=3945105 n1=3942868 n0_crop=3905733 n1_crop=3903435 mean0=10442.5 mean1=10428.6 t_raw=1.050 t_crop=0.440 verdict=NO_EVIDENCE
+10:33:00 START bow128-state_gfni-simd_x4 OCTAVO_DUDECT_REPS=128
+10:33:36 END bow128-state_gfni-simd_x4 rc=0 n0=5364157 n1=5368603 n0_crop=5310447 n1_crop=5315159 mean0=7622.2 mean1=7617.3 t_raw=0.982 t_crop=0.152 verdict=NO_EVIDENCE

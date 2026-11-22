@@ -1,0 +1,5 @@
+octavo-dudect experiment=stream-open-pt backend=gfni-simd (requested gfni-simd) seconds=35 max_samples=20000000
+calibrating TSC...
+TSC ≈ 2.400 GHz
+wrote /workspace/octavo_merged/dudect/results/stream-open-pt_gfni-simd.json
+n0=78065 n1=78664 n0_crop=77297 n1_crop=77865 mean0=535478.7 mean1=535842.3 t_raw=-1.281 t_crop=-1.696 verdict=NO_EVIDENCE

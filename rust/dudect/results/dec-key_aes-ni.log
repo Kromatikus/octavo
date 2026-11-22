@@ -1,0 +1,5 @@
+octavo-dudect experiment=dec-key backend=aes-ni (requested aes-ni) seconds=35 max_samples=20000000
+calibrating TSC...
+TSC ≈ 2.400 GHz
+wrote /workspace/octavo_merged/dudect/results/dec-key_aes-ni.json
+n0=314589 n1=313806 n0_crop=311426 n1_crop=310685 mean0=133454.9 mean1=133385.0 t_raw=0.427 t_crop=-0.180 verdict=NO_EVIDENCE

@@ -1,0 +1,5 @@
+octavo-dudect experiment=bow512-state backend=gfni-simd (requested gfni-simd) seconds=35 max_samples=20000000
+calibrating TSC...
+TSC ≈ 2.400 GHz
+wrote /workspace/octavo_merged/dudect/results/bow512-state_gfni-simd.json
+n0=10000000 n1=10000000 n0_crop=9900370 n1_crop=9899781 mean0=3162.2 mean1=3166.5 t_raw=-1.406 t_crop=0.885 verdict=NO_EVIDENCE

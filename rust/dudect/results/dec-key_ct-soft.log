@@ -1,0 +1,5 @@
+octavo-dudect experiment=dec-key backend=ct-soft (requested ct-soft) seconds=35 max_samples=20000000
+calibrating TSC...
+TSC ≈ 2.400 GHz
+wrote /workspace/octavo_merged/dudect/results/dec-key_ct-soft.json
+n0=179744 n1=179398 n0_crop=177919 n1_crop=177633 mean0=233581.9 mean1=233699.7 t_raw=-0.939 t_crop=-1.405 verdict=NO_EVIDENCE
