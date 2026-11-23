@@ -13,6 +13,10 @@ the `octavo` command-line tool live in [`rust/`](rust/), including the key
 
 **Octavo is still homemade; for real secrets use AES-GCM-SIV, age, or libsodium.**
 
+N2 (`sneak_n2.py`, `octavo.py`, and [`rust/`](rust/)) is the **default, live
+cipher** in this repository. An experimental lab successor, **N3**, lives in
+[`n3/`](n3/) and is not interchangeable with N2. See [N3 (experimental)](#n3-experimental) below.
+
 It has in-house analysis (about 9–10 of 16 rounds of margin at a 2<sup>−256</sup>
 target) and one non-expert outside review. That is not a security proof.
 See [SECURITY.md](SECURITY.md) and [ATTACKS.md](ATTACKS.md).
@@ -90,6 +94,7 @@ There is no CI on this repository yet; please run the tests locally.
 | `etudes.py` | Lab études (reduced-round / alternate keys) |
 | `score/` | Published test vectors (score v11, 79 vectors) and app vectors |
 | `rust/` | Byte-compatible Rust port, `octavo` CLI, earworm MIDI/SID, dudect results |
+| `n3/` | **Experimental** N3 lab snapshot (`octavo_n3_004`). Not the default. Not interchangeable with N2. |
 | `independent_check/` | From-scratch checker written only from `SPEC.md` |
 | `analysis/` | Reduced-round tests and automated trail-search reports |
 | `ATTACKS.md`, `SECURITY.md` | Known attacks, limitations, how to report a finding |
@@ -103,6 +108,7 @@ There is no CI on this repository yet; please run the tests locally.
 - [ATTACKS.md](ATTACKS.md) — in-house and outside findings
 - [analysis/](analysis/) — reduced-round tests (OCT-2) and trail search (OCT-3)
 - [rust/](rust/) — Rust port and CLI; timing report in [rust/dudect/REPORT.md](rust/dudect/REPORT.md)
+- [n3/](n3/) — experimental N3 lab snapshot and [migration note](n3/MIGRATION.md)
 - [SECURITY.md](SECURITY.md) — why this is not for real secrets, and how to report a weakness
 
 ## Status
@@ -125,6 +131,28 @@ known many-key cache effect on `gfni-simd`. Dudect cannot prove the absence of a
 leak. See [rust/dudect/REPORT.md](rust/dudect/REPORT.md).
 
 The sections below are the revision history of the Python tree, kept as a record.
+
+## N3 (experimental)
+
+N3 is a separate lab successor to live N2, frozen as `octavo_n3_004` and checked
+in under [`n3/`](n3/). It is **experimental** and **not interchangeable** with
+N2: N2 blobs start with a version byte and `SN2`; N3 authenticated blobs start
+with `SN3C/` and format `0x1C`. Neither tool can open the other's files.
+Migrating means decrypting with N2 and sealing again with N3. See
+[n3/MIGRATION.md](n3/MIGRATION.md) for the procedure, key handling, and limits.
+The helper `n3/migrate.py` can do a verified one-file conversion after you
+build `n3aead`.
+
+N3 uses the same 128-byte block and 1024-bit seed size, a constant-time key
+schedule, and a parallel PMAC-style authenticated mode (54 bytes of overhead).
+It has no packaged `octavo.seal` app-key wrapper, no score, and no MIDI earworm.
+It has had in-house attacks only; there is no external review of N3. Use a
+**fresh** 1024-bit N3 seed; do not reuse the public N2 demo seed or an N2 app
+key.
+
+N2 remains the default in this repository.
+
+**Octavo is still homemade; for real secrets use AES-GCM-SIV, age, or libsodium.**
 
 ## Current live revision — rehearsal-honest2 (2026-11-15, not frozen)
 

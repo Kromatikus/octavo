@@ -5,6 +5,21 @@ list of every historical revision; those remain in [README.md](README.md).
 
 **Octavo is still homemade; for real secrets use AES-GCM-SIV, age, or libsodium.**
 
+## 2026-11-23
+
+- Added the experimental N3 lab snapshot (`octavo_n3_004`) under [`n3/`](n3/)
+  (block format `SN3C/` 0x1B, authenticated format `SN3C/` 0x1C, N3-PMAC-SIV).
+  **N2 remains the default** (`sneak_n2.py`, `octavo.py`, [`rust/`](rust/)).
+  No existing N2 code or formats were changed.
+- N3 is a new cipher and a new blob format. It does not open N2 v6 / v7 / v9
+  (`SN2`) data, and N2 does not open N3 data. Existing users who want to try N3
+  must re-encrypt: decrypt with N2, verify, seal with `n3aead`, verify the
+  round-trip. See [n3/MIGRATION.md](n3/MIGRATION.md) and `n3/migrate.py`.
+- Recommend a **fresh** 1024-bit N3 seed. Do not reuse the public N2 demo seed
+  or an N2 app key (32/64-byte HKDF input).
+- Known limits: no external review of N3; lab CLI `n3aead` takes the seed as
+  command-line hex; no MIDI/score in this snapshot.
+
 ## 2026-11-22
 
 - Published a byte-compatible [Rust port](rust/) and the `octavo` CLI in

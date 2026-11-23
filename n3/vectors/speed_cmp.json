@@ -1,0 +1,34 @@
+{
+  "machine": "same box, portable Rust --release, taskset -c 0",
+  "iters_per_batch": 50000,
+  "batches": 9,
+  "draft1_median_us": 31.792323,
+  "draft2_median_us": 31.983803,
+  "draft1_mean_us": 31.758,
+  "draft2_mean_us": 32.282,
+  "ratio_median": 1.006023,
+  "pct_vs_draft1_median": 0.6023,
+  "draft1_batches_us": [
+    31.93,
+    31.792,
+    31.9,
+    31.854,
+    31.947,
+    31.695,
+    31.572,
+    31.561,
+    31.574
+  ],
+  "draft2_batches_us": [
+    31.952,
+    32.102,
+    31.896,
+    32.068,
+    32.851,
+    31.906,
+    31.984,
+    31.902,
+    33.881
+  ],
+  "note": "Extra S-box is a small share of a portable (non-GFNI) round dominated by MDS maps. A first noisy unpinned run was discarded."
+}

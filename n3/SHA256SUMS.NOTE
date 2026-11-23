@@ -1,0 +1,19 @@
+# SHA256SUMS in this folder
+
+`SHA256SUMS` is the checksum list from the complete frozen snapshot
+`/workspace/octavo_n3_004` (376 files). Paths are relative to that snapshot
+root (for example `./rust/src/lib.rs`).
+
+This repository copy omits `lab/`, `results/`, and `attack_retest/` (lab
+search trees, bench logs, and the attack-crate copy). Those lines in
+`SHA256SUMS` have no matching file here. Every file that *is* present
+should still match its listed hash:
+
+```
+cd n3 && grep '  \./rust/src/lib.rs$' SHA256SUMS | sha256sum -c
+```
+
+The omitted paths were left out of git on purpose; they are not a
+corruption of the freeze. The full snapshot remains on the lab machine.
+
+Octavo is still homemade; for real secrets use AES-GCM-SIV, age, or libsodium.

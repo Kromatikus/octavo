@@ -1,0 +1,37 @@
+{
+  "expected": {
+    "1_diff": 18,
+    "1_lin": 18
+  },
+  "results": [
+    {
+      "status": "OPTIMAL",
+      "time_s": 0.195980373,
+      "info": "reduced_costs",
+      "proved": true,
+      "objective": 18,
+      "best_bound": 18,
+      "elapsed_s": 1.231616558998212,
+      "n_rounds": 1,
+      "mode": "diff",
+      "restore_smid": true,
+      "format_byte": 26,
+      "matches_expected_18": true
+    },
+    {
+      "status": "OPTIMAL",
+      "time_s": 0.11841461800000001,
+      "info": "reduced_costs",
+      "proved": true,
+      "objective": 18,
+      "best_bound": 18,
+      "elapsed_s": 0.12942539100185968,
+      "n_rounds": 1,
+      "mode": "lin",
+      "restore_smid": true,
+      "format_byte": 26,
+      "matches_expected_18": true
+    }
+  ],
+  "ok": true
+}

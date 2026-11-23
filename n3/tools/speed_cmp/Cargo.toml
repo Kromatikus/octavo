@@ -1,0 +1,9 @@
+[package]
+name = "n3-draft-speed-cmp"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+octavo-n3-draft1 = { path = "../../../octavo_n3_draft1/rust" }
+octavo-n3-draft2 = { path = "../../rust" }

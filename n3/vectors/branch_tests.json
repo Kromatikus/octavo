@@ -1,0 +1,71 @@
+{
+  "baseline_pass": true,
+  "vectors_matched": 5,
+  "caught": 7,
+  "sampled": 7,
+  "details": [
+    {
+      "id": "S003_0",
+      "status": "caught",
+      "failures": [
+        "mix2 has a zero entry",
+        "mix2 BN 2 < 3"
+      ],
+      "changes": "MIX2_MATRIX[1][1] 2->0"
+    },
+    {
+      "id": "S011_0",
+      "status": "caught",
+      "failures": [
+        "chord is not MDS (exact BN 9 failed)"
+      ],
+      "changes": "CHORD_M[0][7] 143->145"
+    },
+    {
+      "id": "S039_0",
+      "status": "caught",
+      "failures": [
+        "chord is not MDS (exact BN 9 failed)"
+      ],
+      "changes": "CHORD_M[4][3] 143->144"
+    },
+    {
+      "id": "S058_0",
+      "status": "caught",
+      "failures": [
+        "chord is not MDS (exact BN 9 failed)"
+      ],
+      "changes": "CHORD_M[6][6] 196->192"
+    },
+    {
+      "id": "S068_0",
+      "status": "caught",
+      "failures": [
+        "cross is not the published Cauchy matrix (C[i][j] = 1/(x_i+y_j), x=0..15, y=16..31); this is the exact MDS / BN=17 proof",
+        "cross observed BN (wt<=2) 16 < 17",
+        "implied 1-round bound BN_CROSS+1 = 17 < 18"
+      ],
+      "changes": "CROSS_M[0][0] 98->96"
+    },
+    {
+      "id": "S077_0",
+      "status": "caught",
+      "failures": [
+        "cross is not the published Cauchy matrix (C[i][j] = 1/(x_i+y_j), x=0..15, y=16..31); this is the exact MDS / BN=17 proof",
+        "cross observed BN (wt<=2) 16 < 17",
+        "implied 1-round bound BN_CROSS+1 = 17 < 18"
+      ],
+      "changes": "CROSS_M[3][3] 98->92"
+    },
+    {
+      "id": "S089_0",
+      "status": "caught",
+      "failures": [
+        "cross is not the published Cauchy matrix (C[i][j] = 1/(x_i+y_j), x=0..15, y=16..31); this is the exact MDS / BN=17 proof",
+        "cross observed BN (wt<=2) 16 < 17",
+        "implied 1-round bound BN_CROSS+1 = 17 < 18"
+      ],
+      "changes": "CROSS_M[7][7] 98->104"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "maps": {
+    "chord_det_nonzero": true,
+    "chord_inv_ok": true,
+    "chord_mds": true,
+    "cross_det_nonzero": true,
+    "cross_inv_ok": true,
+    "cross_entries_nonzero": true,
+    "cross_2x2_nonzero": true,
+    "triplet_mds": true,
+    "triplet_inv_ok": true,
+    "mix2_inv_ok": true
+  },
+  "vectors": "/workspace/octavo_n3_ctkey1/vectors/ctkey1_vectors.json",
+  "random_blocks": 1000,
+  "rust_python_agree": true,
+  "invertibility": true,
+  "avalanche": {
+    "plaintexts": 4,
+    "bits_per_plaintext": 1024,
+    "n": 4096,
+    "mean_flipped_bits": 511.728271484375,
+    "mean_fraction": 0.49973464012145996,
+    "min_flipped_bits": 448,
+    "max_flipped_bits": 570
+  },
+  "elapsed_s": 37.41882853700008
+}

@@ -1,0 +1,73 @@
+{
+  "draft": "n3-draft2",
+  "matches_trail2_variant": true,
+  "expected": {
+    "1": 18,
+    "2": 36
+  },
+  "results": [
+    {
+      "status": "OPTIMAL",
+      "time_s": 0.208891296,
+      "proved": true,
+      "objective": 18,
+      "best_bound": 18,
+      "elapsed_s": 0.5973018549993867,
+      "n_rounds": 1,
+      "mode": "diff",
+      "tag": "draft2-R1-diff",
+      "restore_smid": true,
+      "schedule": 0,
+      "expected": 18,
+      "matches_trail2_variant": true
+    },
+    {
+      "status": "OPTIMAL",
+      "time_s": 0.174529285,
+      "proved": true,
+      "objective": 18,
+      "best_bound": 18,
+      "elapsed_s": 0.18472858499990252,
+      "n_rounds": 1,
+      "mode": "lin",
+      "tag": "draft2-R1-lin",
+      "restore_smid": true,
+      "schedule": 0,
+      "expected": 18,
+      "matches_trail2_variant": true
+    },
+    {
+      "status": "OPTIMAL",
+      "time_s": 11.948417239000001,
+      "proved": true,
+      "objective": 36,
+      "best_bound": 36,
+      "elapsed_s": 11.967753299999458,
+      "n_rounds": 2,
+      "mode": "diff",
+      "tag": "draft2-R2-diff",
+      "restore_smid": true,
+      "schedule": 0,
+      "expected": 36,
+      "matches_trail2_variant": true
+    },
+    {
+      "status": "OPTIMAL",
+      "time_s": 21.796391073000002,
+      "proved": true,
+      "objective": 36,
+      "best_bound": 36,
+      "elapsed_s": 21.82546568500038,
+      "n_rounds": 2,
+      "mode": "lin",
+      "tag": "draft2-R2-lin",
+      "restore_smid": true,
+      "schedule": 0,
+      "expected": 36,
+      "matches_trail2_variant": true
+    }
+  ],
+  "elapsed_s": 34.59806741399916,
+  "s_mid_present": true,
+  "round": "S; chord; bridges; triplets; bow; S_mid; cross; S2"
+}
