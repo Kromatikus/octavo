@@ -5,9 +5,16 @@
 root (for example `./rust/src/lib.rs`).
 
 This repository copy omits `lab/`, `results/`, and `attack_retest/` (lab
-search trees, bench logs, and the attack-crate copy). Those lines in
-`SHA256SUMS` have no matching file here. Every file that *is* present
-should still match its listed hash:
+search trees, bench logs, and the attack-crate copy), plus a few historical
+lab notes (`PROGRESS.md`, `PROGRESS_003.md`, `REPORT_003_fallback1.md`,
+`REPORT_bfast1_from_002.md`, `SHA256SUMS_fallback1.txt`, `SNAPSHOT_NOTE.md`,
+`SNAPSHOT_from_002.md`). Those lines in `SHA256SUMS` have no matching file
+here.
+
+`README.md` in this folder is the experimental repo README, not the freeze
+README, so its hash will not match `SHA256SUMS`. `MIGRATION.md`,
+`migrate.py`, and this note are new and are not in the freeze list. Every
+other file that is present should still match its listed hash:
 
 ```
 cd n3 && grep '  \./rust/src/lib.rs$' SHA256SUMS | sha256sum -c
