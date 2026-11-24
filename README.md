@@ -21,6 +21,29 @@ It has in-house analysis (about 9–10 of 16 rounds of margin at a 2<sup>−256<
 target) and one non-expert outside review. That is not a security proof.
 See [SECURITY.md](SECURITY.md) and [ATTACKS.md](ATTACKS.md).
 
+## Try it in the playground
+
+A local browser playground under [`playground/`](playground/) lets you try
+**N2** (v6, v9, and Hear WAV/MIDI/SID), experimental **N3** (format 0x1C),
+and AES-256-GCM-SIV side by side. Keys are ephemeral (generated in memory
+and not written to disk automatically). There is a 1-bit-flip demo, a Files
+tab, and a Check tab that runs published test vectors. The server runs only
+on `127.0.0.1`.
+
+Build the binaries as [playground/README.md](playground/README.md) describes,
+then from the repository root:
+
+```bash
+cargo build --release -p octavo-cli --manifest-path rust/Cargo.toml
+cargo build --release --bin n3aead --manifest-path n3/rust/Cargo.toml
+python3 playground/server.py          # http://127.0.0.1:8780/
+```
+
+Open http://127.0.0.1:8780. N3 is experimental and not interchangeable with
+N2. See [playground/README.md](playground/README.md).
+
+**Octavo is still homemade; for real secrets use AES-GCM-SIV, age, or libsodium.**
+
 ## Quick start
 
 ### Python
@@ -63,24 +86,6 @@ cargo build --release -p octavo-cli
 See [rust/README.md](rust/README.md) and [rust/CLI.md](rust/CLI.md). The first
 run prints the homemade warning once (a marker file under `$OCTAVO_HOME`, or
 `$XDG_CONFIG_HOME/octavo`, or `~/.config/octavo`).
-
-## Local playground
-
-A small localhost web app in [`playground/`](playground/) lets you try **N2**
-(the default live cipher), experimental **N3**, and a vetted AES-GCM-SIV path
-side by side (text, files, and published test vectors). It binds to
-`127.0.0.1` only and does not write keys to disk automatically.
-
-```bash
-cargo build --release -p octavo-cli --manifest-path rust/Cargo.toml
-cargo build --release --bin n3aead --manifest-path n3/rust/Cargo.toml
-python3 playground/server.py          # http://127.0.0.1:8780/
-python3 -B playground/test_app.py
-```
-
-**Octavo is still homemade; for real secrets use AES-GCM-SIV, age, or libsodium.**
-N3 is experimental and not interchangeable with N2. See
-[playground/README.md](playground/README.md).
 
 ## Running the tests
 
