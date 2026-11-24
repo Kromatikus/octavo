@@ -64,6 +64,24 @@ See [rust/README.md](rust/README.md) and [rust/CLI.md](rust/CLI.md). The first
 run prints the homemade warning once (a marker file under `$OCTAVO_HOME`, or
 `$XDG_CONFIG_HOME/octavo`, or `~/.config/octavo`).
 
+## Local playground
+
+A small localhost web app in [`playground/`](playground/) lets you try **N2**
+(the default live cipher), experimental **N3**, and a vetted AES-GCM-SIV path
+side by side (text, files, and published test vectors). It binds to
+`127.0.0.1` only and does not write keys to disk automatically.
+
+```bash
+cargo build --release -p octavo-cli --manifest-path rust/Cargo.toml
+cargo build --release --bin n3aead --manifest-path n3/rust/Cargo.toml
+python3 playground/server.py          # http://127.0.0.1:8780/
+python3 -B playground/test_app.py
+```
+
+**Octavo is still homemade; for real secrets use AES-GCM-SIV, age, or libsodium.**
+N3 is experimental and not interchangeable with N2. See
+[playground/README.md](playground/README.md).
+
 ## Running the tests
 
 ```bash
@@ -95,6 +113,7 @@ There is no CI on this repository yet; please run the tests locally.
 | `score/` | Published test vectors (score v11, 79 vectors) and app vectors |
 | `rust/` | Byte-compatible Rust port, `octavo` CLI, earworm MIDI/SID, dudect results |
 | `n3/` | **Experimental** N3 lab snapshot (`octavo_n3_004`). Not the default. Not interchangeable with N2. |
+| `playground/` | Local localhost playground for N2, experimental N3, and a vetted AES-GCM-SIV path |
 | `independent_check/` | From-scratch checker written only from `SPEC.md` |
 | `analysis/` | Reduced-round tests and automated trail-search reports |
 | `ATTACKS.md`, `SECURITY.md` | Known attacks, limitations, how to report a finding |

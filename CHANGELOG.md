@@ -5,6 +5,15 @@ list of every historical revision; those remain in [README.md](README.md).
 
 **Octavo is still homemade; for real secrets use AES-GCM-SIV, age, or libsodium.**
 
+## 2026-11-24
+
+- Added a local localhost playground under [`playground/`](playground/) for
+  trying **N2** (still the default), experimental **N3**, and a vetted
+  AES-256-GCM-SIV path (text, files, and published test vectors). It binds to
+  `127.0.0.1` only and does not write keys to disk automatically.
+- No N2 or N3 cipher code or formats were changed. See
+  [playground/README.md](playground/README.md).
+
 ## 2026-11-23
 
 - Added the experimental N3 lab snapshot (`octavo_n3_004`) under [`n3/`](n3/)

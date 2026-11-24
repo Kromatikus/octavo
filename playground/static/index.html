@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Octavo playground</title>
+  <link rel="icon" href="/logo.png" type="image/png">
+  <style>
+    :root {
+      --bg: #140e0c;
+      --bg-raise: #1e1612;
+      --bg-input: #2a211c;
+      --ink: #f3e6d0;
+      --muted: #b9a58c;
+      --gold: #e0b15a;
+      --gold-dim: #a67c3a;
+      --rose: #c45c4a;
+      --banner: #3a2018;
+      --ok: #8fbf73;
+      --n2: #d4a054;
+      --n3: #d08bb0;
+      --vetted: #7eb8a4;
+      --line: #3d3228;
+      --shadow: rgba(0,0,0,.45);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
+    body {
+      font: 16px/1.5 Georgia, "Iowan Old Style", "Palatino Linotype", Palatino, "Times New Roman", serif;
+      min-height: 100vh;
+      background-image:
+        repeating-linear-gradient(
+          to bottom,
+          transparent 0,
+          transparent 27px,
+          rgba(224,177,90,.07) 28px
+        );
+    }
+    .banner {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: var(--banner);
+      color: #f8e6c8;
+      border-bottom: 2px solid var(--gold);
+      padding: .7rem 1.2rem;
+      text-align: center;
+      font-size: .98rem;
+      letter-spacing: .01em;
+      box-shadow: 0 4px 16px var(--shadow);
+    }
+    .banner strong { color: var(--gold); font-weight: 700; }
+    header.hero {
+      max-width: 920px;
+      margin: 1.4rem auto 0;
+      padding: 0 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 1.1rem;
+    }
+    header.hero img.logo {
+      width: 72px; height: 72px;
+      border-radius: 12px;
+      border: 1px solid var(--gold-dim);
+      box-shadow: 0 2px 10px var(--shadow);
+      background: #000;
+      object-fit: contain;
+    }
+    header.hero h1 {
+      margin: 0;
+      font-size: 2rem;
+      font-weight: 600;
+      letter-spacing: .08em;
+      color: var(--gold);
+    }
+    header.hero p {
+      margin: .15rem 0 0;
+      color: var(--muted);
+      font-style: italic;
+    }
+    main {
+      max-width: 920px;
+      margin: 1.2rem auto 3rem;
+      padding: 0 1.2rem;
+    }
+    .tabs {
+      display: flex;
+      gap: .4rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+    .tabs button {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: var(--bg-raise);
+      color: var(--muted);
+      font: inherit;
+      padding: .45rem .9rem;
+      border-radius: 999px;
+      cursor: pointer;
+      letter-spacing: .02em;
+    }
+    .tabs button[aria-selected="true"] { color: var(--bg); font-weight: 700; }
+    .tabs button[data-engine="n2"][aria-selected="true"] { background: var(--n2); border-color: var(--n2); }
+    .tabs button[data-engine="n3"][aria-selected="true"] { background: var(--n3); border-color: var(--n3); color: #2a1020; }
+    .tabs button[data-engine="vetted"][aria-selected="true"] { background: var(--vetted); border-color: var(--vetted); color: #10201a; }
+    .tabs button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+    .panel {
+      background: var(--bg-raise);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 1rem 1.1rem 1.2rem;
+      box-shadow: 0 8px 28px var(--shadow);
+    }
+    .engine-note {
+      color: var(--muted);
+      font-size: .92rem;
+      margin: 0 0 .9rem;
+    }
+    label {
+      display: block;
+      font-size: .85rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--gold-dim);
+      margin: .7rem 0 .25rem;
+    }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: .6rem;
+      flex-wrap: wrap;
+    }
+    input[type="text"], textarea, select {
+      width: 100%;
+      background: var(--bg-input);
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      padding: .55rem .7rem;
+    }
+    textarea { min-height: 7rem; resize: vertical; }
+    textarea.short { min-height: 3.2rem; }
+    textarea.blob { min-height: 6rem; word-break: break-all; }
+    .hint { color: var(--muted); font-size: .86rem; margin: .25rem 0 .4rem; }
+    .actions { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .85rem; }
+    button.btn, .actions button, .ghost {
+      appearance: none;
+      border: 1px solid var(--gold-dim);
+      background: var(--gold);
+      color: #1a120a;
+      font: 600 15px/1 Georgia, Palatino, serif;
+      padding: .45rem .9rem;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button.btn.secondary, .ghost {
+      background: transparent;
+      color: var(--gold);
+    }
+    button.btn:disabled, .actions button:disabled { opacity: .45; cursor: not-allowed; }
+    button.btn:focus-visible, .actions button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+    .status {
+      margin-top: .8rem;
+      padding: .7rem .8rem;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #18110f;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font: 14px/1.45 ui-monospace, Menlo, Consolas, monospace;
+      display: none;
+    }
+    .status.show { display: block; }
+    .status.ok { border-color: var(--ok); color: var(--ok); }
+    .status.err { border-color: var(--rose); color: #efb0a6; }
+    .bar {
+      display: flex;
+      height: 22px;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      margin: .5rem 0 .4rem;
+      background: #000;
+    }
+    .bar span {
+      display: block;
+      height: 100%;
+      min-width: 4px;
+      cursor: pointer;
+    }
+    .legend { display: flex; flex-wrap: wrap; gap: .45rem .8rem; font-size: .82rem; color: var(--muted); margin-bottom: .4rem; }
+    .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: .3rem; }
+    .sec-version, .sec-magic, .sec-header { background: #8c6b3a; }
+    .sec-pickup, .sec-commit, .sec-chunk_size { background: #6a5340; }
+    .sec-nonce { background: #3d6e8c; }
+    .sec-tag { background: #a15a6c; }
+    .sec-ciphertext { background: #4d7a58; }
+    .sec-rest { background: #555; }
+    .flip-row { display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; margin-top: .5rem; }
+    .flip-row select { width: auto; min-width: 10rem; }
+    audio { width: 100%; margin-top: .4rem; }
+    footer {
+      max-width: 920px;
+      margin: 0 auto 2rem;
+      padding: 0 1.2rem;
+      color: var(--muted);
+      font-size: .88rem;
+    }
+    footer a { color: var(--gold); }
+    dialog.modal {
+      border: 1px solid var(--gold-dim);
+      background: #1a1410;
+      color: var(--ink);
+      border-radius: 12px;
+      padding: 0;
+      max-width: min(96vw, 1100px);
+      width: 1100px;
+    }
+    dialog.modal::backdrop { background: rgba(0,0,0,.65); }
+    .modal-head {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: .7rem 1rem; border-bottom: 1px solid var(--line);
+      color: var(--gold);
+    }
+    .modal-body { padding: .8rem; overflow: auto; max-height: 80vh; }
+    .modal-body img { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+    .downloads a { color: var(--gold); margin-right: 1rem; }
+    .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+
+    .mode-tabs { display: flex; gap: .4rem; flex-wrap: wrap; margin: 0 0 1rem; }
+    .mode-tabs button[aria-selected="true"] { background: var(--gold); color: #1a120a; border-color: var(--gold); font-weight: 700; }
+    .badge { display: inline-block; padding: .1rem .5rem; border-radius: 999px; font: 700 12px/1.4 ui-monospace, Menlo, sans-serif; letter-spacing: .04em; }
+    .badge.pass { background: #2a3d24; color: var(--ok); }
+    .badge.fail { background: #3d2020; color: #efb0a6; }
+    .badge.run { background: #3d3420; color: var(--gold); }
+    #vec-results { width: 100%; border-collapse: collapse; margin-top: .7rem; font-size: .92rem; }
+    #vec-results th, #vec-results td { text-align: left; padding: .35rem .5rem; border-bottom: 1px solid var(--line); }
+    #vec-results th { color: var(--gold-dim); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; font-size: .75rem; }
+    .drop {
+      border: 1px dashed var(--gold-dim);
+      border-radius: 10px;
+      padding: .8rem;
+      color: var(--muted);
+      background: #18110f;
+      margin: .4rem 0 .6rem;
+    }
+    .view { display: none; }
+    .view.active { display: block; }
+  </style>
+</head>
+<body>
+  <div class="banner" role="note">
+    <strong>Octavo is homemade and experimental</strong>
+    — for real secrets use AES-GCM-SIV, age, or libsodium.
+  </div>
+
+  <header class="hero">
+    <img class="logo" src="/logo.png" alt="Octavo logo" width="72" height="72">
+    <div>
+      <h1>OCTAVO</h1>
+      <p>A musical cipher playground — N2, N3, and a vetted mode beside them.</p>
+    </div>
+  </header>
+
+  <main>
+    <div class="mode-tabs tabs" role="tablist" aria-label="Playground section">
+      <button type="button" role="tab" id="mode-text" data-mode="text" aria-selected="true">Text</button>
+      <button type="button" role="tab" id="mode-files" data-mode="files" aria-selected="false">Files</button>
+      <button type="button" role="tab" id="mode-check" data-mode="check" aria-selected="false">Check</button>
+    </div>
+
+    <div class="tabs engine-tabs" role="tablist" aria-label="Cipher engine">
+      <button role="tab" id="tab-n2" data-engine="n2" aria-selected="true">Octavo N2 (live)</button>
+      <button role="tab" id="tab-n3" data-engine="n3" aria-selected="false">Octavo N3 (experimental 0x1C)</button>
+      <button role="tab" id="tab-vetted" data-engine="vetted" aria-selected="false">Vetted (recommended for real secrets)</button>
+    </div>
+
+    <div id="view-text" class="view active">
+    <section class="panel">
+      <p class="engine-note" id="engine-note"></p>
+
+      <div class="row">
+        <label for="key" id="key-label">Key</label>
+        <button class="ghost" type="button" id="btn-keygen">Generate ephemeral key</button>
+      </div>
+      <textarea id="key" class="short" spellcheck="false" autocomplete="off" placeholder="hex key"></textarea>
+      <p class="hint" id="key-hint">Keys stay in memory only. This app never writes them to disk automatically.</p>
+
+      <label for="ad">Associated data <span style="text-transform:none;letter-spacing:0;color:var(--muted)">(authenticated, not stored in the blob)</span></label>
+      <input type="text" id="ad" placeholder="optional">
+
+      <label for="plaintext">Plaintext</label>
+      <textarea id="plaintext" placeholder="Type a short message…">Hello from the Octavo playground.</textarea>
+
+      <div class="actions">
+        <button class="btn" type="button" id="btn-seal">Seal</button>
+        <button class="btn secondary" type="button" id="btn-open">Open</button>
+        <button class="btn secondary" type="button" id="btn-cross">Try opening with N3</button>
+      </div>
+
+      <div id="status" class="status" role="status"></div>
+
+      <label for="blob">Sealed blob (hex)</label>
+      <div class="bar" id="bar" hidden></div>
+      <div class="legend" id="legend"></div>
+      <textarea id="blob" class="blob" spellcheck="false" placeholder="hex blob appears here — or paste one to open"></textarea>
+      <p class="hint" id="blob-meta"></p>
+
+      <div class="flip-row">
+        <label for="flip-section" style="margin:0">Flip 1 bit in</label>
+        <select id="flip-section">
+          <option value="header">header</option>
+          <option value="nonce">nonce</option>
+          <option value="tag">tag</option>
+          <option value="ciphertext">ciphertext</option>
+        </select>
+        <button class="btn secondary" type="button" id="btn-flip">Flip 1 bit</button>
+        <button class="btn secondary" type="button" id="btn-open-tampered">Try opening the flipped blob</button>
+      </div>
+
+      <div id="hear-box" style="margin-top:1.1rem">
+        <label>Hear key (N2)</label>
+        <p class="hint">Plays the official N2 earworm — a short tune derived one-way from the key, so you can check a key by ear. N3 has no music output yet.</p>
+        <button class="btn secondary" type="button" id="btn-hear">Hear key (N2)</button>
+        <audio id="player" controls hidden></audio>
+        <p class="downloads hint" id="hear-links"></p>
+      </div>
+    </section>
+    </div>
+
+    <div id="view-files" class="view">
+      <section class="panel">
+        <p class="engine-note" id="file-engine-note"></p>
+        <label for="file-input">Choose a file</label>
+        <div class="drop">
+          <input type="file" id="file-input">
+          <p class="hint" id="file-chosen">No file chosen yet. Maximum 8 MiB. Associated data is supported for N2 v9, N3, and vetted files.</p>
+        </div>
+        <label for="file-ad">Associated data</label>
+        <input type="text" id="file-ad" placeholder="optional; authenticated, not stored in the file">
+        <div class="actions">
+          <button class="btn" type="button" id="btn-file-seal">Seal file</button>
+          <button class="btn secondary" type="button" id="btn-file-open">Open sealed file</button>
+          <button class="btn secondary" type="button" id="btn-file-cross">Try opening with N3</button>
+        </div>
+        <div id="file-status" class="status" role="status"></div>
+        <label>Sealed file</label>
+        <div class="bar" id="file-bar" hidden></div>
+        <div class="legend" id="file-legend"></div>
+        <p class="hint" id="file-meta"></p>
+        <p class="downloads hint" id="file-downloads"></p>
+        <div class="flip-row">
+          <label for="file-flip-section" style="margin:0">Flip 1 bit in</label>
+          <select id="file-flip-section">
+            <option value="header">header</option>
+            <option value="nonce">nonce</option>
+            <option value="tag">tag</option>
+            <option value="ciphertext">ciphertext</option>
+          </select>
+          <button class="btn secondary" type="button" id="btn-file-flip">Flip 1 bit in sealed file</button>
+          <button class="btn secondary" type="button" id="btn-file-open-tampered">Try opening the flipped file</button>
+        </div>
+      </section>
+    </div>
+
+    <div id="view-check" class="view">
+      <section class="panel">
+        <p class="engine-note">Run the published test vectors for N2 and N3. These are the same checks used in the lab; a pass here is not an outside review, and Octavo is still homemade.</p>
+        <div class="actions">
+          <button class="btn" type="button" data-suite="n2_app" id="btn-vec-app">Run N2 app (6)</button>
+          <button class="btn secondary" type="button" data-suite="n2_score" id="btn-vec-score">Run N2 score (79)</button>
+          <button class="btn secondary" type="button" data-suite="n3" id="btn-vec-n3">Run N3 004 AEAD</button>
+          <button class="btn" type="button" data-suite="all" id="btn-vec-all">Run all</button>
+        </div>
+        <p class="hint">The N2 score suite takes about 15 seconds because one rehearsal vector is 70,000 bytes.</p>
+        <div id="vec-status" class="status" role="status"></div>
+        <table id="vec-results" hidden>
+          <thead><tr><th>Suite</th><th>Result</th><th>Passed</th><th>Time</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </section>
+    </div>
+
+    <p class="actions" style="margin-top:1rem">
+      <button class="ghost" type="button" id="btn-staff">View the staff picture</button>
+      <button class="ghost" type="button" id="btn-logo">View the logo</button>
+    </p>
+  </main>
+
+  <footer>
+    Piece 2 local playground (Text, Files, and Check), bound to 127.0.0.1 only. Nothing is sent off this machine.
+    Octavo is homemade and experimental — for real secrets use AES-GCM-SIV, age, or libsodium.
+  </footer>
+
+  <dialog class="modal" id="modal">
+    <div class="modal-head">
+      <strong id="modal-title">Picture</strong>
+      <button class="ghost" type="button" id="modal-close">Close</button>
+    </div>
+    <div class="modal-body">
+      <img id="modal-img" alt="">
+    </div>
+  </dialog>
+
+<script>
+(function () {
+  const HONEST = "Octavo is homemade and experimental — for real secrets use AES-GCM-SIV, age, or libsodium.";
+  const COLORS = {
+    version: "#8c6b3a", magic: "#8c6b3a", header: "#8c6b3a",
+    pickup: "#6a5340", commit: "#6a5340", chunk_size: "#6a5340",
+    nonce: "#3d6e8c", tag: "#a15a6c", ciphertext: "#4d7a58", rest: "#555"
+  };
+  const state = {
+    engine: "n2",
+    keys: { n2_app: "", n2_seed: "", n3_seed: "", vetted_key: "" },
+    lastHeader: null,
+    vettedLive: false,
+    info: null,
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const keyEl = $("key");
+  const adEl = $("ad");
+  const ptEl = $("plaintext");
+  const blobEl = $("blob");
+  const statusEl = $("status");
+  const noteEl = $("engine-note");
+  const keyLabel = $("key-label");
+  const barEl = $("bar");
+  const legendEl = $("legend");
+  const metaEl = $("blob-meta");
+  const crossBtn = $("btn-cross");
+  const hearBox = $("hear-box");
+  const player = $("player");
+
+  function showStatus(msg, ok) {
+    statusEl.textContent = msg;
+    statusEl.className = "status show " + (ok ? "ok" : "err");
+  }
+  function clearStatus() {
+    statusEl.className = "status";
+    statusEl.textContent = "";
+  }
+
+  async function api(path, body) {
+    const opts = body === undefined
+      ? { headers: { "Accept": "application/json" } }
+      : {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Accept": "application/json" },
+          body: JSON.stringify(body),
+        };
+    const res = await fetch(path, opts);
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); }
+    catch { throw new Error("server returned a non-JSON response"); }
+    if (!res.ok || data.ok === false) {
+      const err = new Error(data.error || data.message || ("HTTP " + res.status));
+      err.data = data;
+      throw err;
+    }
+    return data;
+  }
+
+  function currentKey() {
+    return keyEl.value.replace(/\s+/g, "");
+  }
+
+  function otherEngine() {
+    return state.engine === "n2" ? "n3" : "n2";
+  }
+
+  function engineNotes() {
+    const n2 = "N2 is the live cipher. A 32-byte app key seals a v6 message (up to 127 bytes). Longer text, or a 128-byte seed, uses the v9 rehearsal stream. Cross-opening an N3 blob will be rejected.";
+    const n3 = "N3 is experimental format 0x1C (SN3C/, 16-byte nonce, 32-byte tag, 54-byte overhead). It needs a 128-byte seed. N3 cannot open N2 blobs, and it has no music output yet.";
+    const vetted = state.vettedLive
+      ? "Vetted mode uses real AES-256-GCM-SIV from the Python cryptography library. This is the path to use if a secret actually matters. The playground wraps each message as VGCM || nonce || ciphertext || tag. age is not installed on this box."
+      : "Vetted mode is not live on this box (AES-GCM-SIV / age were not found). Octavo is still not for real secrets.";
+    if (state.engine === "n2") return n2;
+    if (state.engine === "n3") return n3;
+    return vetted;
+  }
+
+  function applyEngine() {
+    document.querySelectorAll(".tabs [role=tab]").forEach((b) => {
+      b.setAttribute("aria-selected", b.dataset.engine === state.engine ? "true" : "false");
+    });
+    noteEl.textContent = engineNotes();
+    const other = otherEngine().toUpperCase();
+    crossBtn.textContent = "Try opening with " + other;
+    crossBtn.disabled = state.engine === "vetted";
+    hearBox.style.display = state.engine === "n2" ? "block" : "none";
+    if (state.engine === "n2") {
+      keyLabel.textContent = "N2 app key (32-byte hex)";
+      keyEl.placeholder = "64 hex digits (32-byte app key). A 256-digit seed also works.";
+      if (state.keys.n2_app) keyEl.value = state.keys.n2_app;
+    } else if (state.engine === "n3") {
+      keyLabel.textContent = "N3 seed (128-byte hex)";
+      keyEl.placeholder = "256 hex digits";
+      if (state.keys.n3_seed) keyEl.value = state.keys.n3_seed;
+    } else {
+      keyLabel.textContent = "Vetted AES-256-GCM-SIV key (32-byte hex)";
+      keyEl.placeholder = "64 hex digits";
+      if (state.keys.vetted_key) keyEl.value = state.keys.vetted_key;
+    }
+  }
+
+  function paintHeader(header) {
+    state.lastHeader = header || null;
+    if (!header || !header.sections) {
+      barEl.hidden = true;
+      legendEl.innerHTML = "";
+      metaEl.textContent = "";
+      return;
+    }
+    const total = header.total_length || 0;
+    barEl.hidden = false;
+    barEl.innerHTML = "";
+    legendEl.innerHTML = "";
+    header.sections.forEach((sec) => {
+      const slice = document.createElement("span");
+      slice.className = "sec-" + sec.name;
+      slice.style.background = COLORS[sec.name] || "#555";
+      slice.style.flex = String(Math.max(sec.length, 1));
+      slice.title = sec.name + " · " + sec.length + " bytes @ " + sec.offset;
+      slice.addEventListener("click", () => {
+        const sel = $("flip-section");
+        if ([].some.call(sel.options, (o) => o.value === sec.name)) sel.value = sec.name;
+        else if (sec.name === "magic" || sec.name === "version" || sec.name === "pickup") sel.value = "header";
+      });
+      barEl.appendChild(slice);
+      const item = document.createElement("span");
+      item.innerHTML = "<i style='background:" + (COLORS[sec.name] || "#555") + "'></i>" +
+        sec.name + " (" + sec.length + "B)";
+      legendEl.appendChild(item);
+    });
+    const bits = [];
+    if (header.magic) bits.push("magic " + header.magic);
+    if (header.version != null) bits.push("version " + (typeof header.version === "number" && header.format === "0x1C" ? "0x" + header.version.toString(16) : header.version));
+    if (header.format) bits.push("format " + header.format);
+    if (header.overhead != null) bits.push("overhead " + header.overhead + " bytes");
+    if (header.ciphertext_length != null) bits.push("ciphertext " + header.ciphertext_length + " bytes");
+    bits.push("total " + total + " bytes");
+    metaEl.textContent = bits.join(" · ");
+  }
+
+  function keyPayload() {
+    const hex = currentKey();
+    const engine = state.engine;
+    if (engine === "n3") return { engine, seed: hex };
+    if (engine === "vetted") return { engine, key: hex };
+    // N2: 128-byte seed (256 hex) uses the v9 CLI; otherwise a v6 app key.
+    if (hex.length === 256) return { engine, seed: hex };
+    return { engine, key: hex };
+  }
+
+  $("btn-keygen").addEventListener("click", async () => {
+    clearStatus();
+    try {
+      const data = await api("/api/keygen", {});
+      state.keys.n2_app = data.n2_app || "";
+      state.keys.n2_seed = data.n2_seed || "";
+      state.keys.n3_seed = data.n3_seed || "";
+      state.keys.vetted_key = data.vetted_key || "";
+      applyEngine();
+      showStatus("Fresh ephemeral keys generated. They live in this page's memory only — nothing was written to disk.\n" + HONEST, true);
+    } catch (e) {
+      showStatus(e.message, false);
+    }
+  });
+
+  $("btn-seal").addEventListener("click", async () => {
+    clearStatus();
+    try {
+      const body = Object.assign(keyPayload(), { plaintext: ptEl.value, ad: adEl.value });
+      const data = await api("/api/seal", body);
+      blobEl.value = data.blob_hex;
+      paintHeader(data.header);
+      const used = data.used ? " via " + data.used : "";
+      showStatus("Sealed" + used + ".\n" + HONEST, true);
+    } catch (e) {
+      showStatus(e.message, false);
+    }
+  });
+
+  async function doOpen(engine, blobHex) {
+    const payload = keyPayload();
+    payload.engine = engine;
+    payload.blob_hex = blobHex;
+    payload.ad = adEl.value;
+    // If we are forcing a cross-engine open, still send the current key/seed
+    // (the other engine should reject the blob, not the key type). For N3
+    // we need a 128-byte seed; fall back to the generated N3 seed if the
+    // current box holds an N2 app key.
+    if (engine === "n3" && payload.seed === undefined) {
+      payload.seed = state.keys.n3_seed || currentKey();
+      delete payload.key;
+    }
+    if (engine === "n2" && payload.key === undefined && payload.seed === undefined) {
+      payload.key = state.keys.n2_app || currentKey();
+    }
+    return api("/api/open", payload);
+  }
+
+  $("btn-open").addEventListener("click", async () => {
+    clearStatus();
+    try {
+      const data = await doOpen(state.engine, blobEl.value.trim());
+      paintHeader(data.header);
+      const text = data.plaintext != null ? data.plaintext : ("(binary, " + (data.plaintext_hex.length / 2) + " bytes)");
+      showStatus("Opened. Plaintext:\n" + text, true);
+    } catch (e) {
+      showStatus("Open failed: " + e.message, false);
+    }
+  });
+
+  crossBtn.addEventListener("click", async () => {
+    clearStatus();
+    const other = otherEngine();
+    try {
+      const data = await doOpen(other, blobEl.value.trim());
+      showStatus("Unexpected: " + other.toUpperCase() + " opened this blob.\n" + (data.plaintext || ""), false);
+    } catch (e) {
+      showStatus(other.toUpperCase() + " rejected this blob, as it should:\n" + e.message, true);
+    }
+  });
+
+  $("btn-flip").addEventListener("click", async () => {
+    clearStatus();
+    try {
+      const data = await api("/api/flip", {
+        blob_hex: blobEl.value.trim(),
+        target: $("flip-section").value,
+      });
+      blobEl.value = data.blob_hex;
+      paintHeader(data.header);
+      showStatus(
+        "Flipped 1 bit in " + (data.section || $("flip-section").value) +
+        " — byte " + data.byte_index + ", bit " + data.bit_in_byte +
+        " (absolute bit " + data.bit_index + "): " +
+        data.original_byte + " → " + data.new_byte + ".\n" +
+        "The sealed message should now fail to open.",
+        true
+      );
+    } catch (e) {
+      showStatus(e.message, false);
+    }
+  });
+
+  $("btn-open-tampered").addEventListener("click", async () => {
+    clearStatus();
+    try {
+      const data = await doOpen(state.engine, blobEl.value.trim());
+      showStatus("Unexpectedly opened after a flip:\n" + (data.plaintext || data.plaintext_hex), false);
+    } catch (e) {
+      showStatus("Open rejected the flipped blob, as it should:\n" + e.message, true);
+    }
+  });
+
+  $("btn-hear").addEventListener("click", async () => {
+    clearStatus();
+    try {
+      const payload = keyPayload();
+      payload.engine = "n2";
+      const data = await api("/api/hear", payload);
+      if (!data.ok) {
+        showStatus(data.error || "hear failed", false);
+        return;
+      }
+      const bytes = Uint8Array.from(atob(data.wav_b64), (c) => c.charCodeAt(0));
+      const url = URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
+      if (player.src && player.src.startsWith("blob:")) URL.revokeObjectURL(player.src);
+      player.src = url;
+      player.hidden = false;
+      const links = $("hear-links");
+      const parts = [
+        '<a download="octavo-earworm.wav" href="' + url + '">Download WAV</a>'
+      ];
+      if (data.midi_b64) {
+        const m = Uint8Array.from(atob(data.midi_b64), (c) => c.charCodeAt(0));
+        const mu = URL.createObjectURL(new Blob([m], { type: "audio/midi" }));
+        parts.push('<a download="octavo-earworm.mid" href="' + mu + '">Download MIDI</a>');
+      }
+      if (data.sid_b64) {
+        const s = Uint8Array.from(atob(data.sid_b64), (c) => c.charCodeAt(0));
+        const su = URL.createObjectURL(new Blob([s], { type: "application/octet-stream" }));
+        parts.push('<a download="octavo-earworm.sid" href="' + su + '">Download SID</a>');
+      }
+      links.innerHTML = parts.join("");
+      showStatus("Earworm ready (" + data.wav_bytes + " byte WAV). This is N2-only, and it is art — not a way to hide a secret.\n" + HONEST, true);
+      player.play().catch(() => {});
+    } catch (e) {
+      showStatus(e.message, false);
+    }
+  });
+
+  document.querySelectorAll(".tabs [role=tab]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.engine = btn.dataset.engine;
+      applyEngine();
+    });
+  });
+
+  function openModal(title, src, alt) {
+    $("modal-title").textContent = title;
+    $("modal-img").src = src;
+    $("modal-img").alt = alt;
+    $("modal").showModal();
+  }
+  $("btn-staff").addEventListener("click", () => {
+    openModal("Octavo N2 staff picture (existing snapshot — not redrawn)", "/sneak-staff-n2.png", "Octavo N2 staff diagram");
+  });
+  $("btn-logo").addEventListener("click", () => {
+    openModal("Octavo logo", "/logo.png", "Octavo logo");
+  });
+  $("modal-close").addEventListener("click", () => $("modal").close());
+  $("modal").addEventListener("click", (ev) => {
+    if (ev.target === $("modal")) $("modal").close();
+  });
+
+
+  const fileStatus = $("file-status");
+  const vecStatus = $("vec-status");
+  const fileState = { blobB64: "", filename: "", header: null, rawName: "" };
+
+  function showBox(el, msg, ok) {
+    el.textContent = msg;
+    el.className = "status show " + (ok ? "ok" : "err");
+  }
+
+  function bytesToB64(bytes) {
+    let s = "";
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      s += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+    }
+    return btoa(s);
+  }
+  function b64ToBytes(b64) {
+    const bin = atob(b64);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  function offerDownload(b64, name, mime) {
+    const url = URL.createObjectURL(new Blob([b64ToBytes(b64)], { type: mime || "application/octet-stream" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    return url;
+  }
+  function paintFileHeader(header) {
+    // Reuse the text-tab painter against the file bar/legend.
+    const oldBar = barEl, oldLeg = legendEl, oldMeta = metaEl;
+    window.__bar = true;
+    const swap = (idBar, idLeg, idMeta, hdr) => {
+      // temporarily point painter... we'll just duplicate a short version:
+    };
+    const bar = $("file-bar"), legend = $("file-legend"), meta = $("file-meta");
+    if (!header || !header.sections) {
+      bar.hidden = true; legend.innerHTML = ""; meta.textContent = "";
+      return;
+    }
+    bar.hidden = false; bar.innerHTML = ""; legend.innerHTML = "";
+    header.sections.forEach((sec) => {
+      const slice = document.createElement("span");
+      slice.className = "sec-" + sec.name;
+      slice.style.background = COLORS[sec.name] || "#555";
+      slice.style.flex = String(Math.max(sec.length, 1));
+      slice.title = sec.name + " · " + sec.length + " bytes @ " + sec.offset;
+      bar.appendChild(slice);
+      const item = document.createElement("span");
+      item.innerHTML = "<i style='background:" + (COLORS[sec.name] || "#555") + "'></i>" + sec.name + " (" + sec.length + "B)";
+      legend.appendChild(item);
+    });
+    const bits = [];
+    if (header.magic) bits.push("magic " + header.magic);
+    if (header.format) bits.push("format " + header.format);
+    if (header.overhead != null) bits.push("overhead " + header.overhead + " bytes");
+    if (header.ciphertext_length != null) bits.push("ciphertext " + header.ciphertext_length + " bytes");
+    if (header.total_length != null) bits.push("total " + header.total_length + " bytes");
+    meta.textContent = bits.join(" · ");
+  }
+
+  async function chosenFile() {
+    const input = $("file-input");
+    if (!input.files || !input.files[0]) throw new Error("Choose a file first.");
+    const f = input.files[0];
+    if (f.size > 8 * 1024 * 1024) throw new Error("File is larger than 8 MiB.");
+    const buf = new Uint8Array(await f.arrayBuffer());
+    fileState.rawName = f.name;
+    $("file-chosen").textContent = f.name + " · " + f.size + " bytes";
+    return { name: f.name, data_b64: bytesToB64(buf), size: f.size };
+  }
+
+  function fileKeyPayload() {
+    const payload = keyPayload();
+    // Files always use v9 for N2 (seed or expanded app key).
+    return payload;
+  }
+
+  function setMode(mode) {
+    state.mode = mode;
+    document.querySelectorAll(".mode-tabs [role=tab]").forEach((b) => {
+      b.setAttribute("aria-selected", b.dataset.mode === mode ? "true" : "false");
+    });
+    ["text", "files", "check"].forEach((m) => {
+      const el = $("view-" + m);
+      if (el) el.classList.toggle("active", m === mode);
+    });
+    document.querySelectorAll(".engine-tabs").forEach((el) => {
+      el.style.display = mode === "check" ? "none" : "flex";
+    });
+    applyEngine();
+  }
+
+  $("file-input").addEventListener("change", () => {
+    const f = $("file-input").files && $("file-input").files[0];
+    $("file-chosen").textContent = f ? (f.name + " · " + f.size + " bytes") : "No file chosen yet. Maximum 8 MiB.";
+  });
+
+  $("btn-file-seal").addEventListener("click", async () => {
+    fileStatus.className = "status";
+    try {
+      const f = await chosenFile();
+      const body = Object.assign(fileKeyPayload(), { filename: f.name, data_b64: f.data_b64, ad: $("file-ad").value });
+      const data = await api("/api/file/seal", body);
+      fileState.blobB64 = data.blob_b64;
+      fileState.filename = data.download_name;
+      fileState.header = data.header;
+      paintFileHeader(data.header);
+      const links = $("file-downloads");
+      links.innerHTML = "";
+      const a = document.createElement("a");
+      a.href = "#";
+      a.textContent = "Download " + data.download_name + " (" + data.sealed_length + " bytes)";
+      a.addEventListener("click", (ev) => { ev.preventDefault(); offerDownload(data.blob_b64, data.download_name); });
+      links.appendChild(a);
+      showBox(fileStatus, "Sealed " + f.name + " (" + data.plaintext_length + " bytes) → " + data.download_name + " (" + data.sealed_length + " bytes, overhead " + data.overhead + ").\n" + HONEST, true);
+    } catch (e) { showBox(fileStatus, e.message, false); }
+  });
+
+  $("btn-file-open").addEventListener("click", async () => {
+    fileStatus.className = "status";
+    try {
+      let payload;
+      if (fileState.blobB64 && !$("file-input").files[0]) {
+        payload = Object.assign(fileKeyPayload(), { filename: fileState.filename || "sealed", data_b64: fileState.blobB64, ad: $("file-ad").value });
+      } else {
+        const f = await chosenFile();
+        payload = Object.assign(fileKeyPayload(), { filename: f.name, data_b64: f.data_b64, ad: $("file-ad").value });
+      }
+      const data = await api("/api/file/open", payload);
+      paintFileHeader(data.header);
+      $("file-downloads").innerHTML = "";
+      const a = document.createElement("a");
+      a.href = "#";
+      a.textContent = "Download restored " + data.download_name + " (" + data.plaintext_length + " bytes)";
+      a.addEventListener("click", (ev) => { ev.preventDefault(); offerDownload(data.plaintext_b64, data.download_name); });
+      $("file-downloads").appendChild(a);
+      showBox(fileStatus, "Opened. Restored " + data.plaintext_length + " bytes as " + data.download_name + ".", true);
+    } catch (e) { showBox(fileStatus, "Open failed: " + e.message, false); }
+  });
+
+  $("btn-file-cross").addEventListener("click", async () => {
+    fileStatus.className = "status";
+    const other = otherEngine();
+    try {
+      const payload = Object.assign(fileKeyPayload(), {
+        engine: other,
+        filename: fileState.filename || "sealed",
+        data_b64: fileState.blobB64,
+        ad: $("file-ad").value,
+      });
+      if (other === "n3" && !payload.seed) payload.seed = state.keys.n3_seed || currentKey();
+      if (other === "n2" && !payload.key && !payload.seed) payload.key = state.keys.n2_app || currentKey();
+      if (!fileState.blobB64) throw new Error("Seal a file first, or the cross-open has nothing to try.");
+      const data = await api("/api/file/open", payload);
+      showBox(fileStatus, "Unexpected: " + other.toUpperCase() + " opened this file.", false);
+    } catch (e) {
+      showBox(fileStatus, other.toUpperCase() + " rejected this file, as it should:\n" + e.message, true);
+    }
+  });
+
+  $("btn-file-flip").addEventListener("click", async () => {
+    fileStatus.className = "status";
+    try {
+      if (!fileState.blobB64) throw new Error("Seal a file first.");
+      const data = await api("/api/file/flip", {
+        data_b64: fileState.blobB64,
+        filename: fileState.filename || "sealed",
+        target: $("file-flip-section").value,
+      });
+      fileState.blobB64 = data.blob_b64;
+      fileState.header = data.header;
+      paintFileHeader(data.header);
+      $("file-downloads").innerHTML = "";
+      const a = document.createElement("a");
+      a.href = "#";
+      a.textContent = "Download flipped " + (data.download_name || "file");
+      a.addEventListener("click", (ev) => { ev.preventDefault(); offerDownload(data.blob_b64, data.download_name || "flipped.bin"); });
+      $("file-downloads").appendChild(a);
+      showBox(fileStatus, "Flipped 1 bit in " + (data.section || $("file-flip-section").value) + " — byte " + data.byte_index + ", bit " + data.bit_in_byte + ". The file should now fail to open.", true);
+    } catch (e) { showBox(fileStatus, e.message, false); }
+  });
+
+  $("btn-file-open-tampered").addEventListener("click", async () => {
+    fileStatus.className = "status";
+    try {
+      if (!fileState.blobB64) throw new Error("Flip a sealed file first.");
+      const payload = Object.assign(fileKeyPayload(), { filename: fileState.filename || "flipped", data_b64: fileState.blobB64, ad: $("file-ad").value });
+      const data = await api("/api/file/open", payload);
+      showBox(fileStatus, "Unexpectedly opened after a flip (" + data.plaintext_length + " bytes).", false);
+    } catch (e) {
+      showBox(fileStatus, "Open rejected the flipped file, as it should:\n" + e.message, true);
+    }
+  });
+
+  function renderSuites(suites) {
+    const table = $("vec-results");
+    const body = table.querySelector("tbody");
+    body.innerHTML = "";
+    table.hidden = false;
+    (suites || []).forEach((s) => {
+      const tr = document.createElement("tr");
+      const badge = s.ok ? '<span class="badge pass">PASS</span>' : '<span class="badge fail">FAIL</span>';
+      tr.innerHTML = "<td>" + (s.label || s.suite) + "</td><td>" + badge + "</td><td>" +
+        s.passed + "/" + s.total + "</td><td>" + s.elapsed_ms + " ms</td>";
+      body.appendChild(tr);
+    });
+  }
+
+  async function runSuite(suite) {
+    vecStatus.className = "status show run";
+    vecStatus.textContent = "Running " + suite + "…";
+    try {
+      const data = await api("/api/vectors/run", { suite: suite });
+      const suites = data.suites || [data];
+      renderSuites(suites);
+      const msg = (data.ok ? "All checks passed. " : "Some checks failed. ") +
+        data.passed + "/" + data.total + " in " + data.elapsed_ms + " ms.\n" + HONEST;
+      showBox(vecStatus, msg, data.ok);
+    } catch (e) { showBox(vecStatus, e.message, false); }
+  }
+  document.querySelectorAll("[data-suite]").forEach((btn) => {
+    btn.addEventListener("click", () => runSuite(btn.dataset.suite));
+  });
+  document.querySelectorAll(".mode-tabs [role=tab]").forEach((btn) => {
+    btn.addEventListener("click", () => setMode(btn.dataset.mode));
+  });
+
+  const _applyEngine = applyEngine;
+  applyEngine = function () {
+    _applyEngine();
+    const fileNote = $("file-engine-note");
+    if (!fileNote) return;
+    if (state.engine === "n2") {
+      fileNote.textContent = "N2 files use the live v9 rehearsal stream via the official octavo CLI. A 32-byte app key is expanded to a 128-byte seed. Associated data is supported. Downloads use the .oct suffix.";
+    } else if (state.engine === "n3") {
+      fileNote.textContent = "N3 files use experimental format 0x1C (SN3C/, 54-byte overhead) via n3aead. A 128-byte seed and optional associated data are required. Downloads use the .n3 suffix. N3 has no music output yet.";
+    } else {
+      fileNote.textContent = state.vettedLive
+        ? "Vetted files use real AES-256-GCM-SIV, wrapped as SIV1 || 12-byte nonce || ciphertext || 16-byte tag. This is the path to use if a secret actually matters. Downloads use the .siv suffix."
+        : "Vetted mode is not live on this box. Octavo is still not for real secrets.";
+    }
+    const cross = $("btn-file-cross");
+    if (cross) {
+      cross.disabled = state.engine === "vetted";
+      cross.textContent = "Try opening with " + (state.engine === "n2" ? "N3" : "N2");
+    }
+  };
+
+    (async function init() {
+    try {
+      const info = await api("/api/info");
+      state.info = info;
+      state.vettedLive = !!(info.vetted && info.vetted.live);
+      if (!state.vettedLive) {
+        $("tab-vetted").textContent = "Vetted (unavailable on this box)";
+      }
+    } catch (e) {
+      showStatus("Could not reach /api/info. Is the local server running?\n" + e.message, false);
+    }
+    applyEngine();
+  })();
+})();
+</script>
+</body>
+</html>
