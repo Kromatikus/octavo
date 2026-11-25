@@ -1044,7 +1044,11 @@ def hear_key(obj: dict) -> dict[str, Any]:
             n3_music.parse_n3_blob(blob)
         except ValueError as e:
             raise AppError(str(e)) from e
-        rendered = n3_music.render(blob)
+        try:
+            style = n3_music.parse_style(obj.get("style") or obj.get("music_style") or "earworm")
+        except ValueError as e:
+            raise AppError(str(e)) from e
+        rendered = n3_music.render(blob, style=style)
         wav, midi, sid = rendered["wav"], rendered["midi"], rendered["sid"]
         if not wav or len(wav) < 12 or wav[:4] != b"RIFF" or wav[8:12] != b"WAVE":
             raise AppError("N3 hear did not return a valid WAV file", 500)
@@ -1058,11 +1062,17 @@ def hear_key(obj: dict) -> dict[str, Any]:
             "content_type": "audio/wav",
             "music_note": (
                 "Display only: the 3-voice tune is derived from the sealed blob "
-                "and is not a way to hide a secret."
+                "and is not a way to hide a secret. style=ultima is original "
+                "music in that chiptune texture, not a copy of any Ultima tune."
             ),
+            "style": rendered.get("style", "earworm"),
         }
         if rendered.get("voices"):
             out["voices"] = rendered["voices"]
+        if rendered.get("mode"):
+            out["mode"] = rendered["mode"]
+        if rendered.get("bpm"):
+            out["bpm"] = rendered["bpm"]
         if midi:
             out["midi_b64"] = _b64(midi)
             out["midi_bytes"] = len(midi)
@@ -1186,8 +1196,11 @@ def api_info() -> dict[str, Any]:
             "music": True,
             "music_note": (
                 "Hear derives a short 3-voice WAV/MIDI/SID tune (melody, bass, "
-                "harmony) from a sealed 0x1C blob. Display only; it does not change the cipher."
+                "harmony) from a sealed 0x1C blob. style=earworm is the default; "
+                "style=ultima is an original Ultima-textured chiptune (not their tunes). "
+                "Display only; it does not change the cipher."
             ),
+            "music_styles": ["earworm", "ultima"],
         },
         "vetted": {
             "label": "Vetted (recommended for real secrets)",

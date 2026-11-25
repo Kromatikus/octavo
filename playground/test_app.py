@@ -391,6 +391,43 @@ def main() -> int:
             expect(mid2 != mid, "different N3 blobs produced the same MIDI")
             expect(sid2 != sid, "different N3 blobs produced the same SID")
 
+        def n3_hear_ultima_style():
+            import base64
+            st, data = http("POST", f"{base}/api/hear", {
+                "engine": "n3",
+                "blob_hex": n3_roundtrip.blob,
+                "style": "ultima",
+            }, timeout=60)
+            expect(st == 200 and data.get("ok"), f"N3 ultima hear failed: {st} {data}")
+            expect(data.get("style") == "ultima", f"expected style ultima, got {data.get('style')}")
+            wav = base64.b64decode(data["wav_b64"])
+            mid = base64.b64decode(data["midi_b64"])
+            sid = base64.b64decode(data["sid_b64"])
+            expect(wav[:4] == b"RIFF" and wav[8:12] == b"WAVE", "ultima WAV header")
+            expect(mid[:4] == b"MThd", "ultima MIDI header")
+            expect(sid[:4] == b"PSID", "ultima SID header")
+            expect(wav != n3_hear_headers.wav, "ultima WAV matched the default earworm")
+            st, again = http("POST", f"{base}/api/hear", {
+                "engine": "n3",
+                "blob_hex": n3_roundtrip.blob,
+                "style": "ultima",
+            }, timeout=60)
+            expect(st == 200 and again.get("ok"), "N3 ultima hear retry failed")
+            expect(base64.b64decode(again["wav_b64"]) == wav, "ultima WAV is not deterministic")
+            st, ear = http("POST", f"{base}/api/hear", {
+                "engine": "n3",
+                "blob_hex": n3_roundtrip.blob,
+                "style": "earworm",
+            }, timeout=60)
+            expect(st == 200 and ear.get("ok"), "explicit earworm style failed")
+            expect(base64.b64decode(ear["wav_b64"]) == n3_hear_headers.wav, "style=earworm should match the default")
+            st, bad = http("POST", f"{base}/api/hear", {
+                "engine": "n3",
+                "blob_hex": n3_roundtrip.blob,
+                "style": "jazz",
+            })
+            expect(st >= 400 and bad.get("ok") is False, f"bad style should be rejected: {st} {bad}")
+
         def n2_v9_seed():
             # Longer message + seed should go through the v9 CLI.
             msg = "A" * 200
@@ -678,6 +715,7 @@ def main() -> int:
         check("N2 hear returns a valid RIFF/WAV; N3 without a blob is rejected", hear_wav)
         check("N3 Hear returns valid WAV, MIDI and PSID headers", n3_hear_headers)
         check("N3 Hear is deterministic; different blobs differ", n3_hear_deterministic)
+        check("N3 Hear ultima style is distinct, deterministic, and optional", n3_hear_ultima_style)
         check("N2 seed path seals/opens a v9 stream", n2_v9_seed)
         check("Vetted AES-GCM-SIV (or honest 501)", vetted_path)
         check("Logo and staff PNGs are served", index_assets)

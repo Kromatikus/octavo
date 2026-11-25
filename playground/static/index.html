@@ -325,6 +325,12 @@
         <label id="hear-label">Hear key (N2)</label>
         <p class="hint" id="hear-hint">Plays the official N2 earworm — a short tune derived one-way from the key, so you can check a key by ear.</p>
         <button class="btn secondary" type="button" id="btn-hear">Hear key (N2)</button>
+        <label id="n3-hear-style-wrap" hidden for="hear-style" style="display:none;margin-top:0.6rem">Style
+          <select id="hear-style">
+            <option value="earworm" selected>Earworm (default)</option>
+            <option value="ultima">Ultima-style (original chiptune, not their tunes)</option>
+          </select>
+        </label>
         <audio id="player" controls hidden></audio>
         <p class="downloads hint" id="hear-links"></p>
       </div>
@@ -497,14 +503,19 @@
     const hearLabel = $("hear-label");
     const hearHint = $("hear-hint");
     const hearBtn = $("btn-hear");
+    const styleWrap = $("n3-hear-style-wrap");
     if (state.engine === "n3") {
       hearLabel.textContent = "Hear blob (N3)";
-      hearHint.textContent = "Plays a short 3-voice N3 earworm (melody, bass, and harmony) derived one-way from the sealed 0x1C blob (the box above). Display only — it does not change the cipher, and it is not a way to hide a secret.";
+      hearHint.textContent = "Plays a short 3-voice tune derived one-way from the sealed 0x1C blob (the box above). Earworm is the default. Ultima-style is original music with a bright lead, pulsing bass and fast arpeggios — it does not use any Ultima III/IV tunes. Display only — it does not change the cipher, and it is not a way to hide a secret.";
       hearBtn.textContent = "Hear blob (N3)";
+      styleWrap.hidden = false;
+      styleWrap.style.display = "block";
     } else {
       hearLabel.textContent = "Hear key (N2)";
       hearHint.textContent = "Plays the official N2 earworm — a short tune derived one-way from the key, so you can check a key by ear.";
       hearBtn.textContent = "Hear key (N2)";
+      styleWrap.hidden = true;
+      styleWrap.style.display = "none";
     }
     if (state.engine === "n2") {
       keyLabel.textContent = "N2 app key (32-byte hex)";
@@ -682,6 +693,7 @@
         const hex = blobEl.value.trim();
         if (!hex) throw new Error("Seal an N3 message first, or paste a 0x1C blob, then Hear it.");
         payload.blob_hex = hex;
+        payload.style = $("hear-style").value || "earworm";
       } else {
         Object.assign(payload, keyPayload());
         payload.engine = "n2";
@@ -691,7 +703,8 @@
         showStatus(data.error || "hear failed", false);
         return;
       }
-      const prefix = data.engine === "n3" ? "octavo-n3-earworm" : "octavo-earworm";
+      const n3style = (data.style || "earworm");
+      const prefix = data.engine === "n3" ? ("octavo-n3-" + n3style) : "octavo-earworm";
       const bytes = Uint8Array.from(atob(data.wav_b64), (c) => c.charCodeAt(0));
       const url = URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
       if (player.src && player.src.startsWith("blob:")) URL.revokeObjectURL(player.src);
@@ -712,7 +725,9 @@
         parts.push('<a download="' + prefix + '.sid" href="' + su + '">Download SID</a>');
       }
       links.innerHTML = parts.join("");
-      const kind = data.engine === "n3" ? "N3 blob earworm (3 voices)" : "N2 key earworm";
+      const kind = data.engine === "n3"
+        ? ("N3 blob " + (data.style === "ultima" ? "Ultima-style" : "earworm") + " (3 voices)")
+        : "N2 key earworm";
       let hearMsg = kind + " ready (" + data.wav_bytes + " byte WAV). This is art — not a way to hide a secret.";
       if (data.voices) hearMsg += "\n" + data.voices;
       else if (data.notes) hearMsg += "\n" + data.notes;

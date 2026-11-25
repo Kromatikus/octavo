@@ -6,6 +6,7 @@ Octavo is still homemade; for real secrets use AES-GCM-SIV, age, or libsodium.
 
 from __future__ import annotations
 
+import hashlib
 import struct
 import sys
 from pathlib import Path
@@ -230,10 +231,107 @@ def main() -> int:
     expect(fmt_r == 1 and ntrks_r == 3, "raw MIDI is not format 1 with 3 tracks")
     check_no_clash(raw["arrangement"], "raw phrase")
 
-    print("PASS  N3 music headers, 3 voices, determinism, and no melody clashes")
+    # Default earworm output must stay byte-identical to commit 728c1e3.
+    GOLDEN = {
+        0: {
+            "wav": "d68def31f135b6c42f5147f01c1fa0071f9bd8eed673e31169be9f8164ca9834",
+            "midi": "9f1f9c2c873e94ebba179c3bd86d23cde796bf2d03dbc015d9f3d910c5feaeb3",
+            "sid": "735c5ed840f6abcea0167b341ada66b0f4693d3c872ac7337ff097b17d6f3dd8",
+        },
+        1: {
+            "wav": "a835bbfc5288f21cacc0747268966db41303760755496ab2bacbf221c31265ea",
+            "midi": "74716eccc27b6c1f638b261dd97713fe1465c051f03d48a17372ab7e7967821d",
+            "sid": "5477d9e46e6876f9bec6affba254ccc293760ad95d7125f8716625f9c3d2e7cc",
+        },
+        2: {
+            "wav": "15575081ccecac620899c72a081dd1f7304e7117a12607b9c33e2503835b335f",
+            "midi": "39f447066645a0aee8198c3b8d9f01a8aeb49129a840366b167f3da032ab55e8",
+            "sid": "e59c5b747d557abfa2a30646bcc7ac13ba90d03b8c784613d0118a70a70ee3cf",
+        },
+        3: {
+            "wav": "754c4c944e5f1169a555d82767e0632e2e98ea820dccb49343121a562e980b6c",
+            "midi": "4b232f7e93a6e5e6ff0f5d07d6214b34817065d0d59075ae596329bfaa5ebb48",
+            "sid": "eb897d6f264bddba0824c814347d605c877460e478d5f54d8e60984d5ccba680",
+        },
+        4: {
+            "wav": "e050959ae10e3faf76d7922a53031b1b5ceb2c7466e54797464ee5050980e515",
+            "midi": "0e68a1ef4004236a9b82629798140972cdc724e8ae157f9324a66572bc1e15fd",
+            "sid": "c3a939f8112a2d61ea0d496534f4af769d260bf7bd8873a8e7c3acaa1d4e9b4d",
+        },
+        5: {
+            "wav": "77eb601a6604ba490deba420255f34ee9a37a99c2342f1a34de24d73510d357f",
+            "midi": "3057274a22c84f474ca0082cf2765b86d740a13fddbb824062ddea64bfc742ff",
+            "sid": "920e3a2a3d990f99680fa52d8760923b8c722647c2230f676a4204a8baaa0d08",
+        },
+    }
+    for i, blob in enumerate(blobs):
+        got = n3_music.render(blob)
+        for key, expect_hash in GOLDEN[i].items():
+            h = hashlib.sha256(got[key]).hexdigest()
+            expect(h == expect_hash, f"vector {i} default {key} changed: {h}")
+        expect(got.get("style", "earworm") == "earworm", "default style should be earworm")
+
+    # Ultima style: original arrangement, 3 voices, no minor-second clashes.
+    u = n3_music.render(a, style="ultima")
+    expect(u["style"] == "ultima", "style flag missing")
+    expect(u["notes"] == VECTOR0_NOTES, f"ultima notes_text changed the published melody: {u['notes']}")
+    expect(u["wav"] != wav, "ultima WAV matched earworm")
+    expect(u["midi"] != mid, "ultima MIDI matched earworm")
+    expect(u["sid"] != sid, "ultima SID matched earworm")
+    expect(u["wav"][:4] == b"RIFF" and u["wav"][8:12] == b"WAVE", "ultima WAV header")
+    expect(u["midi"][:4] == b"MThd", "ultima MIDI header")
+    expect(u["sid"][:4] == b"PSID", "ultima SID header")
+    fmt_u, ntrks_u = midi_format_tracks(u["midi"])
+    expect(fmt_u == 1 and ntrks_u == 3, f"ultima MIDI should be format 1 with 3 tracks, got {fmt_u}/{ntrks_u}")
+    expect(u["midi"].count(b"MTrk") == 3, "ultima MIDI missing 3 MTrk chunks")
+    expect(has_program_changes(u["midi"]) == {0, 1, 2}, "ultima MIDI should program-change channels 0-2")
+    sid_writes_three_freqs(u["sid"])
+    upeak = wav_peak(u["wav"])
+    expect(upeak < 32767, f"ultima WAV peaks at full scale ({upeak})")
+    expect(upeak > 2000, f"ultima WAV is nearly silent (peak {upeak})")
+    expect(130 <= u["bpm"] <= 150, f"ultima bpm {u['bpm']} not in 130-150")
+    again_u = n3_music.render(a, style="ultima")
+    expect(again_u["wav"] == u["wav"] and again_u["midi"] == u["midi"] and again_u["sid"] == u["sid"],
+           "ultima render is not deterministic")
+    other_u = n3_music.render(b, style="ultima")
+    expect(other_u["wav"] != u["wav"], "different blobs produced the same ultima WAV")
+
+    def check_ultima_clash(arr, label):
+        n = n3_music.grid_len(arr)
+        expect(n > 0, f"{label}: empty grid")
+        for t in range(n):
+            m = n3_music._sounding(arr.melody, t)
+            bs = n3_music._sounding(arr.bass, t)
+            h = n3_music._sounding(arr.harmony, t)
+            expect(m is not None and bs is not None and h is not None, f"{label}: gap at {t}")
+            expect(
+                not n3_music.clashes_ultima(bs, m),
+                f"{label}: bass {n3_music.midi_name(bs)} minor-second vs melody {n3_music.midi_name(m)} at {t}",
+            )
+            expect(
+                not n3_music.clashes_ultima(h, m),
+                f"{label}: arp {n3_music.midi_name(h)} minor-second vs melody {n3_music.midi_name(m)} at {t}",
+            )
+
+    check_ultima_clash(u["arrangement"], "ultima vector 0")
+    for i, blob in enumerate(blobs):
+        check_ultima_clash(n3_music.voices_from_blob_ultima(blob), f"ultima vector {i}")
+    for k in range(20):
+        rawb = bytes([k, 0x5A, 0xA5, k * 9 & 0xFF]) + bytes((k * 13 + i) % 256 for i in range(60))
+        check_ultima_clash(n3_music.voices_from_blob_ultima(rawb, raw=True), f"ultima raw {k}")
+
+    try:
+        n3_music.render(a, style="jazz")
+        raise AssertionError("unknown style should be rejected")
+    except ValueError as e:
+        expect("style" in str(e).lower() or "earworm" in str(e).lower(), f"unexpected style error: {e}")
+
+    print("PASS  N3 music headers, 3 voices, determinism, golden earworm, and ultima style")
     print(f"notes (vector 0): {out['notes']}")
     print(out["voices"])
     print(f"WAV {len(wav)} peak {peak}  MIDI {len(mid)}  SID {len(sid)}")
+    print(f"ultima: {u['bpm']} bpm, {u['mode']}")
+    print(u["voices"])
     print("Octavo is still homemade; for real secrets use AES-GCM-SIV, age, or libsodium.")
     return 0
 
