@@ -1,6 +1,6 @@
 # Local Octavo playground
 
-A localhost-only web app for trying **Octavo N2** (the default live cipher), experimental **N3**, and a vetted AES-256-GCM-SIV path side by side: text, files (up to 8 MiB), and published test vectors.
+A localhost-only web app for trying **Octavo N2** (the default live cipher), experimental **N3**, and a vetted AES-256-GCM-SIV path side by side: text, files (up to 8 MiB), and published test vectors. N2 Hear plays a short earworm from the key; N3 Hear plays one from a sealed 0x1C blob (display only).
 
 **Octavo is homemade and experimental — for real secrets use AES-GCM-SIV, age, or libsodium.**
 
@@ -23,7 +23,7 @@ From the repository root:
 
 ```bash
 python3 playground/server.py          # http://127.0.0.1:8780/
-python3 -B playground/test_app.py     # 26 automated checks
+python3 -B playground/test_app.py     # 28 automated checks
 ```
 
 The Python cipher (`sneak_n2.py`, `octavo.py`) and the published vectors in `score/`, `independent_check/`, and `n3/vectors/` are used from this repository. The page also serves the existing `logo.png` and `sneak-staff-n2.png` (not redrawn).

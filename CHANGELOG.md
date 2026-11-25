@@ -11,6 +11,10 @@ list of every historical revision; those remain in [README.md](README.md).
   trying **N2** (still the default), experimental **N3**, and a vetted
   AES-256-GCM-SIV path (text, files, and published test vectors). It binds to
   `127.0.0.1` only and does not write keys to disk automatically.
+- N3 Hear: `n3/python/n3_music.py` renders WAV, MIDI and SID from a sealed
+  0x1C blob by reusing N2's earworm renderer. Display only — the N3 cipher,
+  format, and vectors are unchanged. The playground Hear button works for N3
+  blobs too.
 - No N2 or N3 cipher code or formats were changed. See
   [playground/README.md](playground/README.md).
 

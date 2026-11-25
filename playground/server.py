@@ -30,9 +30,11 @@ from urllib.parse import urlparse
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parent
 sys.path.insert(0, str(REPO_ROOT))
+sys.path.insert(0, str(REPO_ROOT / "n3" / "python"))
 
 import octavo  # noqa: E402
 import sneak_n2 as n2  # noqa: E402
+import n3_music  # noqa: E402
 
 STATIC_DIR = HERE / "static"
 
@@ -1028,14 +1030,46 @@ def flip_blob(obj: dict) -> dict[str, Any]:
 def hear_key(obj: dict) -> dict[str, Any]:
     engine = (obj.get("engine") or "n2").strip().lower()
     if engine == "n3":
-        return {
-            "ok": False,
+        # Display only: a tune from the sealed 0x1C blob, reusing N2's earworm
+        # renderers. This does not change the N3 cipher, format, or vectors.
+        try:
+            blob = _blob_from(obj)
+        except AppError:
+            raise AppError(
+                "N3 Hear needs a sealed 0x1C blob (blob_hex or blob_b64). "
+                "Seal a message first, then Hear the blob. The tune is "
+                "derived from the blob, not the seed, and is not a way to hide a secret."
+            ) from None
+        try:
+            n3_music.parse_n3_blob(blob)
+        except ValueError as e:
+            raise AppError(str(e)) from e
+        rendered = n3_music.render(blob)
+        wav, midi, sid = rendered["wav"], rendered["midi"], rendered["sid"]
+        if not wav or len(wav) < 12 or wav[:4] != b"RIFF" or wav[8:12] != b"WAVE":
+            raise AppError("N3 hear did not return a valid WAV file", 500)
+        out = {
+            "ok": True,
             "warning": HONEST,
             "engine": "n3",
-            "error": "N3 doesn't have music output yet. Hear is N2-only for now.",
+            "notes": rendered["notes"],
+            "wav_b64": _b64(wav),
+            "wav_bytes": len(wav),
+            "content_type": "audio/wav",
+            "music_note": (
+                "Display only: the tune is derived from the sealed blob "
+                "and is not a way to hide a secret."
+            ),
         }
+        if midi:
+            out["midi_b64"] = _b64(midi)
+            out["midi_bytes"] = len(midi)
+        if sid:
+            out["sid_b64"] = _b64(sid)
+            out["sid_bytes"] = len(sid)
+        return out
     if engine == "vetted":
-        raise AppError("Hear is an Octavo N2 feature; the vetted cipher has no earworm.")
+        raise AppError("Hear is an Octavo feature; the vetted cipher has no earworm.")
     if OCTAVO_BIN is None or not Path(OCTAVO_BIN).is_file():
         raise AppError(_cli_help("octavo"), 503)
 
@@ -1147,8 +1181,11 @@ def api_info() -> dict[str, Any]:
             "build": N3_BUILD_CMD,
             "expected": N3_EXPECTED,
             "backends": N3_BACKEND_INFO,
-            "music": False,
-            "music_note": "N3 doesn't have music output yet.",
+            "music": True,
+            "music_note": (
+                "Hear derives a short WAV/MIDI/SID tune from a sealed 0x1C blob "
+                "using the N2 earworm renderer. Display only; it does not change the cipher."
+            ),
         },
         "vetted": {
             "label": "Vetted (recommended for real secrets)",

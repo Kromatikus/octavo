@@ -336,14 +336,60 @@ def main() -> int:
             wav = base64.b64decode(data["wav_b64"])
             expect(wav[:4] == b"RIFF" and wav[8:12] == b"WAVE", f"not a RIFF/WAV: {wav[:16]!r}")
             expect(len(wav) > 44, "WAV is too short")
-            # N3 should decline politely without being a 500.
+            # N3 Hear without a blob should ask for one, not 500.
             st, data = http("POST", f"{base}/api/hear", {
                 "engine": "n3",
                 "seed": n3_roundtrip.seed,
             })
-            expect(st == 200 and data.get("ok") is False, f"N3 hear should decline: {st} {data}")
-            expect("music" in data.get("error", "").lower() or "n3" in data.get("error", "").lower(),
-                   f"unexpected N3 hear message: {data}")
+            expect(st >= 400 and data.get("ok") is False, f"N3 hear without a blob should fail: {st} {data}")
+            err = (data.get("error") or "").lower()
+            expect("blob" in err or "0x1c" in err, f"unexpected N3 missing-blob message: {data}")
+
+        def n3_hear_headers():
+            import base64
+            st, data = http("POST", f"{base}/api/hear", {
+                "engine": "n3",
+                "blob_hex": n3_roundtrip.blob,
+            }, timeout=60)
+            expect(st == 200 and data.get("ok"), f"N3 hear failed: {st} {data}")
+            wav = base64.b64decode(data["wav_b64"])
+            mid = base64.b64decode(data["midi_b64"])
+            sid = base64.b64decode(data["sid_b64"])
+            expect(wav[:4] == b"RIFF" and wav[8:12] == b"WAVE", f"N3 WAV header: {wav[:16]!r}")
+            expect(len(wav) > 44, "N3 WAV is too short")
+            expect(mid[:4] == b"MThd", f"N3 MIDI header: {mid[:16]!r}")
+            expect(sid[:4] == b"PSID", f"N3 SID header: {sid[:16]!r}")
+            expect(int.from_bytes(sid[4:6], "big") == 2, "N3 SID version should be 2")
+            n3_hear_headers.wav = wav
+            n3_hear_headers.mid = mid
+            n3_hear_headers.sid = sid
+
+        def n3_hear_deterministic():
+            import base64
+            st, data = http("POST", f"{base}/api/hear", {
+                "engine": "n3",
+                "blob_hex": n3_roundtrip.blob,
+            }, timeout=60)
+            expect(st == 200 and data.get("ok"), f"N3 hear retry failed: {st} {data}")
+            wav = base64.b64decode(data["wav_b64"])
+            mid = base64.b64decode(data["midi_b64"])
+            sid = base64.b64decode(data["sid_b64"])
+            expect(wav == n3_hear_headers.wav, "N3 WAV is not deterministic")
+            expect(mid == n3_hear_headers.mid, "N3 MIDI is not deterministic")
+            expect(sid == n3_hear_headers.sid, "N3 SID is not deterministic")
+            flipped = bytearray(bytes.fromhex(n3_roundtrip.blob))
+            flipped[-1] ^= 0x01
+            st, other = http("POST", f"{base}/api/hear", {
+                "engine": "n3",
+                "blob_hex": flipped.hex(),
+            }, timeout=60)
+            expect(st == 200 and other.get("ok"), f"N3 hear (other blob) failed: {st} {other}")
+            wav2 = base64.b64decode(other["wav_b64"])
+            mid2 = base64.b64decode(other["midi_b64"])
+            sid2 = base64.b64decode(other["sid_b64"])
+            expect(wav2 != wav, "different N3 blobs produced the same WAV")
+            expect(mid2 != mid, "different N3 blobs produced the same MIDI")
+            expect(sid2 != sid, "different N3 blobs produced the same SID")
 
         def n2_v9_seed():
             # Longer message + seed should go through the v9 CLI.
@@ -629,7 +675,9 @@ def main() -> int:
         check("N3 header/nonce/ciphertext bit-flips are rejected", n3_section_flips)
         check("Cross-open N2↔N3 is rejected both ways", cross_open)
         check("All-zero and wrong-length keys are rejected", bad_keys)
-        check("N2 hear returns a valid RIFF/WAV; N3 declines", hear_wav)
+        check("N2 hear returns a valid RIFF/WAV; N3 without a blob is rejected", hear_wav)
+        check("N3 Hear returns valid WAV, MIDI and PSID headers", n3_hear_headers)
+        check("N3 Hear is deterministic; different blobs differ", n3_hear_deterministic)
         check("N2 seed path seals/opens a v9 stream", n2_v9_seed)
         check("Vetted AES-GCM-SIV (or honest 501)", vetted_path)
         check("Logo and staff PNGs are served", index_assets)

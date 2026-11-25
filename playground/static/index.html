@@ -322,8 +322,8 @@
       </div>
 
       <div id="hear-box" style="margin-top:1.1rem">
-        <label>Hear key (N2)</label>
-        <p class="hint">Plays the official N2 earworm — a short tune derived one-way from the key, so you can check a key by ear. N3 has no music output yet.</p>
+        <label id="hear-label">Hear key (N2)</label>
+        <p class="hint" id="hear-hint">Plays the official N2 earworm — a short tune derived one-way from the key, so you can check a key by ear.</p>
         <button class="btn secondary" type="button" id="btn-hear">Hear key (N2)</button>
         <audio id="player" controls hidden></audio>
         <p class="downloads hint" id="hear-links"></p>
@@ -476,7 +476,7 @@
 
   function engineNotes() {
     const n2 = "N2 is the live cipher. A 32-byte app key seals a v6 message (up to 127 bytes). Longer text, or a 128-byte seed, uses the v9 rehearsal stream. Cross-opening an N3 blob will be rejected.";
-    const n3 = "N3 is experimental format 0x1C (SN3C/, 16-byte nonce, 32-byte tag, 54-byte overhead). It needs a 128-byte seed. N3 cannot open N2 blobs, and it has no music output yet.";
+    const n3 = "N3 is experimental format 0x1C (SN3C/, 16-byte nonce, 32-byte tag, 54-byte overhead). It needs a 128-byte seed. N3 cannot open N2 blobs. Hear plays a short tune derived from the sealed blob — display only, not a way to hide a secret.";
     const vetted = state.vettedLive
       ? "Vetted mode uses real AES-256-GCM-SIV from the Python cryptography library. This is the path to use if a secret actually matters. The playground wraps each message as VGCM || nonce || ciphertext || tag. age is not installed on this box."
       : "Vetted mode is not live on this box (AES-GCM-SIV / age were not found). Octavo is still not for real secrets.";
@@ -493,7 +493,19 @@
     const other = otherEngine().toUpperCase();
     crossBtn.textContent = "Try opening with " + other;
     crossBtn.disabled = state.engine === "vetted";
-    hearBox.style.display = state.engine === "n2" ? "block" : "none";
+    hearBox.style.display = (state.engine === "n2" || state.engine === "n3") ? "block" : "none";
+    const hearLabel = $("hear-label");
+    const hearHint = $("hear-hint");
+    const hearBtn = $("btn-hear");
+    if (state.engine === "n3") {
+      hearLabel.textContent = "Hear blob (N3)";
+      hearHint.textContent = "Plays a short N3 earworm derived one-way from the sealed 0x1C blob (the box above), using the same WAV, MIDI and SID renderer as N2. Display only — it does not change the cipher, and it is not a way to hide a secret.";
+      hearBtn.textContent = "Hear blob (N3)";
+    } else {
+      hearLabel.textContent = "Hear key (N2)";
+      hearHint.textContent = "Plays the official N2 earworm — a short tune derived one-way from the key, so you can check a key by ear.";
+      hearBtn.textContent = "Hear key (N2)";
+    }
     if (state.engine === "n2") {
       keyLabel.textContent = "N2 app key (32-byte hex)";
       keyEl.placeholder = "64 hex digits (32-byte app key). A 256-digit seed also works.";
@@ -664,13 +676,22 @@
   $("btn-hear").addEventListener("click", async () => {
     clearStatus();
     try {
-      const payload = keyPayload();
-      payload.engine = "n2";
+      const payload = {};
+      if (state.engine === "n3") {
+        payload.engine = "n3";
+        const hex = blobEl.value.trim();
+        if (!hex) throw new Error("Seal an N3 message first, or paste a 0x1C blob, then Hear it.");
+        payload.blob_hex = hex;
+      } else {
+        Object.assign(payload, keyPayload());
+        payload.engine = "n2";
+      }
       const data = await api("/api/hear", payload);
       if (!data.ok) {
         showStatus(data.error || "hear failed", false);
         return;
       }
+      const prefix = data.engine === "n3" ? "octavo-n3-earworm" : "octavo-earworm";
       const bytes = Uint8Array.from(atob(data.wav_b64), (c) => c.charCodeAt(0));
       const url = URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
       if (player.src && player.src.startsWith("blob:")) URL.revokeObjectURL(player.src);
@@ -678,20 +699,21 @@
       player.hidden = false;
       const links = $("hear-links");
       const parts = [
-        '<a download="octavo-earworm.wav" href="' + url + '">Download WAV</a>'
+        '<a download="' + prefix + '.wav" href="' + url + '">Download WAV</a>'
       ];
       if (data.midi_b64) {
         const m = Uint8Array.from(atob(data.midi_b64), (c) => c.charCodeAt(0));
         const mu = URL.createObjectURL(new Blob([m], { type: "audio/midi" }));
-        parts.push('<a download="octavo-earworm.mid" href="' + mu + '">Download MIDI</a>');
+        parts.push('<a download="' + prefix + '.mid" href="' + mu + '">Download MIDI</a>');
       }
       if (data.sid_b64) {
         const s = Uint8Array.from(atob(data.sid_b64), (c) => c.charCodeAt(0));
         const su = URL.createObjectURL(new Blob([s], { type: "application/octet-stream" }));
-        parts.push('<a download="octavo-earworm.sid" href="' + su + '">Download SID</a>');
+        parts.push('<a download="' + prefix + '.sid" href="' + su + '">Download SID</a>');
       }
       links.innerHTML = parts.join("");
-      showStatus("Earworm ready (" + data.wav_bytes + " byte WAV). This is N2-only, and it is art — not a way to hide a secret.\n" + HONEST, true);
+      const kind = data.engine === "n3" ? "N3 blob earworm" : "N2 key earworm";
+      showStatus(kind + " ready (" + data.wav_bytes + " byte WAV). This is art — not a way to hide a secret.\n" + HONEST, true);
       player.play().catch(() => {});
     } catch (e) {
       showStatus(e.message, false);
@@ -963,7 +985,7 @@
     if (state.engine === "n2") {
       fileNote.textContent = "N2 files use the live v9 rehearsal stream via the official octavo CLI. A 32-byte app key is expanded to a 128-byte seed. Associated data is supported. Downloads use the .oct suffix.";
     } else if (state.engine === "n3") {
-      fileNote.textContent = "N3 files use experimental format 0x1C (SN3C/, 54-byte overhead) via n3aead. A 128-byte seed and optional associated data are required. Downloads use the .n3 suffix. N3 has no music output yet.";
+      fileNote.textContent = "N3 files use experimental format 0x1C (SN3C/, 54-byte overhead) via n3aead. A 128-byte seed and optional associated data are required. Downloads use the .n3 suffix. Hear on the text tab can play a sealed 0x1C blob.";
     } else {
       fileNote.textContent = state.vettedLive
         ? "Vetted files use real AES-256-GCM-SIV, wrapped as SIV1 || 12-byte nonce || ciphertext || 16-byte tag. This is the path to use if a secret actually matters. Downloads use the .siv suffix."

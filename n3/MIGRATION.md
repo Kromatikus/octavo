@@ -76,6 +76,8 @@ N2's published score, etudes, `key_sig`, and `rehearsal_sig` are N2-only. They w
 
 The later local command `octavo hear --midi` sings an earworm derived from N2 `key_sig`. A new N3 seed has no `key_sig` and no earworm in 004. Even if you reused the 128 N2 seed bytes in N3, the N2 tune still comes from N2's signature sponge, not from N3. Migrating means that music-side output does not come along.
 
+The live repository now ships a separate presentation tool, `n3/python/n3_music.py`, which derives a WAV/MIDI/SID earworm from a sealed 0x1C blob using the N2 renderer. That is display only: it is not in the 004 freeze, and it does not migrate N2 scores or change any N3 ciphertext.
+
 ## Security comparison (in-house, not a proof)
 
 | | Live N2 (`octavo018`) | N3 (`octavo_n3_004`) |

@@ -24,7 +24,7 @@ See [SECURITY.md](SECURITY.md) and [ATTACKS.md](ATTACKS.md).
 ## Try it in the playground
 
 A local browser playground under [`playground/`](playground/) lets you try
-**N2** (v6, v9, and Hear WAV/MIDI/SID), experimental **N3** (format 0x1C),
+**N2** (v6, v9, and Hear WAV/MIDI/SID), experimental **N3** (format 0x1C, plus Hear from a sealed blob),
 and AES-256-GCM-SIV side by side. Keys are ephemeral (generated in memory
 and not written to disk automatically). There is a 1-bit-flip demo, a Files
 tab, and a Check tab that runs published test vectors. The server runs only
