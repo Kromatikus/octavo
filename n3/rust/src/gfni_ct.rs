@@ -3,8 +3,10 @@
 // (computed once from the key's bridge permutation) are secret, and they
 // are applied with AND/XOR, no key-dependent loads, stores, or branches.
 
+#[cfg(test)]
 const BITONIC_STAGES: usize = 21; // 1+2+...+6 for n=64
 
+#[cfg(test)]
 fn bitonic_masks(dest: &[u8; 64]) -> [u32; BITONIC_STAGES] {
     let mut d = *dest;
     let mut masks = [0u32; BITONIC_STAGES];
@@ -38,6 +40,7 @@ fn bitonic_masks(dest: &[u8; 64]) -> [u32; BITONIC_STAGES] {
     masks
 }
 
+#[cfg(test)]
 fn invert_perm64(p: &[u8; 64]) -> [u8; 64] {
     let mut inv = [0u8; 64];
     for i in 0..64 {
@@ -47,6 +50,7 @@ fn invert_perm64(p: &[u8; 64]) -> [u8; 64] {
 }
 
 /// gather[i] = in[π[i]], scatter puts them back: out[π[i]] = gathered[i].
+#[cfg(test)]
 fn bridge_bitonic_masks(pi: &[u8; 64]) -> ([u32; BITONIC_STAGES], [u32; BITONIC_STAGES]) {
     let inv = invert_perm64(pi);
     (bitonic_masks(&inv), bitonic_masks(pi))
@@ -80,6 +84,7 @@ fn bitonic_apply_u8(v: &mut [u8; 64], masks: &[u32; BITONIC_STAGES]) {
 }
 
 
+#[cfg(test)]
 /// 8x8 transpose of the 64-bit lanes in eight ZMM registers, via a
 /// three-level vpermt2q merge. Addresses and indices are public.
 #[inline]
@@ -119,6 +124,7 @@ unsafe fn transpose_8x8_epi64(v: &mut [__m512i; 8]) {
     v[7] = _mm512_permutex2var_epi64(abcd_67, q8_hi, efgh_67);
 }
 
+#[cfg(test)]
 /// In-place 8x8 byte transpose of each 8x8 tile in eight ZMM rows.
 /// Packs each 8-byte column-group with an 8x8 qword transpose, VPERMBs
 /// with a fixed 8x8 byte pattern, and unpacks the same way.
@@ -147,6 +153,7 @@ unsafe fn transpose_8x8_tiles_epi8(r: &mut [__m512i; 8]) {
     transpose_8x8_epi64(r);
 }
 
+#[cfg(test)]
 /// 64x64 byte transpose of 64 ZMM rows. First an 8x8 byte transpose inside
 /// each 8-byte tile, then an 8x8 qword transpose of the tile grid (64-byte
 /// / 8-byte lanes). All addresses and permute indices are public. An involution.
@@ -173,18 +180,6 @@ unsafe fn transpose_64x64_z(m: &mut [__m512i; 64]) {
             m[8 * g + r0] = t[g];
         }
     }
-}
-
-/// Permute 64 position-registers with a public-address 64x64 transpose,
-/// a VPERMB against a key-derived index vector, and a transpose back.
-#[inline]
-#[target_feature(enable = "gfni,avx512f,avx512bw,avx512vl,avx512vbmi,ssse3,avx2")]
-unsafe fn permute_regs_z(v: &mut [__m512i; 64], idx: __m512i) {
-    transpose_64x64_z(v);
-    for b in 0..64 {
-        v[b] = _mm512_permutexvar_epi8(idx, v[b]);
-    }
-    transpose_64x64_z(v);
 }
 
 #[inline]

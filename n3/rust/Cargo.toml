@@ -6,37 +6,49 @@ description = "Octavo N3 draft-3 block function (lab only, not for real secrets)
 publish = false
 license = "MIT"
 
+[features]
+default = []
+# Lab-only CLIs (n3draft, benches, dudect). n3aead stays in the default build.
+lab = []
+
 [dependencies]
 sha2 = "0.10"
-
-[[bin]]
-name = "n3draft"
-path = "src/bin/n3draft.rs"
-
-[[bin]]
-name = "n3bench"
-path = "src/bin/n3bench.rs"
-
-[[bin]]
-name = "n3dudect"
-path = "src/bin/n3dudect.rs"
-
-[[bin]]
-name = "n3fbbench"
-path = "src/bin/n3fbbench.rs"
-
-[[bin]]
-name = "n3setupprof"
-path = "src/bin/n3setupprof.rs"
-
-[[bin]]
-name = "n3dudect_tag"
-path = "src/bin/n3dudect_tag.rs"
 
 [[bin]]
 name = "n3aead"
 path = "src/bin/n3aead.rs"
 
 [[bin]]
+name = "n3draft"
+path = "src/bin/n3draft.rs"
+required-features = ["lab"]
+
+[[bin]]
+name = "n3bench"
+path = "src/bin/n3bench.rs"
+required-features = ["lab"]
+
+[[bin]]
+name = "n3dudect"
+path = "src/bin/n3dudect.rs"
+required-features = ["lab"]
+
+[[bin]]
+name = "n3fbbench"
+path = "src/bin/n3fbbench.rs"
+required-features = ["lab"]
+
+[[bin]]
+name = "n3setupprof"
+path = "src/bin/n3setupprof.rs"
+required-features = ["lab"]
+
+[[bin]]
+name = "n3dudect_tag"
+path = "src/bin/n3dudect_tag.rs"
+required-features = ["lab"]
+
+[[bin]]
 name = "n3dudect_setup"
 path = "src/bin/n3dudect_setup.rs"
+required-features = ["lab"]

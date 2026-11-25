@@ -55,7 +55,7 @@ unsafe fn benes_route(src: &[u8; 64]) -> [u32; BENES_WORDS] {
 
 #[target_feature(enable = "avx512f,avx512bw,avx512vbmi,bmi1,bmi2")]
 unsafe fn benes_route_hw(src: &[u8; 64]) -> [u32; BENES_WORDS] {
-    benes_route_core(src, |x, m| unsafe { _pext_u64(x, m) })
+    benes_route_core(src, |x, m| _pext_u64(x, m))
 }
 
 #[target_feature(enable = "avx512f,avx512bw,avx512vbmi,bmi1")]

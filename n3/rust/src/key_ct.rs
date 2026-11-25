@@ -4,6 +4,7 @@
 
 use crate::gf;
 use crate::sbox_aff::KeyedSbox;
+#[cfg(test)]
 use crate::SM4_SBOX;
 
 pub(crate) const GL2_LEN: usize = 72; // 4 (L) + 4 (U) + 8*8 (row-perm tags)
@@ -140,6 +141,7 @@ pub(crate) fn bitmat_mul(a: &[u8; 8], b: &[u8; 8]) -> [u8; 8] {
     c
 }
 
+#[cfg(test)]
 pub(crate) fn bitmat_apply_ct(rows: &[u8; 8], x: u8) -> u8 {
     let mut out = 0u8;
     for i in 0..8 {

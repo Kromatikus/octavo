@@ -31,6 +31,14 @@ cd rust
 ~/.cargo/bin/cargo build --release --bin n3aead
 ```
 
+Lab-only tools (`n3draft`, `n3bench`, `n3fbbench`, `n3setupprof`, `n3dudect`,
+`n3dudect_tag`, `n3dudect_setup`) are not part of the default build. Build
+them with the `lab` feature:
+
+```bash
+~/.cargo/bin/cargo build --release --features lab
+```
+
 Override the backend with `OCTAVO_N3_BACKEND=avx512gfni|avx2gfni|avx2|portable`
 (`table` is a non-constant-time test path and is never auto-selected).
 

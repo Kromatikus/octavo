@@ -256,8 +256,6 @@ impl FbKey {
 pub(crate) trait Ops {
     type V: Copy;
     type Pre: Copy;
-    /// Blocks per pass.
-    const N: usize;
     unsafe fn splat(x: u64) -> Self::V;
     unsafe fn xor(a: Self::V, b: Self::V) -> Self::V;
     unsafe fn and(a: Self::V, b: Self::V) -> Self::V;
@@ -559,7 +557,6 @@ pub(crate) struct Swar64;
 impl Ops for Swar64 {
     type V = u64;
     type Pre = [u64; 8];
-    const N: usize = 1;
     #[inline(always)]
     unsafe fn splat(x: u64) -> u64 {
         x
@@ -660,7 +657,6 @@ pub(crate) mod avx2 {
     macro_rules! common_ops {
         () => {
             type V = __m256i;
-            const N: usize = 4;
             #[inline(always)]
             unsafe fn splat(x: u64) -> __m256i {
                 _mm256_set1_epi64x(x as i64)

@@ -247,46 +247,6 @@ unsafe fn slice64_chord(pos: &mut [__m512i; 128], inv: bool) {
 
 #[inline]
 #[target_feature(enable = "gfni,avx512f,avx512bw,avx512vl,avx512vbmi,ssse3,avx2")]
-unsafe fn slice64_bridges(pos: &mut [__m512i; 128], rk: &RoundK, c: &Consts, inv: bool) {
-    // Align shell-1 with a public-address 64x64 transpose + VPERMB, mix
-    // adjacent pairs, then scatter back. No key-dependent loads or stores.
-    let (lo, hi) = pos.split_at_mut(64);
-    let lo: &mut [__m512i; 64] = lo.try_into().unwrap();
-    let hi: &mut [__m512i; 64] = hi.try_into().unwrap();
-    permute_regs_z(hi, loadz(rk.br_idx.as_ptr()));
-    for cidx in 0..64 {
-        let (a, b) = if rk.even {
-            (lo[cidx], hi[cidx])
-        } else {
-            (hi[cidx], lo[cidx])
-        };
-        if !inv {
-            let a2 = _mm512_xor_si512(a, b);
-            let b2 = _mm512_xor_si512(a, aff512(b, c.m2));
-            if rk.even {
-                lo[cidx] = a2;
-                hi[cidx] = b2;
-            } else {
-                hi[cidx] = a2;
-                lo[cidx] = b2;
-            }
-        } else {
-            let v = aff512(_mm512_xor_si512(a, b), c.minv3);
-            let u = _mm512_xor_si512(a, v);
-            if rk.even {
-                lo[cidx] = u;
-                hi[cidx] = v;
-            } else {
-                hi[cidx] = u;
-                lo[cidx] = v;
-            }
-        }
-    }
-    permute_regs_z(hi, loadz(rk.br_inv.as_ptr()));
-}
-
-#[inline]
-#[target_feature(enable = "gfni,avx512f,avx512bw,avx512vl,avx512vbmi,ssse3,avx2")]
 unsafe fn slice64_trip_bow(pos: &mut [__m512i; 128], c: &Consts, inv: bool) {
     for f in 0..16 {
         let mut v = [_mm512_setzero_si512(); 8];

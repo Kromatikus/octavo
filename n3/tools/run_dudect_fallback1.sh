@@ -1,5 +1,7 @@
 #!/bin/bash
 # fallback1 dudect: 30 s each, sequential. Usage: run_dudect_fallback1.sh
+# Build the probe with: cargo build --release --features lab --bin n3dudect
+# (n3dudect is a lab-only binary; the default release build is just n3aead).
 set -e
 cd /workspace/octavo_n3_fallback1/rust
 OUT=/workspace/octavo_n3_fallback1/results/fallback1

@@ -179,7 +179,7 @@ pub(crate) fn hw_pext_ok() -> bool {
 #[cfg(target_arch = "x86_64")]
 pub(crate) fn amd_slow_pext() -> bool {
     use core::arch::x86_64::__cpuid;
-    let v = unsafe { __cpuid(0) };
+    let v = __cpuid(0);
     let mut vendor = [0u8; 12];
     vendor[0..4].copy_from_slice(&v.ebx.to_le_bytes());
     vendor[4..8].copy_from_slice(&v.edx.to_le_bytes());
@@ -188,7 +188,7 @@ pub(crate) fn amd_slow_pext() -> bool {
     if !amd {
         return false;
     }
-    let l1 = unsafe { __cpuid(1) };
+    let l1 = __cpuid(1);
     let base = (l1.eax >> 8) & 0xF;
     let ext = (l1.eax >> 20) & 0xFF;
     let family = if base == 0xF { base + ext } else { base };

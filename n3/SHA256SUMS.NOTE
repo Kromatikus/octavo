@@ -13,8 +13,14 @@ here.
 
 `README.md` in this folder is the experimental repo README, not the freeze
 README, so its hash will not match `SHA256SUMS`. `MIGRATION.md`,
-`migrate.py`, and this note are new and are not in the freeze list. Every
-other file that is present should still match its listed hash:
+`migrate.py`, and this note are new and are not in the freeze list.
+
+After the N3 Rust cleanup pass (unused code gated or removed; lab CLIs
+behind `--features lab`), files under `rust/` also no longer match the
+frozen 004 checksums. The cipher, 0x1C format, and test vectors are
+unchanged.
+
+Every other file that is present should still match its listed hash:
 
 ```
 cd n3 && grep '  \./rust/src/lib.rs$' SHA256SUMS | sha256sum -c

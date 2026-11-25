@@ -37,7 +37,7 @@ def build_rust() -> Path:
     env = dict(**__import__("os").environ)
     env["CARGO_TARGET_DIR"] = str(TARGET)
     subprocess.check_call(
-        ["cargo", "build", "--release", "--bin", "n3draft"],
+        ["cargo", "build", "--release", "--features", "lab", "--bin", "n3draft"],
         cwd=CARGO_DIR,
         env=env,
     )

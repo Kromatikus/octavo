@@ -353,6 +353,7 @@ fn bitmat_apply(rows: &[u8; 8], x: u8) -> u8 {
     out
 }
 
+#[cfg(test)]
 fn bitmat_invertible(rows: &[u8; 8]) -> bool {
     let mut work = *rows;
     let mut rank = 0;
