@@ -1,13 +1,22 @@
 #!/usr/bin/env python3
 """N3 earworm: WAV / MIDI / SID from a sealed 0x1C blob (display only).
 
-The tune is derived one-way from the blob bytes with the same 16-note mapping
-and the same WAV, MIDI and PSID renderers as N2's `octavo hear` earworm. It
-does not use the N3 seed, does not call the N3 cipher, and cannot change a
-0x1C blob or its test vectors.
+The melody is derived one-way from the blob with the same 16-note mapping as
+before:
 
   digest = SHA-256(b"Octavo N3 earworm v1" || blob)
   16 notes from digest[:16], C-major pentatonic, same length rule as N2
+
+Bass and harmony are a second, also deterministic arrangement:
+
+  voices = SHA-256(b"Octavo N3 earworm v1" || b"voices" || blob)
+
+All three parts stay on the C major pentatonic. Bass plays slow roots
+(half or whole notes, one or two octaves down) of a compact I–vi–IV–V-ish
+progression and only moves on strong beats. Harmony plays quieter chord
+tones (3rds / 5ths / octaves) that do not form a second against the
+melody. This does not use the N3 seed, does not call the N3 cipher, and
+cannot change a 0x1C blob or its test vectors.
 
 Octavo is still homemade; for real secrets use AES-GCM-SIV, age, or libsodium.
 """
@@ -19,13 +28,14 @@ import hashlib
 import math
 import os
 import sys
-from typing import Iterable, List, Optional, Sequence, Tuple
+from typing import Iterable, List, NamedTuple, Optional, Sequence, Tuple
 
 HONEST = (
     "Octavo is still homemade; for real secrets use AES-GCM-SIV, age, or libsodium."
 )
 
 DOMAIN = b"Octavo N3 earworm v1"
+VOICES_TAG = b"voices"
 
 N3_MAGIC = b"SN3C/"
 N3_FORMAT = 0x1C
@@ -34,10 +44,32 @@ N3_OVERHEAD = 54  # SN3C/ (5) + 0x1C (1) + nonce (16) + tag (32)
 NAMES = ["C4", "D4", "E4", "G4", "A4", "C5", "D5", "E5", "G5", "A5"]
 # MIDI note numbers of the 10 earworm pitches (C4 = 60). Same table as N2 earworm.rs.
 MIDI = [60, 62, 64, 67, 69, 72, 74, 76, 79, 81]
-DEFAULT_PROGRAM = 0
+PITCH_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+PENTATONIC_PCS = (0, 2, 4, 7, 9)  # C D E G A
+
+# I (C–E–G), vi (A–C–E), IV-ish (D–G–A, a pentatonic II/IV), V (G–D–E, no B).
+# Each tuple is (root pc, chord-tone pcs). Tones after the root are the
+# 3rd / 5th / color tones used by the harmony line.
+CHORDS = (
+    (0, (0, 4, 7)),  # I
+    (9, (9, 0, 4)),  # vi
+    (2, (2, 7, 9)),  # IV-ish
+    (7, (7, 2, 4)),  # V
+)
+CHORD_LABELS = ("I", "vi", "IV", "V")
+
+DEFAULT_PROGRAM = 0  # melody: Acoustic Grand Piano
+BASS_PROGRAM = 33  # Electric Bass (finger)
+HARMONY_PROGRAM = 48  # String Ensemble 1
 MIDI_PPQ = 480
 
-# SID constants, same as N2 rust/crates/octavo-cli/src/sid.rs.
+# Mix: melody > harmony > bass, with headroom so three voices cannot clip.
+WAV_SR = 22050
+AMP_MELODY = 0.28
+AMP_HARMONY = 0.16
+AMP_BASS = 0.12
+
+# SID constants, same base player as N2 rust/crates/octavo-cli/src/sid.rs.
 PAL_CLOCK = 985_248.0
 FRAMES_PER_EIGHTH = 12
 LOAD = 0x1000
@@ -49,13 +81,33 @@ LDX_IMM, LDX_ABS, STX_ABS = 0xA2, 0xAE, 0x8E
 INX, DEX, CPX_IMM, CMP_IMM = 0xE8, 0xCA, 0xE0, 0xC9
 BNE, BPL, DEC_ABS, CLC, ADC_ABS = 0xD0, 0x10, 0xCE, 0x18, 0x6D
 TAX, JMP_ABS, RTS = 0xAA, 0x4C, 0x60
+AND_IMM = 0x29
 SID_BASE = 0xD400
-PULSE, SAW, GATE = 0x40, 0x20, 0x01
-ADSR = [(0x09, 0xA6), (0x08, 0x94), (0x00, 0x70)]
+TRIANGLE, PULSE, SAW, GATE = 0x10, 0x40, 0x20, 0x01
+# Voice 1 melody (pulse), voice 2 bass (triangle), voice 3 harmony (saw).
+ADSR = [(0x09, 0xA6), (0x0A, 0xA8), (0x29, 0xA6)]
 PW = [0x800, 0, 0x400]
-WAVE = [PULSE, SAW, PULSE]
+WAVE = [PULSE, TRIANGLE, SAW]
 
 Note = Tuple[int, int]  # (pitch index into MIDI/NAMES, length in eighths)
+
+
+class Event(NamedTuple):
+    """One note of a voice: start time in eighths, MIDI pitch, length in eighths."""
+
+    start: int
+    midi: int
+    length: int
+
+
+class Arrangement(NamedTuple):
+    """Three-voice arrangement derived from a blob. Melody matches tune_from_blob."""
+
+    tune: List[Note]
+    melody: List[Event]
+    bass: List[Event]
+    harmony: List[Event]
+    total_eighths: int
 
 
 def parse_n3_blob(blob: bytes) -> bytes:
@@ -96,20 +148,314 @@ def notes_text(t: Sequence[Note]) -> str:
     return " ".join(parts)
 
 
-def wav(t: Sequence[Note]) -> bytes:
-    """16-bit mono 22050 Hz WAV of the tune (sine with a short fade per note)."""
-    sr = 22050
-    eighth = sr // 4  # 120 bpm eighths
-    pcm: List[int] = []
-    for n, length in t:
-        freq = 440.0 * 2.0 ** ((MIDI[n] - 69.0) / 12.0)
-        dur = eighth * length
+def midi_name(midi_note: int) -> str:
+    """Scientific pitch name for a MIDI number (60 = C4)."""
+    return PITCH_NAMES[midi_note % 12] + str(midi_note // 12 - 1)
+
+
+def interval_class(a: int, b: int) -> int:
+    d = abs(a - b) % 12
+    return min(d, 12 - d)
+
+
+def clashes(a: Optional[int], b: Optional[int]) -> bool:
+    """True if two MIDI pitches form a semitone or whole-tone (or a 7th)."""
+    if a is None or b is None:
+        return False
+    return interval_class(a, b) in (1, 2)
+
+
+def _blob_bytes(blob: bytes, raw: bool) -> bytes:
+    return bytes(blob) if raw else parse_n3_blob(blob)
+
+
+def _melody_events(tune: Sequence[Note]) -> List[Event]:
+    evs: List[Event] = []
+    t = 0
+    for idx, length in tune:
+        evs.append(Event(t, MIDI[idx], length))
+        t += length
+    return evs
+
+
+def _sounding(events: Sequence[Event], eighth: int) -> Optional[int]:
+    for ev in events:
+        if ev.start <= eighth < ev.start + ev.length:
+            return ev.midi
+    return None
+
+
+def _pcs_in_span(melody: Sequence[Event], start: int, end: int) -> List[int]:
+    pcs = []
+    for ev in melody:
+        lo = max(ev.start, start)
+        hi = min(ev.start + ev.length, end)
+        if lo < hi:
+            pc = ev.midi % 12
+            if pc not in pcs:
+                pcs.append(pc)
+    return pcs
+
+
+def _safe_pcs(against: Sequence[int]) -> List[int]:
+    safe = []
+    for pc in PENTATONIC_PCS:
+        if all(interval_class(pc, other) not in (1, 2) for other in against):
+            safe.append(pc)
+    return safe
+
+
+def _bass_midi(pc: int, low: bool) -> int:
+    """Place a pentatonic pc in the bass register (about C2 or C3)."""
+    # Two octaves down: G1–A2. One octave down: C2–E3 (never into the melody staff).
+    lo, hi = (31, 45) if low else (36, 52)
+    chosen = None
+    for octv in range(0, 8):
+        m = pc + 12 * octv
+        if lo <= m <= hi:
+            if low:
+                return m  # lowest matching pitch
+            chosen = m  # highest matching pitch
+    if chosen is not None:
+        return chosen
+    return pc + (36 if low else 48)
+
+
+def _pick_bass_pc(chord: Tuple[int, Tuple[int, ...]], safe: Sequence[int]) -> Optional[int]:
+    if not safe:
+        return None
+    root, tones = chord
+    fifth = (root + 7) % 12
+    preferred = [root, fifth, *tones]
+    for cand in preferred:
+        if cand in safe:
+            return cand
+    return list(safe)[0]
+
+
+def _tie_adjacent(events: Sequence[Event]) -> List[Event]:
+    out: List[Event] = []
+    for ev in events:
+        if out and ev.midi == out[-1].midi and ev.start == out[-1].start + out[-1].length:
+            prev = out[-1]
+            out[-1] = Event(prev.start, prev.midi, prev.length + ev.length)
+        else:
+            out.append(ev)
+    return out
+
+
+def _harmony_midi(
+    mel: int,
+    bass: Optional[int],
+    tones: Tuple[int, ...],
+    prev: Optional[int] = None,
+) -> int:
+    """A mid-register chord tone that does not clash with melody or bass."""
+
+    def ok(m: int) -> bool:
+        return (not clashes(m, mel)) and (not clashes(m, bass))
+
+    cands = []
+    for octv in range(3, 6):
+        for pc in tones:
+            m = pc + 12 * (octv + 1)
+            if 48 <= m <= 76 and ok(m):
+                cands.append(m)
+    if not cands:
+        for octv in range(3, 6):
+            for pc in PENTATONIC_PCS:
+                m = pc + 12 * (octv + 1)
+                if 48 <= m <= 76 and ok(m):
+                    cands.append(m)
+    if not cands:
+        # Last resort: any in-range pentatonic pitch that misses the melody.
+        for m in range(48, 77):
+            if (m % 12) in PENTATONIC_PCS and not clashes(m, mel):
+                cands.append(m)
+    if not cands:
+        return max(48, min(76, mel - 7))
+
+    def score(m: int) -> Tuple[int, int, int, int, int, int]:
+        pc = m % 12
+        if len(tones) >= 3 and pc == tones[2]:
+            role = 10
+        elif len(tones) >= 2 and pc == tones[1]:
+            role = 10
+        elif pc == tones[0]:
+            role = 6
+        else:
+            role = 4
+        if pc == mel % 12:
+            role -= 6
+        below = 3 if m < mel else (0 if m == mel else 1)
+        mid = 2 if 55 <= m <= 72 else 0
+        cons = 3 if interval_class(m, mel) in (3, 4, 5, 7) else 1
+        if prev is None:
+            near = 0
+        else:
+            leap = abs(m - prev)
+            if leap == 0:
+                near = 4
+            elif leap <= 5:
+                near = 3
+            elif leap <= 8:
+                near = 2
+            elif leap <= 12:
+                near = 1
+            else:
+                near = -2
+        return (role, near, below, mid, cons, -abs(m - (mel - 7)))
+
+    return max(cands, key=score)
+
+
+def _planned_segments(total: int) -> List[Tuple[int, int, int]]:
+    """I | vi | IV | V over a short tune: whole bars, then a half-bar turnaround."""
+    parts = [
+        (0, min(8, total), 0),
+        (8, min(16, total), 1),
+        (16, min(20, total), 2),
+        (20, total, 3),
+    ]
+    return [(a, b, c) for a, b, c in parts if a < b and a < total]
+
+
+def _place_bass(
+    melody: Sequence[Event],
+    total: int,
+    low: bool,
+) -> List[Event]:
+    events: List[Event] = []
+
+    def place(start: int, end: int, chord_i: int) -> None:
+        if start >= end:
+            return
+        chord = CHORDS[chord_i]
+        safe = _safe_pcs(_pcs_in_span(melody, start, end))
+        pc = _pick_bass_pc(chord, safe)
+        if pc is not None:
+            events.append(Event(start, _bass_midi(pc, low), end - start))
+            return
+        if end - start == 1:
+            onset = _sounding(melody, start)
+            safe_on = _safe_pcs([] if onset is None else [onset % 12])
+            pc = _pick_bass_pc(chord, safe_on) or chord[0]
+            events.append(Event(start, _bass_midi(pc, low), 1))
+            return
+        # No single tone is safe for the whole span. Split, preferring a
+        # quarter-note beat near the middle so the bass still moves slowly.
+        mid_target = (start + end) // 2
+        interior = range(start + 1, end)
+        even = [t for t in interior if t % 2 == 0]
+        strong = [t for t in interior if t % 4 == 0]
+        pool = strong or even or list(interior)
+        mid = min(pool, key=lambda t: (abs(t - mid_target), t))
+        place(start, mid, chord_i)
+        place(mid, end, chord_i)
+
+    for start, end, chord_i in _planned_segments(total):
+        place(start, end, chord_i)
+    return events
+
+
+def voices_from_blob(blob: bytes, *, raw: bool = False) -> Arrangement:
+    """Melody (unchanged) plus bass and harmony, all deterministic from the blob."""
+    data = _blob_bytes(blob, raw)
+    tune = tune_from_blob(data, raw=True)
+    melody = _melody_events(tune)
+    total = sum(length for _, length in tune)
+    vdigest = hashlib.sha256(DOMAIN + VOICES_TAG + data).digest()
+    low = (vdigest[0] & 1) == 0
+    bass = _tie_adjacent(_place_bass(melody, total, low))
+    harmony: List[Event] = []
+    for ev in melody:
+        chord_i = 0
+        for start, end, idx in _planned_segments(total):
+            if start <= ev.start < end:
+                chord_i = idx
+                break
+        tones = CHORDS[chord_i][1]
+        bass_now = _sounding(bass, ev.start)
+        prev = harmony[-1].midi if harmony else None
+        h = _harmony_midi(ev.midi, bass_now, tones, prev)
+        harmony.append(Event(ev.start, h, ev.length))
+    harmony = _tie_adjacent(harmony)
+    return Arrangement(list(tune), melody, bass, harmony, total)
+
+
+def _event_text(ev: Event) -> str:
+    name = midi_name(ev.midi)
+    if ev.length == 1:
+        return name
+    if ev.length == 2:
+        return name + "-"
+    return f"{name}x{ev.length}"
+
+
+def voices_text(arr: Arrangement) -> str:
+    lines = [
+        "melody   " + " ".join(_event_text(ev) for ev in arr.melody),
+        "bass     " + " ".join(_event_text(ev) for ev in arr.bass),
+        "harmony  " + " ".join(_event_text(ev) for ev in arr.harmony),
+    ]
+    return "\n".join(lines)
+
+
+def _sine(freq: float, t: float) -> float:
+    return math.sin(2.0 * math.pi * freq * t)
+
+
+def _triangle(freq: float, t: float) -> float:
+    phase = (freq * t) % 1.0
+    return 1.0 - 4.0 * abs(phase - 0.5)
+
+
+def _soft_saw(freq: float, t: float) -> float:
+    phase = (freq * t) % 1.0
+    saw = 2.0 * phase - 1.0
+    return 0.5 * saw + 0.5 * math.sin(2.0 * math.pi * freq * t)
+
+
+def _render_line(
+    events: Sequence[Event],
+    total_samples: int,
+    eighth: int,
+    sr: int,
+    wave_fn,
+    fade: int,
+) -> List[float]:
+    pcm = [0.0] * total_samples
+    for ev in events:
+        start = ev.start * eighth
+        dur = ev.length * eighth
+        freq = 440.0 * 2.0 ** ((ev.midi - 69.0) / 12.0)
+        fade_n = min(fade, max(1, dur // 2))
         for i in range(dur):
-            tt = i / sr
-            env = min(min(i, dur - i) / 400.0, 1.0)
-            # Rust `as i16` truncates toward zero; Python int() does the same.
-            sample = int(env * 0.3 * math.sin(2.0 * math.pi * freq * tt) * 32767.0)
-            pcm.append(sample)
+            idx = start + i
+            if idx >= total_samples:
+                break
+            env = min(min(i, dur - 1 - i) / float(fade_n), 1.0)
+            pcm[idx] += env * wave_fn(freq, i / sr)
+    return pcm
+
+
+def wav(arr: Arrangement) -> bytes:
+    """16-bit mono 22050 Hz WAV: sine melody, triangle bass, soft-saw harmony."""
+    sr = WAV_SR
+    eighth = sr // 4  # 120 bpm eighths
+    total_samples = arr.total_eighths * eighth
+    mel = _render_line(arr.melody, total_samples, eighth, sr, _sine, 400)
+    bass = _render_line(arr.bass, total_samples, eighth, sr, _triangle, 1200)
+    harm = _render_line(arr.harmony, total_samples, eighth, sr, _soft_saw, 600)
+    pcm: List[int] = []
+    for i in range(total_samples):
+        mixed = AMP_MELODY * mel[i] + AMP_HARMONY * harm[i] + AMP_BASS * bass[i]
+        sample = int(mixed * 32767.0)
+        if sample > 32767:
+            sample = 32767
+        elif sample < -32767:
+            sample = -32767
+        pcm.append(sample)
     data_len = len(pcm) * 2
     w = bytearray()
     w += b"RIFF"
@@ -141,31 +487,54 @@ def _vlq(v: int, out: bytearray) -> None:
     out.extend(buf[i:])
 
 
-def midi(t: Sequence[Note], program: int = DEFAULT_PROGRAM) -> bytes:
-    """Standard MIDI file (format 0, one track, channel 1) of the same 16 notes."""
+def _midi_track(
+    events: Sequence[Event],
+    channel: int,
+    program: int,
+    name: bytes,
+    velocity: int,
+    *,
+    tempo: bool = False,
+) -> bytes:
     eighth = MIDI_PPQ // 2
     trk = bytearray()
-    trk += bytes([0x00, 0xFF, 0x51, 0x03, 0x07, 0xA1, 0x20])  # 120 bpm
-    trk += bytes([0x00, 0xFF, 0x58, 0x04, 0x04, 0x02, 0x18, 0x08])  # 4/4
-    name = b"Octavo N3 earworm"
+    if tempo:
+        trk += bytes([0x00, 0xFF, 0x51, 0x03, 0x07, 0xA1, 0x20])  # 120 bpm
+        trk += bytes([0x00, 0xFF, 0x58, 0x04, 0x04, 0x02, 0x18, 0x08])  # 4/4
     trk += bytes([0x00, 0xFF, 0x03, len(name)])
     trk += name
-    trk += bytes([0x00, 0xC0, program & 0x7F])
-    for n, length in t:
-        key = MIDI[n]
-        trk += bytes([0x00, 0x90, key, 90])
-        _vlq(eighth * length, trk)
-        trk += bytes([0x80, key, 0])
+    trk += bytes([0x00, 0xC0 | (channel & 0x0F), program & 0x7F])
+    t = 0
+    for ev in events:
+        _vlq((ev.start - t) * eighth, trk)
+        key = ev.midi & 0x7F
+        trk += bytes([0x90 | (channel & 0x0F), key, velocity & 0x7F])
+        _vlq(ev.length * eighth, trk)
+        trk += bytes([0x80 | (channel & 0x0F), key, 0])
+        t = ev.start + ev.length
     trk += bytes([0x00, 0xFF, 0x2F, 0x00])
+    return bytes(trk)
+
+
+def midi(arr: Arrangement, program: int = DEFAULT_PROGRAM) -> bytes:
+    """Format-1 MIDI: three tracks / channels (melody, bass, harmony). No drums."""
+    tracks = [
+        _midi_track(
+            arr.melody, 0, program & 0x7F, b"Octavo N3 melody", 100, tempo=True
+        ),
+        _midi_track(arr.bass, 1, BASS_PROGRAM, b"Octavo N3 bass", 64),
+        _midi_track(arr.harmony, 2, HARMONY_PROGRAM, b"Octavo N3 harmony", 72),
+    ]
     m = bytearray()
     m += b"MThd"
     m += (6).to_bytes(4, "big")
-    m += (0).to_bytes(2, "big")
-    m += (1).to_bytes(2, "big")
+    m += (1).to_bytes(2, "big")  # format 1
+    m += (3).to_bytes(2, "big")
     m += MIDI_PPQ.to_bytes(2, "big")
-    m += b"MTrk"
-    m += len(trk).to_bytes(4, "big")
-    m += trk
+    for trk in tracks:
+        m += b"MTrk"
+        m += len(trk).to_bytes(4, "big")
+        m += trk
     return bytes(m)
 
 
@@ -180,19 +549,6 @@ def sid_freq(midi_note: int) -> int:
     """SID frequency register value for a MIDI note at the PAL clock."""
     freq = 440.0 * 2.0 ** ((midi_note - 69.0) / 12.0)
     return _rust_round(freq * 16_777_216.0 / PAL_CLOCK) & 0xFFFF
-
-
-def _parts(t: Sequence[Note]):
-    melody = [MIDI[n] for n, _ in t]
-    n = len(melody)
-    frames = [FRAMES_PER_EIGHTH * length for _, length in t]
-    bass = [melody[i & ~3] - (24 if i % 2 == 0 else 12) for i in range(n)]
-    arp = []
-    for i in range(n):
-        chord = [72 + melody[(i + j) % n] % 12 for j in range(3)]
-        chord.sort()
-        arp.append(chord)
-    return melody, frames, bass, arp
 
 
 class _Fix:
@@ -255,12 +611,36 @@ class _Asm:
         return bytes(self.b)
 
 
-def player(t: Sequence[Note]) -> bytes:
-    """C64 load image (no 2-byte load-address prefix) for one tune. Port of sid.rs player()."""
-    melody, frames, bass, arp = _parts(t)
-    n = len(melody)
+def _grid(events: Sequence[Event], n: int) -> Tuple[List[int], List[int], List[int]]:
+    """Per-eighth MIDI pitch, start flags, and release flags."""
+    pitch = [0] * n
+    start = [0] * n
+    release = [0] * n
+    for ev in events:
+        for i in range(ev.length):
+            idx = ev.start + i
+            if 0 <= idx < n:
+                pitch[idx] = ev.midi
+        if 0 <= ev.start < n:
+            start[ev.start] = 1
+        end = ev.start + ev.length - 1
+        if 0 <= end < n:
+            release[end] = 1
+    return pitch, start, release
+
+
+def player(arr: Arrangement) -> bytes:
+    """C64 load image (no 2-byte load-address prefix) for a 3-voice tune."""
+    n = arr.total_eighths
     if not 0 < n <= 64:
-        raise ValueError("tune must have 1..64 notes")
+        raise ValueError("tune must have 1..64 eighths")
+    m_pitch, m_on, m_off = _grid(arr.melody, n)
+    b_pitch, b_on, b_off = _grid(arr.bass, n)
+    h_pitch, h_on, h_off = _grid(arr.harmony, n)
+    starts = [(m_on[i] << 0) | (b_on[i] << 1) | (h_on[i] << 2) for i in range(n)]
+    releases = [(m_off[i] << 0) | (b_off[i] << 1) | (h_off[i] << 2) for i in range(n)]
+    frames = [FRAMES_PER_EIGHTH] * n
+
     a = _Asm(LOAD)
     a.abs(JMP_ABS, "init")
     a.abs(JMP_ABS, "play")
@@ -288,9 +668,6 @@ def player(t: Sequence[Note]) -> bytes:
     a.abs(STA_ABS, "counter")
     a.imm(LDA_IMM, (n - 1) & 0xFF)
     a.abs(STA_ABS, "step")
-    a.imm(LDA_IMM, 0)
-    a.abs(STA_ABS, "arpbase")
-    a.abs(STA_ABS, "arpidx")
     a.imp(RTS)
 
     a.label("play")
@@ -313,37 +690,53 @@ def player(t: Sequence[Note]) -> bytes:
     a.absn(STA_ABS, SID_BASE + 7)
     a.abs(LDA_ABX, "bhi")
     a.absn(STA_ABS, SID_BASE + 8)
-    a.abs(LDA_ABX, "step3")
-    a.abs(STA_ABS, "arpbase")
-    a.imm(LDA_IMM, 0)
-    a.abs(STA_ABS, "arpidx")
-    for v in range(3):
-        a.imm(LDA_IMM, WAVE[v] | GATE)
-        a.absn(STA_ABS, SID_BASE + 7 * v + 4)
-    a.abs(JMP_ABS, "arp")
+    a.abs(LDA_ABX, "hlo")
+    a.absn(STA_ABS, SID_BASE + 14)
+    a.abs(LDA_ABX, "hhi")
+    a.absn(STA_ABS, SID_BASE + 15)
+    a.abs(LDA_ABX, "starts")
+    a.imm(AND_IMM, 1)
+    a.br(0xF0, "nos0")
+    a.imm(LDA_IMM, WAVE[0] | GATE)
+    a.absn(STA_ABS, SID_BASE + 4)
+    a.label("nos0")
+    a.abs(LDA_ABX, "starts")
+    a.imm(AND_IMM, 2)
+    a.br(0xF0, "nos1")
+    a.imm(LDA_IMM, WAVE[1] | GATE)
+    a.absn(STA_ABS, SID_BASE + 11)
+    a.label("nos1")
+    a.abs(LDA_ABX, "starts")
+    a.imm(AND_IMM, 4)
+    a.br(0xF0, "nos2")
+    a.imm(LDA_IMM, WAVE[2] | GATE)
+    a.absn(STA_ABS, SID_BASE + 18)
+    a.label("nos2")
+    a.imp(RTS)
+
     a.label("held")
     a.abs(LDA_ABS, "counter")
     a.imm(CMP_IMM, 2)
-    a.br(BNE, "arp")
-    for v in range(3):
-        a.imm(LDA_IMM, WAVE[v])
-        a.absn(STA_ABS, SID_BASE + 7 * v + 4)
-    a.label("arp")
-    a.abs(LDA_ABS, "arpbase")
-    a.imp(CLC)
-    a.abs(ADC_ABS, "arpidx")
-    a.imp(TAX)
-    a.abs(LDA_ABX, "alo")
-    a.absn(STA_ABS, SID_BASE + 14)
-    a.abs(LDA_ABX, "ahi")
-    a.absn(STA_ABS, SID_BASE + 15)
-    a.abs(LDX_ABS, "arpidx")
-    a.imp(INX)
-    a.imm(CPX_IMM, 3)
-    a.br(BNE, "a1")
-    a.imm(LDX_IMM, 0)
-    a.label("a1")
-    a.abs(STX_ABS, "arpidx")
+    a.br(BNE, "done")
+    a.abs(LDX_ABS, "step")
+    a.abs(LDA_ABX, "releases")
+    a.imm(AND_IMM, 1)
+    a.br(0xF0, "nor0")
+    a.imm(LDA_IMM, WAVE[0])
+    a.absn(STA_ABS, SID_BASE + 4)
+    a.label("nor0")
+    a.abs(LDA_ABX, "releases")
+    a.imm(AND_IMM, 2)
+    a.br(0xF0, "nor1")
+    a.imm(LDA_IMM, WAVE[1])
+    a.absn(STA_ABS, SID_BASE + 11)
+    a.label("nor1")
+    a.abs(LDA_ABX, "releases")
+    a.imm(AND_IMM, 4)
+    a.br(0xF0, "done")
+    a.imm(LDA_IMM, WAVE[2])
+    a.absn(STA_ABS, SID_BASE + 18)
+    a.label("done")
     a.imp(RTS)
 
     def lo(notes: Sequence[int]) -> List[int]:
@@ -352,20 +745,18 @@ def player(t: Sequence[Note]) -> bytes:
     def hi(notes: Sequence[int]) -> List[int]:
         return [(sid_freq(x) >> 8) & 0xFF for x in notes]
 
-    arp_flat = [p for chord in arp for p in chord]
     tables = [
         ("dur", frames),
-        ("mlo", lo(melody)),
-        ("mhi", hi(melody)),
-        ("blo", lo(bass)),
-        ("bhi", hi(bass)),
-        ("step3", [3 * i for i in range(n)]),
-        ("alo", lo(arp_flat)),
-        ("ahi", hi(arp_flat)),
+        ("mlo", lo(m_pitch)),
+        ("mhi", hi(m_pitch)),
+        ("blo", lo(b_pitch)),
+        ("bhi", hi(b_pitch)),
+        ("hlo", lo(h_pitch)),
+        ("hhi", hi(h_pitch)),
+        ("starts", starts),
+        ("releases", releases),
         ("counter", [0]),
         ("step", [0]),
-        ("arpbase", [0]),
-        ("arpidx", [0]),
     ]
     for name, data in tables:
         a.label(name)
@@ -380,7 +771,7 @@ def _field(s: str) -> bytes:
     return bytes(f)
 
 
-def psid(t: Sequence[Note]) -> bytes:
+def psid(arr: Arrangement) -> bytes:
     """A PSID v2 file: 0x7C-byte header, then the load address (LE) and the player."""
     h = bytearray()
     h += b"PSID"
@@ -393,7 +784,7 @@ def psid(t: Sequence[Note]) -> bytes:
     h += (1).to_bytes(2, "big")
     h += (0).to_bytes(4, "big")
     h += _field("Octavo N3 earworm")
-    h += _field("n3_music (N2 renderer)")
+    h += _field("n3_music (3 voices)")
     h += _field("2026 homemade, not for secrets")
     h += (0x0014).to_bytes(2, "big")  # built-in player, PAL, 6581
     h += b"\x00\x00"  # startPage, pageLength
@@ -401,19 +792,21 @@ def psid(t: Sequence[Note]) -> bytes:
     if len(h) != 0x7C:
         raise RuntimeError(f"PSID header is {len(h)} bytes, expected 0x7C")
     h += LOAD.to_bytes(2, "little")
-    h += player(t)
+    h += player(arr)
     return bytes(h)
 
 
 def render(blob: bytes, *, raw: bool = False, program: int = DEFAULT_PROGRAM) -> dict:
-    """Return notes / wav / midi / sid for a blob. Display only."""
-    t = tune_from_blob(blob, raw=raw)
+    """Return notes / voices / wav / midi / sid for a blob. Display only."""
+    arr = voices_from_blob(blob, raw=raw)
     return {
-        "notes": notes_text(t),
-        "tune": t,
-        "wav": wav(t),
-        "midi": midi(t, program),
-        "sid": psid(t),
+        "notes": notes_text(arr.tune),
+        "voices": voices_text(arr),
+        "tune": arr.tune,
+        "arrangement": arr,
+        "wav": wav(arr),
+        "midi": midi(arr, program),
+        "sid": psid(arr),
     }
 
 
@@ -446,7 +839,7 @@ def _write_out(path: str, data: bytes, force: bool) -> None:
 def main(argv: Optional[Sequence[str]] = None) -> int:
     p = argparse.ArgumentParser(
         description=(
-            "Render WAV, MIDI and SID from an N3 0x1C blob. "
+            "Render a 3-voice WAV, MIDI and SID from an N3 0x1C blob. "
             "Display only: this does not change the N3 cipher or format. " + HONEST
         )
     )
@@ -462,7 +855,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "--program",
         type=int,
         default=DEFAULT_PROGRAM,
-        help="General MIDI program for --midi (0..127, default 0 = piano)",
+        help="General MIDI program for the melody track (0..127, default 0 = piano)",
     )
     p.add_argument(
         "--raw",
@@ -481,6 +874,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             pass
         out = render(blob, raw=args.raw, program=args.program)
         print(out["notes"])
+        print(out["voices"])
         for flag, key in (("--wav", "wav"), ("--midi", "midi"), ("--sid", "sid")):
             path = getattr(args, key)
             if path:

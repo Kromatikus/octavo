@@ -499,7 +499,7 @@
     const hearBtn = $("btn-hear");
     if (state.engine === "n3") {
       hearLabel.textContent = "Hear blob (N3)";
-      hearHint.textContent = "Plays a short N3 earworm derived one-way from the sealed 0x1C blob (the box above), using the same WAV, MIDI and SID renderer as N2. Display only — it does not change the cipher, and it is not a way to hide a secret.";
+      hearHint.textContent = "Plays a short 3-voice N3 earworm (melody, bass, and harmony) derived one-way from the sealed 0x1C blob (the box above). Display only — it does not change the cipher, and it is not a way to hide a secret.";
       hearBtn.textContent = "Hear blob (N3)";
     } else {
       hearLabel.textContent = "Hear key (N2)";
@@ -712,8 +712,11 @@
         parts.push('<a download="' + prefix + '.sid" href="' + su + '">Download SID</a>');
       }
       links.innerHTML = parts.join("");
-      const kind = data.engine === "n3" ? "N3 blob earworm" : "N2 key earworm";
-      showStatus(kind + " ready (" + data.wav_bytes + " byte WAV). This is art — not a way to hide a secret.\n" + HONEST, true);
+      const kind = data.engine === "n3" ? "N3 blob earworm (3 voices)" : "N2 key earworm";
+      let hearMsg = kind + " ready (" + data.wav_bytes + " byte WAV). This is art — not a way to hide a secret.";
+      if (data.voices) hearMsg += "\n" + data.voices;
+      else if (data.notes) hearMsg += "\n" + data.notes;
+      showStatus(hearMsg + "\n" + HONEST, true);
       player.play().catch(() => {});
     } catch (e) {
       showStatus(e.message, false);

@@ -5,6 +5,13 @@ list of every historical revision; those remain in [README.md](README.md).
 
 **Octavo is still homemade; for real secrets use AES-GCM-SIV, age, or libsodium.**
 
+## 2026-11-25
+
+- N3 Hear now renders three voices in WAV, MIDI and SID: the original 16-note
+  melody (notes text unchanged), plus a slow pentatonic bass and a quieter
+  harmony line, all derived from the sealed 0x1C blob. Display only — the N3
+  cipher, 0x1C format, and vectors are unchanged.
+
 ## 2026-11-24
 
 - Added a local localhost playground under [`playground/`](playground/) for

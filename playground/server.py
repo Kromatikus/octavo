@@ -1030,8 +1030,8 @@ def flip_blob(obj: dict) -> dict[str, Any]:
 def hear_key(obj: dict) -> dict[str, Any]:
     engine = (obj.get("engine") or "n2").strip().lower()
     if engine == "n3":
-        # Display only: a tune from the sealed 0x1C blob, reusing N2's earworm
-        # renderers. This does not change the N3 cipher, format, or vectors.
+        # Display only: a 3-voice tune from the sealed 0x1C blob.
+        # This does not change the N3 cipher, format, or vectors.
         try:
             blob = _blob_from(obj)
         except AppError:
@@ -1057,10 +1057,12 @@ def hear_key(obj: dict) -> dict[str, Any]:
             "wav_bytes": len(wav),
             "content_type": "audio/wav",
             "music_note": (
-                "Display only: the tune is derived from the sealed blob "
+                "Display only: the 3-voice tune is derived from the sealed blob "
                 "and is not a way to hide a secret."
             ),
         }
+        if rendered.get("voices"):
+            out["voices"] = rendered["voices"]
         if midi:
             out["midi_b64"] = _b64(midi)
             out["midi_bytes"] = len(midi)
@@ -1183,8 +1185,8 @@ def api_info() -> dict[str, Any]:
             "backends": N3_BACKEND_INFO,
             "music": True,
             "music_note": (
-                "Hear derives a short WAV/MIDI/SID tune from a sealed 0x1C blob "
-                "using the N2 earworm renderer. Display only; it does not change the cipher."
+                "Hear derives a short 3-voice WAV/MIDI/SID tune (melody, bass, "
+                "harmony) from a sealed 0x1C blob. Display only; it does not change the cipher."
             ),
         },
         "vetted": {
