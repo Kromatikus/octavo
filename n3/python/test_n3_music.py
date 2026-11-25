@@ -318,12 +318,37 @@ def main() -> int:
                 f"{label}: arp {n3_music.midi_name(h)} minor-second vs melody {n3_music.midi_name(m)} at {t}",
             )
 
+    def check_ultima_lead(arr, label):
+        for ev in arr.melody:
+            expect(
+                ev.length <= 2,
+                f"{label}: lead event of {ev.length} eighths at {ev.start} (max 1 beat)",
+            )
+        run = 0
+        prev = None
+        for t in range(n3_music.grid_len(arr)):
+            m = n3_music._sounding(arr.melody, t)
+            if m == prev:
+                run += 1
+            else:
+                run = 1
+                prev = m
+            expect(
+                run <= 2,
+                f"{label}: lead holds {n3_music.midi_name(m)} for {run} eighths (>1 beat) at {t}",
+            )
+
     check_ultima_clash(u["arrangement"], "ultima vector 0")
+    check_ultima_lead(u["arrangement"], "ultima vector 0")
     for i, blob in enumerate(blobs):
-        check_ultima_clash(n3_music.voices_from_blob_ultima(blob), f"ultima vector {i}")
+        arr = n3_music.voices_from_blob_ultima(blob)
+        check_ultima_clash(arr, f"ultima vector {i}")
+        check_ultima_lead(arr, f"ultima vector {i}")
     for k in range(20):
         rawb = bytes([k, 0x5A, 0xA5, k * 9 & 0xFF]) + bytes((k * 13 + i) % 256 for i in range(60))
-        check_ultima_clash(n3_music.voices_from_blob_ultima(rawb, raw=True), f"ultima raw {k}")
+        arr = n3_music.voices_from_blob_ultima(rawb, raw=True)
+        check_ultima_clash(arr, f"ultima raw {k}")
+        check_ultima_lead(arr, f"ultima raw {k}")
 
     try:
         n3_music.render(a, style="jazz")

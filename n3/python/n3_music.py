@@ -839,14 +839,14 @@ def psid(arr: Arrangement) -> bytes:
 # Ultima-style arrangement (original music, display only)
 # ---------------------------------------------------------------------------
 # Texture inspired by the calmer *title / loading / intro* music of 1980s
-# Ultima III/IV (Kenneth W. Arnold era, Mockingboard / SID): a gentle pulse
-# lead, slow modal harmony, and a measured bass — original music only.
+# Ultima III/IV (Kenneth W. Arnold era, Mockingboard / SID): a plucked
+# 8th-note lead, slow modal pads, and a measured bass — original music only.
 # No Ultima melody, bass line, or chord sequence is copied or approximated.
 # ---------------------------------------------------------------------------
 
 STYLES = ("earworm", "ultima")
 ULTIMA_DOMAIN = b"Octavo N3 ultima v2"
-ULTIMA_MELODY_PROGRAM = 80  # Lead 1 (square)
+ULTIMA_MELODY_PROGRAM = 46  # Orchestral Harp (plucked lead)
 ULTIMA_BASS_PROGRAM = 42  # Cello
 ULTIMA_HARM_PROGRAM = 89  # Pad 2 (warm)
 ULTIMA_ARP_PROGRAM = ULTIMA_HARM_PROGRAM  # backward-compatible name
@@ -1057,13 +1057,134 @@ def _safe_harm_midi(
     return max(55, min(76, (mel - 5) if mel else 64))
 
 
+def _scale_neighbor(
+    midi: int,
+    direction: int,
+    tonic_pc: int,
+    intervals: Sequence[int],
+    lo: int = 55,
+    hi: int = 84,
+) -> Optional[int]:
+    m = midi + direction
+    while lo <= m <= hi:
+        if ((m % 12) - tonic_pc) % 12 in intervals:
+            return m
+        m += direction
+    return None
+
+
+def _lead_ok(pitch: int, t: int, bass: Sequence[Event], harm: Sequence[Event]) -> bool:
+    return (not clashes_ultima(pitch, _sounding(bass, t))) and (
+        not clashes_ultima(pitch, _sounding(harm, t))
+    )
+
+
+def _lead_figure_tones(
+    pitch: int,
+    n: int,
+    start: int,
+    bass: Sequence[Event],
+    harm: Sequence[Event],
+    tonic_pc: int,
+    intervals: Sequence[int],
+    kind: int,
+) -> List[int]:
+    """n eighth-note pitches starting at `pitch`, lute/harp-like, clash-safe."""
+    up = _scale_neighbor(pitch, 1, tonic_pc, intervals)
+    down = _scale_neighbor(pitch, -1, tonic_pc, intervals)
+    third = _scale_neighbor(pitch, 3, tonic_pc, intervals) or up
+    # Prefer chordal skips when kind is odd.
+    if kind & 1:
+        motif_src = [pitch, third or up, up or pitch, down or pitch]
+    else:
+        motif_src = [pitch, up or pitch, pitch, down or pitch]
+    # Ensure we always have 4 slots.
+    motif = []
+    for i in range(4):
+        cand = motif_src[i] if motif_src[i] is not None else pitch
+        motif.append(cand)
+    out = []
+    for i in range(n):
+        t = start + i
+        # Cycle a 4-note figure; the first eighth of a span is always the source pitch.
+        cand = pitch if i == 0 else motif[i % 4]
+        if not _lead_ok(cand, t, bass, harm):
+            for alt in (pitch, up, down, third):
+                if alt is not None and _lead_ok(alt, t, bass, harm):
+                    cand = alt
+                    break
+            else:
+                cand = pitch
+        # Avoid a drone: no more than two identical pitches in a row, and
+        # never three. If we would repeat a third time, try a neighbor.
+        if len(out) >= 2 and out[-1] == cand and out[-2] == cand:
+            for alt in (up, down, third, pitch):
+                if alt is not None and alt != cand and _lead_ok(alt, t, bass, harm):
+                    cand = alt
+                    break
+        out.append(cand)
+    return out
+
+
+def _break_lead_drones(
+    events: Sequence[Event],
+    bass: Sequence[Event],
+    harm: Sequence[Event],
+    tonic_pc: int,
+    intervals: Sequence[int],
+) -> List[Event]:
+    """Ensure no identical lead pitch is sustained more than one beat (2 eighths)."""
+    out = list(events)
+    for i, ev in enumerate(out):
+        if i < 2:
+            continue
+        if ev.midi == out[i - 1].midi == out[i - 2].midi:
+            up = _scale_neighbor(ev.midi, 1, tonic_pc, intervals)
+            down = _scale_neighbor(ev.midi, -1, tonic_pc, intervals)
+            t = ev.start
+            chosen = ev.midi
+            for alt in (up, down):
+                if alt is not None and _lead_ok(alt, t, bass, harm):
+                    chosen = alt
+                    break
+            else:
+                # Step to any safe scale tone nearby.
+                for m in range(ev.midi - 7, ev.midi + 8):
+                    if m != ev.midi and 55 <= m <= 84 and ((m % 12) - tonic_pc) % 12 in intervals and _lead_ok(m, t, bass, harm):
+                        chosen = m
+                        break
+            out[i] = Event(ev.start, chosen, 1)
+    return out
+
+
+def _articulate_lead(
+    skeleton: Sequence[Event],
+    bass: Sequence[Event],
+    harm: Sequence[Event],
+    tonic_pc: int,
+    intervals: Sequence[int],
+    kind: int,
+) -> List[Event]:
+    """Turn held skeleton notes into plucked 8th-note figures."""
+    out: List[Event] = []
+    for ev in skeleton:
+        tones = _lead_figure_tones(
+            ev.midi, ev.length, ev.start, bass, harm, tonic_pc, intervals, kind
+        )
+        for i, pitch in enumerate(tones):
+            out.append(Event(ev.start + i, pitch, 1))
+    return _break_lead_drones(out, bass, harm, tonic_pc, intervals)
+
+
 def voices_from_blob_ultima(blob: bytes, *, raw: bool = False) -> Arrangement:
     """Original slow modal arrangement in a title/loading spirit.
 
     The 16-note rhythm comes from the earworm digest, stretched so a short
-    earworm eighth becomes a quarter and a long note becomes a half. A short
-    plagal or modal cadence is appended. Pitches, mode, tempo and patterns
-    come from a separate ultima digest.
+    earworm eighth becomes a quarter and a long note becomes a half, then
+    those values are broken into plucked 8th-note figures (neighbors or
+    lute-like chord tones) so the lead never drones. A short plagal or
+    modal cadence is appended. Pitches, mode, tempo and patterns come from
+    a separate ultima digest.
     """
     data = _blob_bytes(blob, raw)
     tune = tune_from_blob(data, raw=True)
@@ -1199,6 +1320,9 @@ def voices_from_blob_ultima(blob: bytes, *, raw: bool = False) -> Arrangement:
             t += length
     harmony = _tie_adjacent(harmony)
     bass = _tie_adjacent(bass)
+    # Pluck the lead: long skeleton values become 8th-note ornaments.
+    # Bass and pads stay slow; the lead no longer drones on a held pulse.
+    melody = _articulate_lead(melody, bass, harmony, tonic_pc, mode_iv, udigest[9] % 4)
 
     cadence = "iv-i" if plagal_coda else "VII-i"
     return Arrangement(
@@ -1221,7 +1345,7 @@ def _pulse(freq: float, t: float, width: float) -> float:
 
 
 def wav_ultima(arr: Arrangement) -> bytes:
-    """Gentle PWM pulse lead, triangle bass, soft pads; legato, 70-90 bpm."""
+    """Plucked soft-pulse lead, triangle bass, soft pads; 70-90 bpm."""
     sr = WAV_SR
     bpm = arr.bpm
     # Events are in eighths.
@@ -1229,34 +1353,47 @@ def wav_ultima(arr: Arrangement) -> bytes:
     total_samples = grid_len(arr) * eighth
     pcm = [0.0] * total_samples
 
-    def add_note(ev: Event, wave: str, amp: float, duty: float, fade: int, vib: bool) -> None:
+    def env_pad(i: int, dur: int, fade: int) -> float:
+        fade_n = min(fade, max(1, dur // 4))
+        return min(min(i, dur - 1 - i) / float(fade_n), 1.0)
+
+    def env_pluck(i: int, dur: int, sr: int) -> float:
+        # Quick attack, decay to a low sustain, then release with a gap.
+        attack = max(1, int(0.006 * sr))
+        decay = max(attack + 1, int(0.45 * dur))
+        release = max(1, int(0.22 * dur))
+        sustain = 0.16
+        if i < attack:
+            return i / float(attack)
+        if i < decay:
+            frac = (i - attack) / float(max(1, decay - attack))
+            return 1.0 - frac * (1.0 - sustain)
+        if i >= dur - release:
+            return sustain * max(0.0, (dur - 1 - i) / float(release))
+        return sustain
+
+    def add_note(ev: Event, wave: str, amp: float, duty: float, fade: int, pluck: bool) -> None:
         start = ev.start * eighth
         dur_full = ev.length * eighth
         dur = max(1, int(dur_full * duty))
-        fade_n = min(fade, max(1, dur // 4))
         base_freq = 440.0 * 2.0 ** ((ev.midi - 69.0) / 12.0)
         for i in range(dur):
             idx = start + i
             if idx >= total_samples:
                 break
             tt = i / sr
-            abs_t = idx / sr
-            env = min(min(i, dur - 1 - i) / float(fade_n), 1.0)
-            freq = base_freq
-            if vib and dur_full >= 4 * eighth and tt > 0.25:
-                freq = base_freq * (1.0 + 0.004 * math.sin(2.0 * math.pi * 4.5 * (tt - 0.25)))
-            if wave == "pwm":
-                width = 0.48 + 0.08 * math.sin(2.0 * math.pi * 0.7 * abs_t)
-                width = min(0.62, max(0.34, width))
-                s = _pulse(freq, tt, width)
+            env = env_pluck(i, dur, sr) if pluck else env_pad(i, dur, fade)
+            if wave == "soft":
+                # 25% pulse blended with triangle: lute-like, not a harsh square.
+                s = 0.6 * _pulse(base_freq, tt, 0.25) + 0.4 * _triangle(base_freq, tt)
             elif wave == "pulse":
-                s = _pulse(freq, tt, 0.45)
+                s = _pulse(base_freq, tt, 0.45)
             else:
-                s = _triangle(freq, tt)
+                s = _triangle(base_freq, tt)
             pcm[idx] += env * amp * s
 
     for ev in arr.melody:
-        add_note(ev, "pwm", 0.22, 0.98, 1200, True)
+        add_note(ev, "soft", 0.26, 0.78, 200, True)
     for ev in arr.bass:
         add_note(ev, "tri", 0.11, 0.96, 900, False)
     for ev in arr.harmony:
@@ -1290,7 +1427,7 @@ def wav_ultima(arr: Arrangement) -> bytes:
 
 
 def midi_ultima(arr: Arrangement, program: int = ULTIMA_MELODY_PROGRAM) -> bytes:
-    """Format-1 MIDI, 3 tracks: square lead, cello bass, warm pad. No drums."""
+    """Format-1 MIDI, 3 tracks: plucked harp lead, cello bass, warm pad. No drums."""
     eighth = MIDI_PPQ // 2
     us = int(round(60_000_000 / float(arr.bpm)))
     us = max(1, min(0xFFFFFF, us))
@@ -1307,8 +1444,11 @@ def midi_ultima(arr: Arrangement, program: int = ULTIMA_MELODY_PROGRAM) -> bytes
         for ev in events:
             _vlq((ev.start - t) * eighth, trk)
             key = ev.midi & 0x7F
-            # Mostly legato, a tiny gap so notes don't smear.
-            sound = ev.length if ev.length <= 1 else max(1, (ev.length * 19) // 20)
+            # Lead is plucked (short); pads and bass stay mostly legato.
+            if channel == 0:
+                sound = max(1, (ev.length * 5) // 8)  # ~62% of the eighth
+            else:
+                sound = ev.length if ev.length <= 1 else max(1, (ev.length * 19) // 20)
             trk += bytes([0x90 | (channel & 0x0F), key, velocity & 0x7F])
             _vlq(sound * eighth, trk)
             trk += bytes([0x80 | (channel & 0x0F), key, 0])
@@ -1317,7 +1457,7 @@ def midi_ultima(arr: Arrangement, program: int = ULTIMA_MELODY_PROGRAM) -> bytes
         return bytes(trk)
 
     tracks = [
-        track(arr.melody, 0, program & 0x7F, b"Octavo N3 ultima lead", 90, tempo=True),
+        track(arr.melody, 0, program & 0x7F, b"Octavo N3 ultima lead", 92, tempo=True),
         track(arr.bass, 1, ULTIMA_BASS_PROGRAM, b"Octavo N3 ultima bass", 64),
         track(arr.harmony, 2, ULTIMA_HARM_PROGRAM, b"Octavo N3 ultima pad", 70),
     ]
@@ -1340,7 +1480,7 @@ def _ultima_frames_per_eighth(bpm: int) -> int:
 
 
 def player_ultima(arr: Arrangement) -> bytes:
-    """C64 load image: slow PWM pulse lead, triangle bass, pulse pad."""
+    """C64 load image: plucked triangle lead, triangle bass, pulse pad."""
     n = grid_len(arr)
     if not 0 < n <= 128:
         raise ValueError("ultima tune must have 1..128 eighths")
@@ -1351,10 +1491,10 @@ def player_ultima(arr: Arrangement) -> bytes:
     starts = [(m_on[i] << 0) | (b_on[i] << 1) | (h_on[i] << 2) for i in range(n)]
     releases = [(m_off[i] << 0) | (b_off[i] << 1) | (h_off[i] << 2) for i in range(n)]
 
-    WAVE_U = [PULSE, TRIANGLE, PULSE]
-    # Slow attack, high sustain — more organ/hymn than staccato chip.
-    ADSR_U = [(0x58, 0xA8), (0x48, 0xA8), (0x69, 0xA8)]
-    PW_U = [0x800, 0, 0x600]
+    WAVE_U = [TRIANGLE, TRIANGLE, PULSE]
+    # Lead: fast attack, decay, low sustain, short release. Pads stay smoother.
+    ADSR_U = [(0x09, 0x26), (0x48, 0xA8), (0x69, 0xA8)]
+    PW_U = [0x400, 0, 0x600]
 
     a = _Asm(LOAD)
     a.abs(JMP_ABS, "init")
@@ -1383,25 +1523,9 @@ def player_ultima(arr: Arrangement) -> bytes:
     a.abs(STA_ABS, "ucounter")
     a.imm(LDA_IMM, (n - 1) & 0xFF)
     a.abs(STA_ABS, "ustep")
-    a.imm(LDA_IMM, PW_U[0] & 0xFF)
-    a.abs(STA_ABS, "upwlo")
-    a.imm(LDA_IMM, (PW_U[0] >> 8) & 0xFF)
-    a.abs(STA_ABS, "upwhi")
     a.imp(RTS)
 
     a.label("play")
-    # Very slow PWM sweep on the lead (add 3 per frame).
-    a.abs(LDA_ABS, "upwlo")
-    a.imp(CLC)
-    a.imm(ADC_IMM, 3)
-    a.abs(STA_ABS, "upwlo")
-    a.absn(STA_ABS, SID_BASE + 2)
-    a.abs(LDA_ABS, "upwhi")
-    a.imm(ADC_IMM, 0)
-    a.imm(AND_IMM, 0x0F)
-    a.abs(STA_ABS, "upwhi")
-    a.absn(STA_ABS, SID_BASE + 3)
-
     a.abs(DEC_ABS, "ucounter")
     a.br(BNE, "uheld")
     a.abs(LDX_ABS, "ustep")
@@ -1446,16 +1570,17 @@ def player_ultima(arr: Arrangement) -> bytes:
     a.imp(RTS)
 
     a.label("uheld")
+    # Pluck the lead: gate off about halfway through the eighth.
+    a.abs(LDA_ABS, "ucounter")
+    a.imm(CMP_IMM, max(2, frames // 2))
+    a.br(BNE, "urel_pads")
+    a.imm(LDA_IMM, WAVE_U[0])
+    a.absn(STA_ABS, SID_BASE + 4)
+    a.label("urel_pads")
     a.abs(LDA_ABS, "ucounter")
     a.imm(CMP_IMM, 2)
     a.br(BNE, "udone")
     a.abs(LDX_ABS, "ustep")
-    a.abs(LDA_ABX, "ureleases")
-    a.imm(AND_IMM, 1)
-    a.br(0xF0, "unor0")
-    a.imm(LDA_IMM, WAVE_U[0])
-    a.absn(STA_ABS, SID_BASE + 4)
-    a.label("unor0")
     a.abs(LDA_ABX, "ureleases")
     a.imm(AND_IMM, 2)
     a.br(0xF0, "unor1")
@@ -1487,8 +1612,6 @@ def player_ultima(arr: Arrangement) -> bytes:
         ("ureleases", releases),
         ("ucounter", [0]),
         ("ustep", [0]),
-        ("upwlo", [0]),
-        ("upwhi", [0]),
     ]
     for name, data in tables:
         a.label(name)
@@ -1618,7 +1741,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "--program",
         type=int,
         default=None,
-        help="General MIDI program for the melody track (0..127; default 0 piano, or 80 for --style ultima)",
+        help="General MIDI program for the melody track (0..127; default 0 piano, or 46 harp for --style ultima)",
     )
     p.add_argument(
         "--style",

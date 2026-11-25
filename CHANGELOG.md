@@ -12,8 +12,8 @@ list of every historical revision; those remain in [README.md](README.md).
   harmony line, all derived from the sealed 0x1C blob. Display only — the N3
   cipher, 0x1C format, and vectors are unchanged.
 - N3 Hear gained `--style ultima`: an original 3-voice piece in the calmer
-  title/loading spirit of 1980s Ultima III/IV (gentle pulse lead, slow modal
-  pads, measured bass, 70–90 bpm). It does not copy any Ultima tune.
+  title/loading spirit of 1980s Ultima III/IV (plucked 8th-note lead, slow
+  modal pads, measured bass, 70–90 bpm). It does not copy any Ultima tune.
   Default `--style earworm` is unchanged. The playground Hear blob (N3) button
   offers the choice.
 
