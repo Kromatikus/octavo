@@ -1062,8 +1062,9 @@ def hear_key(obj: dict) -> dict[str, Any]:
             "content_type": "audio/wav",
             "music_note": (
                 "Display only: the 3-voice tune is derived from the sealed blob "
-                "and is not a way to hide a secret. style=ultima is original "
-                "music in that chiptune texture, not a copy of any Ultima tune."
+                "and is not a way to hide a secret. style=ultima and style=castle "
+                "are original music in those chiptune textures, not copies of any "
+                "Ultima or Mr. Do's Castle tune."
             ),
             "style": rendered.get("style", "earworm"),
         }
@@ -1197,10 +1198,11 @@ def api_info() -> dict[str, Any]:
             "music_note": (
                 "Hear derives a short 3-voice WAV/MIDI/SID tune (melody, bass, "
                 "harmony) from a sealed 0x1C blob. style=earworm is the default; "
-                "style=ultima is an original slower Ultima title/loading texture (not their tunes). "
+                "style=ultima is an original slower Ultima title/loading texture (not their tunes); "
+                "style=castle is an original bouncy early-80s arcade texture (not the Mr. Do's Castle tune). "
                 "Display only; it does not change the cipher."
             ),
-            "music_styles": ["earworm", "ultima"],
+            "music_styles": ["earworm", "ultima", "castle"],
         },
         "vetted": {
             "label": "Vetted (recommended for real secrets)",

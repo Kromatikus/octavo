@@ -14,8 +14,11 @@ list of every historical revision; those remain in [README.md](README.md).
 - N3 Hear gained `--style ultima`: an original 3-voice piece in the calmer
   title/loading spirit of 1980s Ultima III/IV (plucked 8th-note lead, slow
   modal pads, measured bass, 70–90 bpm). It does not copy any Ultima tune.
-  Default `--style earworm` is unchanged. The playground Hear blob (N3) button
-  offers the choice.
+  `--style castle` is an original bouncy major-key arcade piece in the
+  spirit of early-1980s Universal games (bright square lead, oom-pah bass,
+  short stabs, 140–170 bpm). It does not copy the Mr. Do's Castle tune or
+  any public-domain melody that game quoted. Default `--style earworm` is
+  unchanged. The playground Hear blob (N3) button offers the choice.
 
 ## 2026-11-24
 

@@ -350,18 +350,123 @@ def main() -> int:
         check_ultima_clash(arr, f"ultima raw {k}")
         check_ultima_lead(arr, f"ultima raw {k}")
 
+    # Castle style: original bouncy arcade arrangement, 140-170 bpm major.
+    c = n3_music.render(a, style="castle")
+    expect(c["style"] == "castle", "castle style flag missing")
+    expect(c["notes"] == VECTOR0_NOTES, f"castle notes_text changed the published melody: {c['notes']}")
+    expect(c["wav"] != wav, "castle WAV matched earworm")
+    expect(c["wav"] != u["wav"], "castle WAV matched ultima")
+    expect(c["midi"] != mid and c["sid"] != sid, "castle MIDI/SID matched earworm")
+    expect(c["wav"][:4] == b"RIFF" and c["wav"][8:12] == b"WAVE", "castle WAV header")
+    expect(c["midi"][:4] == b"MThd", "castle MIDI header")
+    expect(c["sid"][:4] == b"PSID", "castle SID header")
+    fmt_c, ntrks_c = midi_format_tracks(c["midi"])
+    expect(fmt_c == 1 and ntrks_c == 3, f"castle MIDI should be format 1 with 3 tracks, got {fmt_c}/{ntrks_c}")
+    expect(c["midi"].count(b"MTrk") == 3, "castle MIDI missing 3 MTrk chunks")
+    expect(has_program_changes(c["midi"]) == {0, 1, 2}, "castle MIDI should program-change channels 0-2")
+    sid_writes_three_freqs(c["sid"])
+    cpeak = wav_peak(c["wav"])
+    expect(cpeak < 32767, f"castle WAV peaks at full scale ({cpeak})")
+    expect(cpeak > 2000, f"castle WAV is nearly silent (peak {cpeak})")
+    expect(140 <= c["bpm"] <= 170, f"castle bpm {c['bpm']} not in 140-170")
+    with wave.open(io.BytesIO(c["wav"])) as wf:
+        cdur = wf.getnframes() / float(wf.getframerate())
+    expect(12.0 <= cdur <= 20.0, f"castle WAV duration {cdur:.1f}s not in 12-20s")
+    again_c = n3_music.render(a, style="castle")
+    expect(again_c["wav"] == c["wav"] and again_c["midi"] == c["midi"] and again_c["sid"] == c["sid"],
+           "castle render is not deterministic")
+    other_c = n3_music.render(b, style="castle")
+    expect(other_c["wav"] != c["wav"], "different blobs produced the same castle WAV")
+
+    CASTLE_GOLDEN = {
+        0: {
+            "wav": "5d260d3c46e6230ae195ea707994d26bb06d7dc11f24d80bcb14932e6c680ee9",
+            "midi": "ace700c3b3db80784bb6feb423aed894dd320e7fcd3d833db1e20065a21bf942",
+            "sid": "5da6a2c6d34fd65d47f8c66b20309b2116323f85cdae2c42ad4b47f7f47231a8",
+        },
+        1: {
+            "wav": "5650e34b1bfcf09740f6b13b4bdc42bad984aa1e99c6a1940d0b4c9f8243f5a0",
+            "midi": "48bb50acd6d38c4af4dbf613a6d6f5b5c14dc5f5e7086b9c60424ec790a03621",
+            "sid": "23acb88d63bcd4ff63ab612736c057e8554aa5d4b08e0fbddd27f4d6a9736c67",
+        },
+        2: {
+            "wav": "4ea105e2ff54322360e53e10a5b238f5fc417f590dba4091e89e6b844553517c",
+            "midi": "421dade10252fb3759fd0c2e49e53191d73569d65ef13f5bea8631deec17ff42",
+            "sid": "a8c48db0341ff71118f89f8bb58dd6a061b102d9bae1b513bfd6a62b61fa5918",
+        },
+        3: {
+            "wav": "dee05172f0e17169593ba05209eb73c04a0c3f0280ba8cb01ae98b3a0c022063",
+            "midi": "f2012d1e8c77b7764f3dbc9364cfea21de1e3f1ba07245684a39c763437c5d93",
+            "sid": "c323c869cd725b6c93e2558a39546ed1ac650efa734fdf0490ab8e1f50a95bd1",
+        },
+        4: {
+            "wav": "f03ff7d62fa4aa869ea9f29683048f52f7c4533fbbad42025be74a3d620d83d4",
+            "midi": "7a4cae3f4e93744717059ca4ba21487a8a318e2cb67f0303a1d858fc43c2108c",
+            "sid": "9327731b331009fca63f8cab622108027706babb51bb4162a1f8ef205b074b26",
+        },
+        5: {
+            "wav": "8e2d121555924ba16704b819d3d7f2954264f61a6895503478a229540109223f",
+            "midi": "d421ebdfa2b2b645de320c0de9709acc3b37f39d0acfaaea23b20159b23042af",
+            "sid": "bddab97cdef01fdb427ff2c8d13028b05281b2c9a71352662420dd9313fac969",
+        },
+    }
+    for i, blob in enumerate(blobs):
+        got = n3_music.render(blob, style="castle")
+        for key, expect_hash in CASTLE_GOLDEN[i].items():
+            h = hashlib.sha256(got[key]).hexdigest()
+            expect(h == expect_hash, f"vector {i} castle {key} changed: {h}")
+
+    def check_castle_clash(arr, label):
+        n = n3_music.grid_len(arr)
+        expect(n == 80, f"{label}: expected 80 eighths, got {n}")
+        expect(140 <= arr.bpm <= 170, f"{label}: bpm {arr.bpm} not in 140-170")
+        for ev in arr.melody:
+            expect(ev.length <= 2, f"{label}: lead event of {ev.length} eighths at {ev.start}")
+        run = 0
+        prev = None
+        for t in range(n):
+            m = n3_music._sounding(arr.melody, t)
+            bs = n3_music._sounding(arr.bass, t)
+            h = n3_music._sounding(arr.harmony, t)
+            expect(m is not None, f"{label}: lead gap at {t}")
+            expect(bs is not None, f"{label}: bass gap at {t}")
+            expect(
+                not n3_music.clashes_castle(bs, m),
+                f"{label}: bass {n3_music.midi_name(bs)} clashes vs melody {n3_music.midi_name(m)} at {t}",
+            )
+            if h is not None:
+                expect(
+                    not n3_music.clashes_castle(h, m),
+                    f"{label}: stab {n3_music.midi_name(h)} clashes vs melody {n3_music.midi_name(m)} at {t}",
+                )
+            if m == prev:
+                run += 1
+            else:
+                run = 1
+                prev = m
+            expect(run <= 2, f"{label}: lead holds {n3_music.midi_name(m)} for {run} eighths at {t}")
+
+    check_castle_clash(c["arrangement"], "castle vector 0")
+    for i, blob in enumerate(blobs):
+        check_castle_clash(n3_music.voices_from_blob_castle(blob), f"castle vector {i}")
+    for k in range(20):
+        rawb = bytes([k, 0x5A, 0xA5, k * 9 & 0xFF]) + bytes((k * 13 + i) % 256 for i in range(60))
+        check_castle_clash(n3_music.voices_from_blob_castle(rawb, raw=True), f"castle raw {k}")
+
     try:
         n3_music.render(a, style="jazz")
         raise AssertionError("unknown style should be rejected")
     except ValueError as e:
         expect("style" in str(e).lower() or "earworm" in str(e).lower(), f"unexpected style error: {e}")
 
-    print("PASS  N3 music headers, 3 voices, determinism, golden earworm, and ultima style")
+    print("PASS  N3 music headers, 3 voices, determinism, golden earworm, ultima, and castle style")
     print(f"notes (vector 0): {out['notes']}")
     print(out["voices"])
     print(f"WAV {len(wav)} peak {peak}  MIDI {len(mid)}  SID {len(sid)}")
     print(f"ultima: {u['bpm']} bpm, {u['mode']}")
     print(u["voices"])
+    print(f"castle: {c['bpm']} bpm, {c['mode']}")
+    print(c["voices"])
     print("Octavo is still homemade; for real secrets use AES-GCM-SIV, age, or libsodium.")
     return 0
 

@@ -329,6 +329,7 @@
           <select id="hear-style">
             <option value="earworm" selected>Earworm (default)</option>
             <option value="ultima">Ultima-style (title/loading, original, not their tunes)</option>
+            <option value="castle">Castle-style (arcade, original, not that game's tune)</option>
           </select>
         </label>
         <audio id="player" controls hidden></audio>
@@ -506,7 +507,7 @@
     const styleWrap = $("n3-hear-style-wrap");
     if (state.engine === "n3") {
       hearLabel.textContent = "Hear blob (N3)";
-      hearHint.textContent = "Plays a short 3-voice tune derived one-way from the sealed 0x1C blob (the box above). Earworm is the default. Ultima-style is original music in the calmer title/loading spirit of Ultima III/IV — a plucked lead, slow pads and a measured bass. It does not use any of that game's tunes. Display only — it does not change the cipher, and it is not a way to hide a secret.";
+      hearHint.textContent = "Plays a short 3-voice tune derived one-way from the sealed 0x1C blob (the box above). Earworm is the default. Ultima-style is original music in the calmer title/loading spirit of Ultima III/IV — a plucked lead, slow pads and a measured bass. Castle-style is original music in a cheerful early-1980s arcade spirit — a bouncy square lead and oom-pah bass. Neither uses those games' tunes (Castle-style also does not use any public-domain melody Mr. Do's Castle quoted). Display only — it does not change the cipher, and it is not a way to hide a secret.";
       hearBtn.textContent = "Hear blob (N3)";
       styleWrap.hidden = false;
       styleWrap.style.display = "block";
@@ -726,7 +727,7 @@
       }
       links.innerHTML = parts.join("");
       const kind = data.engine === "n3"
-        ? ("N3 blob " + (data.style === "ultima" ? "Ultima-style" : "earworm") + " (3 voices)")
+        ? ("N3 blob " + (data.style === "ultima" ? "Ultima-style" : data.style === "castle" ? "Castle-style" : "earworm") + " (3 voices)")
         : "N2 key earworm";
       let hearMsg = kind + " ready (" + data.wav_bytes + " byte WAV). This is art — not a way to hide a secret.";
       if (data.voices) hearMsg += "\n" + data.voices;

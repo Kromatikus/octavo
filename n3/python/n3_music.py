@@ -18,9 +18,13 @@ tones (3rds / 5ths / octaves) that do not form a second against the
 melody.
 
 `--style ultima` is an original chiptune arrangement in the *texture* of
-1980s Ultima III/IV (bright pulse lead, driving bass, fast arpeggios,
-modal minor). It does not copy or approximate any Ultima melody, bass
-line, or chord sequence. Default `--style earworm` is unchanged.
+1980s Ultima III/IV (plucked lead, slow modal pads, measured bass).
+It does not copy or approximate any Ultima melody, bass line, or chord
+sequence. `--style castle` is an original bouncy major-key arcade
+arrangement in the *texture* of early-1980s Universal games (bright
+square lead, oom-pah bass, short stabs). It does not copy or approximate
+the Mr. Do's Castle tune or any public-domain melody that game quoted.
+Default `--style earworm` is unchanged.
 
 This does not use the N3 seed, does not call the N3 cipher, and
 cannot change a 0x1C blob or its test vectors.
@@ -436,6 +440,8 @@ def voices_text(arr: Arrangement) -> str:
     ]
     if getattr(arr, "style", "earworm") == "ultima":
         lines.append(f"style    ultima {arr.bpm} bpm, {arr.mode_name}")
+    elif getattr(arr, "style", "earworm") == "castle":
+        lines.append(f"style    castle {arr.bpm} bpm, {arr.mode_name}")
     return "\n".join(lines)
 
 
@@ -844,7 +850,7 @@ def psid(arr: Arrangement) -> bytes:
 # No Ultima melody, bass line, or chord sequence is copied or approximated.
 # ---------------------------------------------------------------------------
 
-STYLES = ("earworm", "ultima")
+STYLES = ("earworm", "ultima", "castle")
 ULTIMA_DOMAIN = b"Octavo N3 ultima v2"
 ULTIMA_MELODY_PROGRAM = 46  # Orchestral Harp (plucked lead)
 ULTIMA_BASS_PROGRAM = 42  # Cello
@@ -895,7 +901,9 @@ def parse_style(style: Optional[str]) -> str:
         return "earworm"
     if s in ("ultima", "ultima3", "ultima4", "u3", "u4"):
         return "ultima"
-    raise ValueError(f"unknown style {style!r}; use earworm or ultima")
+    if s in ("castle", "castlestyle", "castle-style"):
+        return "castle"
+    raise ValueError(f"unknown style {style!r}; use earworm, ultima, or castle")
 
 
 def grid_len(arr: Arrangement) -> int:
@@ -1659,17 +1667,645 @@ def render_ultima(blob: bytes, *, raw: bool = False, program: int = ULTIMA_MELOD
     }
 
 
+# ---------------------------------------------------------------------------
+# Castle-style arrangement (original music, display only)
+# ---------------------------------------------------------------------------
+# Texture inspired by cheerful early-1980s Universal/arcade title music
+# (bright 50% square lead, oom-pah bass, short stabs, 140-170 bpm major).
+# Original music only: no Mr. Do's Castle melody, bass line, or quoted
+# public-domain tune is copied or approximated.
+# ---------------------------------------------------------------------------
+
+CASTLE_DOMAIN = b"Octavo N3 castle v1"
+CASTLE_MELODY_PROGRAM = 80  # Square Lead
+CASTLE_BASS_PROGRAM = 38  # Synth Bass 1
+CASTLE_HARM_PROGRAM = 81  # Saw Lead (short stabs)
+MAJOR = (0, 2, 4, 5, 7, 9, 11)
+CASTLE_TONICS = (0, 5, 7, 2)  # C, F, G, D
+# Generic major progressions (not from a game).
+CASTLE_PROGRESSIONS = (
+    ("I", "IV", "V", "I"),
+    ("I", "V", "vi", "IV"),
+    ("I", "vi", "IV", "V"),
+    ("I", "IV", "I", "V"),
+)
+CASTLE_CHORD = {
+    "I": (0, 4, 7),
+    "ii": (2, 5, 9),
+    "IV": (5, 9, 0),
+    "V": (7, 11, 2),
+    "vi": (9, 0, 4),
+}
+# 8-eighth bouncy patterns: staccato 8ths and quarter+eighth hops (sum 8).
+CASTLE_RHYTHMS = (
+    (1, 1, 1, 1, 1, 1, 1, 1),
+    (2, 1, 1, 2, 1, 1),
+    (1, 1, 2, 1, 1, 2),
+    (2, 1, 1, 1, 1, 2),
+    (1, 1, 1, 1, 2, 1, 1),
+    (2, 2, 1, 1, 1, 1),
+    (1, 1, 2, 2, 1, 1),
+    (2, 1, 1, 2, 2),
+)
+CASTLE_BARS = 10
+CASTLE_BAR = 8
+
+
+def clashes_castle(a: Optional[int], b: Optional[int]) -> bool:
+    """Seconds and sevenths (harsh against a bright major texture)."""
+    return clashes(a, b)
+
+
+def _castle_scale(tonic_pc: int, lo: int, hi: int) -> List[int]:
+    return [m for m in range(lo, hi + 1) if ((m % 12) - tonic_pc) % 12 in MAJOR]
+
+
+def _castle_degree(tonic_pc: int, degree: int, lo: int = 60, hi: int = 84) -> int:
+    """Scale degree 0 = tonic near C4; may span about two octaves."""
+    pool = _castle_scale(tonic_pc, lo, hi)
+    if not pool:
+        return lo
+    base = next((m for m in pool if m % 12 == tonic_pc), pool[0])
+    idx = pool.index(base)
+    return pool[max(0, min(len(pool) - 1, idx + degree))]
+
+
+def _castle_pc_midi(pc: int, lo: int, hi: int, prefer_low: bool = True) -> int:
+    chosen = None
+    for octv in range(0, 8):
+        m = (pc % 12) + 12 * octv
+        if lo <= m <= hi:
+            if prefer_low:
+                return m
+            chosen = m
+    if chosen is not None:
+        return chosen
+    return (pc % 12) + (36 if prefer_low else 60)
+
+
+def _castle_ok(pitch: int, t: int, bass: Sequence[Event], harm: Sequence[Event]) -> bool:
+    return not clashes_castle(pitch, _sounding(bass, t)) and not clashes_castle(
+        pitch, _sounding(harm, t)
+    )
+
+
+def _castle_ok_span(
+    pitch: int, start: int, length: int, bass: Sequence[Event], harm: Sequence[Event]
+) -> bool:
+    return all(_castle_ok(pitch, start + i, bass, harm) for i in range(max(1, length)))
+
+
+def _castle_safe_tone(
+    tonic_pc: int,
+    chord_pcs: Sequence[int],
+    t: int,
+    bass: Sequence[Event],
+    harm: Sequence[Event],
+    prefer: Optional[int] = None,
+    lo: int = 60,
+    hi: int = 84,
+    length: int = 1,
+) -> int:
+    pool = _castle_scale(tonic_pc, lo, hi)
+    preferred: List[int] = []
+    if prefer is not None:
+        preferred.append(prefer)
+    preferred.extend(m for m in pool if (m % 12) in chord_pcs)
+    preferred.extend(pool)
+    seen = set()
+    for m in preferred:
+        if m in seen:
+            continue
+        seen.add(m)
+        if _castle_ok_span(m, t, length, bass, harm):
+            return m
+    return prefer if prefer is not None else pool[0]
+
+
+def _break_castle_drones(
+    melody: Sequence[Event],
+    bass: Sequence[Event],
+    harmony: Sequence[Event],
+    tonic_pc: int,
+    bars: Sequence[str],
+) -> List[Event]:
+    """No identical lead pitch may sound for more than one beat (2 eighths)."""
+    total = CASTLE_BARS * CASTLE_BAR
+    grid: List[Optional[int]] = [None] * total
+    for ev in melody:
+        for i in range(ev.length):
+            if 0 <= ev.start + i < total:
+                grid[ev.start + i] = ev.midi
+    for t in range(total):
+        if t < 2 or grid[t] is None:
+            continue
+        if grid[t] == grid[t - 1] == grid[t - 2]:
+            # Prefer a neighbor of the drone pitch.
+            cur = grid[t]
+            cands = []
+            for delta in (1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 7, -7):
+                cands.append(cur + delta)
+            cands.extend(_castle_scale(tonic_pc, 60, 84))
+            chosen = cur
+            for cand in cands:
+                if cand == cur or not (55 <= cand <= 86):
+                    continue
+                if ((cand % 12) - tonic_pc) % 12 not in MAJOR:
+                    continue
+                if _castle_ok(cand, t, bass, harmony):
+                    chosen = cand
+                    break
+            grid[t] = chosen
+    # Rebuild, tying at most 2 identical eighths.
+    out: List[Event] = []
+    t = 0
+    while t < total:
+        pitch = grid[t]
+        if pitch is None:
+            t += 1
+            continue
+        length = 1
+        if t + 1 < total and grid[t + 1] == pitch:
+            length = 2
+        out.append(Event(t, pitch, length))
+        t += length
+    return out
+
+
+def voices_from_blob_castle(blob: bytes, *, raw: bool = False) -> Arrangement:
+    """Original bouncy major arrangement in an early-80s arcade spirit."""
+    data = _blob_bytes(blob, raw)
+    tune = tune_from_blob(data, raw=True)
+    digest = hashlib.sha256(CASTLE_DOMAIN + data).digest()
+    tonic_pc = CASTLE_TONICS[digest[0] % len(CASTLE_TONICS)]
+    bpm = 140 + (digest[1] % 31)  # 140..170
+    prog = CASTLE_PROGRESSIONS[digest[2] % len(CASTLE_PROGRESSIONS)]
+    # 8 body bars (two times the 4-bar progression) + 2-bar IV/V–I cadence.
+    family = list(prog) + list(prog)
+    cadence = ("V", "I") if (digest[3] & 1) == 0 else ("IV", "I")
+    bars = family + list(cadence)
+    assert len(bars) == CASTLE_BARS
+
+    def chord_pcs(label: str) -> List[int]:
+        ivs = CASTLE_CHORD[label]
+        return [((tonic_pc + iv) % 12) for iv in ivs]
+
+    # --- bass: oom-pah, root on the beat, fifth/chord on the offbeat ---
+    bass: List[Event] = []
+    for bar, label in enumerate(bars):
+        pcs = chord_pcs(label)
+        root, third, fifth = pcs[0], pcs[1], pcs[2]
+        # Digitized slight variety: offbeat prefers fifth, sometimes the 3rd.
+        off_pc = third if ((digest[(4 + bar) % 32] >> 2) & 1) else fifth
+        for e in range(CASTLE_BAR):
+            t = bar * CASTLE_BAR + e
+            if e % 2 == 0:
+                pitch = _castle_pc_midi(root, 36, 48, prefer_low=True)
+            else:
+                pitch = _castle_pc_midi(off_pc, 43, 55, prefer_low=False)
+            bass.append(Event(t, pitch, 1))
+
+    # --- harmony: short 3rd/5th stabs on the four beats, rests offbeat ---
+    harmony: List[Event] = []
+    for bar, label in enumerate(bars):
+        pcs = chord_pcs(label)
+        third, fifth = pcs[1], pcs[2]
+        for beat, e in enumerate((0, 2, 4, 6)):
+            t = bar * CASTLE_BAR + e
+            use_fifth = ((digest[(8 + bar + beat) % 32] >> 1) & 1) == 1
+            pc = fifth if use_fifth else third
+            pitch = _castle_pc_midi(pc, 60, 76, prefer_low=False)
+            # If the stab would clash with a later lead we fix after the lead.
+            harmony.append(Event(t, pitch, 1))
+
+    # --- melody: bouncy 8ths and hops, chord tones on landings ---
+    # 8-degree cell from the digest, then question/answer over 2-bar phrases.
+    cell = [digest[16 + i] % 8 for i in range(8)]
+    # Nudge the cell so strong beats lean on 1, 3, 5 (degrees 0, 2, 4).
+    for i in (0, 2, 4, 6):
+        if cell[i] % 2 == 1:
+            cell[i] = (cell[i] + 1) % 7  # stay in 0..6 then not always 7
+
+    melody: List[Event] = []
+    for bar, label in enumerate(bars):
+        pcs = chord_pcs(label)
+        rhythm = CASTLE_RHYTHMS[digest[(10 + bar) % 32] % len(CASTLE_RHYTHMS)]
+        if bar >= 8:
+            # Cadence: simpler hop into the tonic.
+            rhythm = (2, 1, 1, 2, 1, 1) if bar == 8 else (2, 2, 1, 1, 2)
+        # Phrase answer (odd bars in the body) flips the cell up a step.
+        if bar < 8 and bar % 2 == 1:
+            degs = [(d + 2) % 7 for d in cell]
+        elif bar == 8:
+            degs = [4, 4, 2, 2, 5, 6]  # 5–3–6–7, padded by rhythm length
+        elif bar == 9:
+            degs = [4, 2, 1, 0, 0]  # 5–3–2–1, land on tonic
+        else:
+            degs = list(cell)
+        # Expand degrees to one per rhythm event.
+        while len(degs) < len(rhythm):
+            degs.append(degs[-1] if degs else 0)
+        t = bar * CASTLE_BAR
+        for ev_i, (length, deg) in enumerate(zip(rhythm, degs)):
+            # Landings (length 2, or beat 1/3) prefer a chord tone close to deg.
+            pitch = _castle_degree(tonic_pc, deg)
+            if length >= 2 or (t % 8) in (0, 4):
+                # Snap toward the nearest chord tone in-range if deg isn't one.
+                if (pitch % 12) not in pcs:
+                    pitch = _castle_safe_tone(tonic_pc, pcs, t, bass, harmony, prefer=pitch)
+            # No three identical eighths in a row.
+            if len(melody) >= 2 and melody[-1].midi == melody[-2].midi == pitch:
+                up = _castle_degree(tonic_pc, deg + 1)
+                down = _castle_degree(tonic_pc, max(0, deg - 1))
+                pitch = up if up != pitch else down
+            melody.append(Event(t, pitch, length))
+            t += length
+        if t != (bar + 1) * CASTLE_BAR:
+            raise RuntimeError(f"castle bar {bar} rhythm summed to {t - bar * CASTLE_BAR}")
+
+    # Clash repair: move lead, then harmony, over each sounding eighth.
+    total = CASTLE_BARS * CASTLE_BAR
+    repaired: List[Event] = []
+    for ev in melody:
+        pitch = ev.midi
+        if not _castle_ok_span(pitch, ev.start, ev.length, bass, harmony):
+            pcs = chord_pcs(bars[ev.start // CASTLE_BAR])
+            pitch = _castle_safe_tone(
+                tonic_pc, pcs, ev.start, bass, harmony, prefer=ev.midi, length=ev.length
+            )
+        repaired.append(Event(ev.start, pitch, ev.length))
+    melody = _break_castle_drones(repaired, bass, harmony, tonic_pc, bars)
+
+    harm_fixed: List[Event] = []
+    for ev in harmony:
+        pitch = ev.midi
+        m = _sounding(melody, ev.start)
+        b = _sounding(bass, ev.start)
+        if clashes_castle(pitch, m) or clashes_castle(pitch, b):
+            bar = ev.start // CASTLE_BAR
+            pcs = chord_pcs(bars[bar])
+            pool = [_castle_pc_midi(pc, 55, 79, prefer_low=False) for pc in pcs]
+            pool += _castle_scale(tonic_pc, 55, 79)
+            chosen = pitch
+            for cand in pool:
+                if not clashes_castle(cand, m) and not clashes_castle(cand, b):
+                    chosen = cand
+                    break
+            pitch = chosen
+        harm_fixed.append(Event(ev.start, pitch, ev.length))
+    harmony = harm_fixed
+
+    tonic_name = PITCH_NAMES[tonic_pc]
+    mode_name = f"{tonic_name} major ({' '.join(prog)}, cadence {'-'.join(cadence)})"
+    return Arrangement(
+        tune=tune,
+        melody=melody,
+        bass=bass,
+        harmony=harmony,
+        total_eighths=total,
+        style="castle",
+        bpm=bpm,
+        unit=1,
+        total_units=total,
+        mode_name=mode_name,
+    )
+
+
+def _pack_wav(samples: Sequence[int], sr: int) -> bytes:
+    data_len = len(samples) * 2
+    w = bytearray()
+    w += b"RIFF"
+    w += (36 + data_len).to_bytes(4, "little")
+    w += b"WAVEfmt "
+    w += (16).to_bytes(4, "little")
+    w += (1).to_bytes(2, "little")
+    w += (1).to_bytes(2, "little")
+    w += sr.to_bytes(4, "little")
+    w += (sr * 2).to_bytes(4, "little")
+    w += (2).to_bytes(2, "little")
+    w += (16).to_bytes(2, "little")
+    w += b"data"
+    w += data_len.to_bytes(4, "little")
+    for s in samples:
+        w += (s & 0xFFFF).to_bytes(2, "little")
+    return bytes(w)
+
+
+def wav_castle(arr: Arrangement) -> bytes:
+    """Bright 50% square lead, oom-pah bass, short stabs; 140-170 bpm."""
+    sr = WAV_SR
+    bpm = arr.bpm
+    eighth = max(1, int(round(sr * 30.0 / float(bpm))))
+    total_samples = grid_len(arr) * eighth
+    pcm = [0.0] * total_samples
+    swing = max(1, int(0.16 * eighth))
+
+    def env_staccato(i: int, dur: int) -> float:
+        attack = max(1, int(0.004 * sr))
+        decay = max(attack + 1, int(0.40 * dur))
+        release = max(1, int(0.20 * dur))
+        sustain = 0.12
+        if i < attack:
+            return i / float(attack)
+        if i < decay:
+            frac = (i - attack) / float(max(1, decay - attack))
+            return 1.0 - frac * (1.0 - sustain)
+        if i >= dur - release:
+            return sustain * max(0.0, (dur - 1 - i) / float(release))
+        return sustain
+
+    def add_note(ev: Event, wave: str, amp: float, duty: float, do_swing: bool) -> None:
+        delay = swing if (do_swing and ev.length == 1 and ev.start % 2 == 1) else 0
+        start = ev.start * eighth + delay
+        dur_full = ev.length * eighth - delay
+        dur = max(1, int(max(1, dur_full) * duty))
+        if start + dur > (ev.start + ev.length) * eighth:
+            dur = max(1, (ev.start + ev.length) * eighth - start)
+        freq = 440.0 * 2.0 ** ((ev.midi - 69.0) / 12.0)
+        for i in range(dur):
+            idx = start + i
+            if idx >= total_samples:
+                break
+            tt = i / sr
+            env = env_staccato(i, dur)
+            if wave == "square":
+                s = _pulse(freq, tt, 0.50)
+            elif wave == "pulse":
+                s = _pulse(freq, tt, 0.45)
+            else:
+                s = _triangle(freq, tt)
+            pcm[idx] += env * amp * s
+
+    for ev in arr.melody:
+        duty = 0.72 if ev.length >= 2 else 0.52
+        add_note(ev, "square", 0.24, duty, True)
+    for ev in arr.bass:
+        add_note(ev, "tri", 0.13, 0.55, False)
+    for ev in arr.harmony:
+        add_note(ev, "pulse", 0.12, 0.42, False)
+
+    samples: List[int] = []
+    for v in pcm:
+        sample = int(v * 32767.0)
+        if sample > 32767:
+            sample = 32767
+        elif sample < -32767:
+            sample = -32767
+        samples.append(sample)
+    return _pack_wav(samples, sr)
+
+
+def midi_castle(arr: Arrangement, program: int = CASTLE_MELODY_PROGRAM) -> bytes:
+    """Format-1 MIDI: square lead, synth bass, saw stabs. No drums."""
+    eighth = MIDI_PPQ // 2
+    us = int(round(60_000_000 / float(arr.bpm)))
+    us = max(1, min(0xFFFFFF, us))
+
+    def track(events: Sequence[Event], channel: int, prog: int, name: bytes, velocity: int, *, tempo: bool = False) -> bytes:
+        trk = bytearray()
+        if tempo:
+            trk += bytes([0x00, 0xFF, 0x51, 0x03, (us >> 16) & 0xFF, (us >> 8) & 0xFF, us & 0xFF])
+            trk += bytes([0x00, 0xFF, 0x58, 0x04, 0x04, 0x02, 0x18, 0x08])
+        trk += bytes([0x00, 0xFF, 0x03, len(name)])
+        trk += name
+        trk += bytes([0x00, 0xC0 | (channel & 0x0F), prog & 0x7F])
+        t = 0
+        for ev in events:
+            _vlq((ev.start - t) * eighth, trk)
+            key = ev.midi & 0x7F
+            # Staccato: hops keep a little more length than 8ths.
+            if ev.length >= 2:
+                sound = max(1, (ev.length * 5) // 8)
+            else:
+                sound = max(1, (ev.length * 1) // 2)
+            trk += bytes([0x90 | (channel & 0x0F), key, velocity & 0x7F])
+            _vlq(sound * eighth, trk)
+            trk += bytes([0x80 | (channel & 0x0F), key, 0])
+            t = ev.start + ev.length
+        trk += bytes([0x00, 0xFF, 0x2F, 0x00])
+        return bytes(trk)
+
+    tracks = [
+        track(arr.melody, 0, program & 0x7F, b"Octavo N3 castle lead", 100, tempo=True),
+        track(arr.bass, 1, CASTLE_BASS_PROGRAM, b"Octavo N3 castle bass", 80),
+        track(arr.harmony, 2, CASTLE_HARM_PROGRAM, b"Octavo N3 castle stabs", 70),
+    ]
+    m = bytearray()
+    m += b"MThd"
+    m += (6).to_bytes(4, "big")
+    m += (1).to_bytes(2, "big")
+    m += (3).to_bytes(2, "big")
+    m += MIDI_PPQ.to_bytes(2, "big")
+    for trk in tracks:
+        m += b"MTrk"
+        m += len(trk).to_bytes(4, "big")
+        m += trk
+    return bytes(m)
+
+
+def _castle_frames_per_eighth(bpm: int) -> int:
+    return max(8, int(round(50.0 * 30.0 / float(bpm))))
+
+
+def player_castle(arr: Arrangement) -> bytes:
+    """C64 load image: 50% pulse lead, triangle bass, pulse stabs."""
+    n = grid_len(arr)
+    if not 0 < n <= 128:
+        raise ValueError("castle tune must have 1..128 eighths")
+    frames = _castle_frames_per_eighth(arr.bpm)
+    m_pitch, m_on, m_off = _grid(arr.melody, n)
+    b_pitch, b_on, b_off = _grid(arr.bass, n)
+    h_pitch, h_on, h_off = _grid(arr.harmony, n)
+    starts = [(m_on[i] << 0) | (b_on[i] << 1) | (h_on[i] << 2) for i in range(n)]
+    releases = [(m_off[i] << 0) | (b_off[i] << 1) | (h_off[i] << 2) for i in range(n)]
+
+    WAVE_C = [PULSE, TRIANGLE, PULSE]
+    ADSR_C = [(0x08, 0x25), (0x08, 0x36), (0x08, 0x16)]
+    PW_C = [0x800, 0, 0x800]
+
+    a = _Asm(LOAD)
+    a.abs(JMP_ABS, "init")
+    a.abs(JMP_ABS, "play")
+
+    a.label("init")
+    a.imm(LDX_IMM, 0x18)
+    a.imm(LDA_IMM, 0)
+    a.label("cclr")
+    a.absn(STA_ABX, SID_BASE)
+    a.imp(DEX)
+    a.br(BPL, "cclr")
+    for v in range(3):
+        base = SID_BASE + 7 * v
+        a.imm(LDA_IMM, PW_C[v] & 0xFF)
+        a.absn(STA_ABS, base + 2)
+        a.imm(LDA_IMM, (PW_C[v] >> 8) & 0xFF)
+        a.absn(STA_ABS, base + 3)
+        a.imm(LDA_IMM, ADSR_C[v][0])
+        a.absn(STA_ABS, base + 5)
+        a.imm(LDA_IMM, ADSR_C[v][1])
+        a.absn(STA_ABS, base + 6)
+    a.imm(LDA_IMM, 0x0F)
+    a.absn(STA_ABS, SID_BASE + 0x18)
+    a.imm(LDA_IMM, 1)
+    a.abs(STA_ABS, "ccounter")
+    a.imm(LDA_IMM, (n - 1) & 0xFF)
+    a.abs(STA_ABS, "cstep")
+    a.imp(RTS)
+
+    a.label("play")
+    a.abs(DEC_ABS, "ccounter")
+    a.br(BNE, "cheld")
+    a.abs(LDX_ABS, "cstep")
+    a.imp(INX)
+    a.imm(CPX_IMM, n & 0xFF)
+    a.br(BNE, "cs1")
+    a.imm(LDX_IMM, 0)
+    a.label("cs1")
+    a.abs(STX_ABS, "cstep")
+    a.imm(LDA_IMM, frames & 0xFF)
+    a.abs(STA_ABS, "ccounter")
+    a.abs(LDA_ABX, "cmlo")
+    a.absn(STA_ABS, SID_BASE)
+    a.abs(LDA_ABX, "cmhi")
+    a.absn(STA_ABS, SID_BASE + 1)
+    a.abs(LDA_ABX, "cblo")
+    a.absn(STA_ABS, SID_BASE + 7)
+    a.abs(LDA_ABX, "cbhi")
+    a.absn(STA_ABS, SID_BASE + 8)
+    a.abs(LDA_ABX, "chlo")
+    a.absn(STA_ABS, SID_BASE + 14)
+    a.abs(LDA_ABX, "chhi")
+    a.absn(STA_ABS, SID_BASE + 15)
+    a.abs(LDA_ABX, "cstarts")
+    a.imm(AND_IMM, 1)
+    a.br(0xF0, "cnos0")
+    a.imm(LDA_IMM, WAVE_C[0] | GATE)
+    a.absn(STA_ABS, SID_BASE + 4)
+    a.label("cnos0")
+    a.abs(LDA_ABX, "cstarts")
+    a.imm(AND_IMM, 2)
+    a.br(0xF0, "cnos1")
+    a.imm(LDA_IMM, WAVE_C[1] | GATE)
+    a.absn(STA_ABS, SID_BASE + 11)
+    a.label("cnos1")
+    a.abs(LDA_ABX, "cstarts")
+    a.imm(AND_IMM, 4)
+    a.br(0xF0, "cnos2")
+    a.imm(LDA_IMM, WAVE_C[2] | GATE)
+    a.absn(STA_ABS, SID_BASE + 18)
+    a.label("cnos2")
+    a.imp(RTS)
+
+    a.label("cheld")
+    # Staccato: gate off about halfway through the release eighth.
+    a.abs(LDA_ABS, "ccounter")
+    a.imm(CMP_IMM, max(2, frames // 2))
+    a.br(BNE, "cdone")
+    a.abs(LDX_ABS, "cstep")
+    a.abs(LDA_ABX, "creleases")
+    a.imm(AND_IMM, 1)
+    a.br(0xF0, "cnor0")
+    a.imm(LDA_IMM, WAVE_C[0])
+    a.absn(STA_ABS, SID_BASE + 4)
+    a.label("cnor0")
+    a.abs(LDA_ABX, "creleases")
+    a.imm(AND_IMM, 2)
+    a.br(0xF0, "cnor1")
+    a.imm(LDA_IMM, WAVE_C[1])
+    a.absn(STA_ABS, SID_BASE + 11)
+    a.label("cnor1")
+    a.abs(LDA_ABX, "creleases")
+    a.imm(AND_IMM, 4)
+    a.br(0xF0, "cdone")
+    a.imm(LDA_IMM, WAVE_C[2])
+    a.absn(STA_ABS, SID_BASE + 18)
+    a.label("cdone")
+    a.imp(RTS)
+
+    def lo(notes):
+        return [sid_freq(x) & 0xFF for x in notes]
+
+    def hi(notes):
+        return [(sid_freq(x) >> 8) & 0xFF for x in notes]
+
+    tables = [
+        ("cmlo", lo(m_pitch)),
+        ("cmhi", hi(m_pitch)),
+        ("cblo", lo(b_pitch)),
+        ("cbhi", hi(b_pitch)),
+        ("chlo", lo(h_pitch)),
+        ("chhi", hi(h_pitch)),
+        ("cstarts", starts),
+        ("creleases", releases),
+        ("ccounter", [0]),
+        ("cstep", [0]),
+    ]
+    for name, data in tables:
+        a.label(name)
+        a.bytes_(data)
+    return a.finish()
+
+
+def psid_castle(arr: Arrangement) -> bytes:
+    h = bytearray()
+    h += b"PSID"
+    h += (2).to_bytes(2, "big")
+    h += (0x7C).to_bytes(2, "big")
+    h += (0).to_bytes(2, "big")
+    h += INIT.to_bytes(2, "big")
+    h += PLAY.to_bytes(2, "big")
+    h += (1).to_bytes(2, "big")
+    h += (1).to_bytes(2, "big")
+    h += (0).to_bytes(4, "big")
+    h += _field("Octavo N3 castle")
+    h += _field("n3_music (original style)")
+    h += _field("2026 homemade, not for secrets")
+    h += (0x0014).to_bytes(2, "big")
+    h += b"\x00\x00"
+    h += (0).to_bytes(2, "big")
+    if len(h) != 0x7C:
+        raise RuntimeError(f"PSID header is {len(h)} bytes, expected 0x7C")
+    h += LOAD.to_bytes(2, "little")
+    h += player_castle(arr)
+    return bytes(h)
+
+
+def render_castle(blob: bytes, *, raw: bool = False, program: int = CASTLE_MELODY_PROGRAM) -> dict:
+    arr = voices_from_blob_castle(blob, raw=raw)
+    return {
+        "notes": notes_text(arr.tune),
+        "voices": voices_text(arr),
+        "tune": arr.tune,
+        "arrangement": arr,
+        "style": "castle",
+        "mode": arr.mode_name,
+        "bpm": arr.bpm,
+        "wav": wav_castle(arr),
+        "midi": midi_castle(arr, program),
+        "sid": psid_castle(arr),
+    }
+
+
+
 def render(blob: bytes, *, raw: bool = False, program: Optional[int] = None, style: str = "earworm") -> dict:
     """Return notes / voices / wav / midi / sid for a blob. Display only.
 
     Default style is earworm and is byte-identical to the 3-voice renderer.
     style='ultima' selects the original Ultima-textured arrangement.
+    style='castle' selects an original cheerful early-80s arcade arrangement.
     """
     style = parse_style(style)
     if program is None:
-        program = ULTIMA_MELODY_PROGRAM if style == "ultima" else DEFAULT_PROGRAM
+        if style == "ultima":
+            program = ULTIMA_MELODY_PROGRAM
+        elif style == "castle":
+            program = CASTLE_MELODY_PROGRAM
+        else:
+            program = DEFAULT_PROGRAM
     if style == "ultima":
         return render_ultima(blob, raw=raw, program=program)
+    if style == "castle":
+        return render_castle(blob, raw=raw, program=program)
     arr = voices_from_blob(blob, raw=raw)
     return {
         "notes": notes_text(arr.tune),
@@ -1741,12 +2377,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "--program",
         type=int,
         default=None,
-        help="General MIDI program for the melody track (0..127; default 0 piano, or 46 harp for --style ultima)",
+        help="General MIDI program for the melody track (0..127; default 0 piano, 46 harp for ultima, 80 square for castle)",
     )
     p.add_argument(
         "--style",
         default="earworm",
-        help="earworm (default, unchanged) or ultima (original Ultima-textured chiptune)",
+        help="earworm (default, unchanged), ultima, or castle (original chiptune textures)",
     )
     p.add_argument(
         "--raw",
