@@ -328,7 +328,7 @@
         <label id="n3-hear-style-wrap" hidden for="hear-style" style="display:none;margin-top:0.6rem">Style
           <select id="hear-style">
             <option value="earworm" selected>Earworm (default)</option>
-            <option value="ultima">Ultima-style (original chiptune, not their tunes)</option>
+            <option value="ultima">Ultima-style (title/loading, original, not their tunes)</option>
           </select>
         </label>
         <audio id="player" controls hidden></audio>
@@ -506,7 +506,7 @@
     const styleWrap = $("n3-hear-style-wrap");
     if (state.engine === "n3") {
       hearLabel.textContent = "Hear blob (N3)";
-      hearHint.textContent = "Plays a short 3-voice tune derived one-way from the sealed 0x1C blob (the box above). Earworm is the default. Ultima-style is original music with a bright lead, pulsing bass and fast arpeggios — it does not use any Ultima III/IV tunes. Display only — it does not change the cipher, and it is not a way to hide a secret.";
+      hearHint.textContent = "Plays a short 3-voice tune derived one-way from the sealed 0x1C blob (the box above). Earworm is the default. Ultima-style is original music in the calmer title/loading spirit of Ultima III/IV — a gentle lead, slow pads and a measured bass. It does not use any of that game's tunes. Display only — it does not change the cipher, and it is not a way to hide a secret.";
       hearBtn.textContent = "Hear blob (N3)";
       styleWrap.hidden = false;
       styleWrap.style.display = "block";

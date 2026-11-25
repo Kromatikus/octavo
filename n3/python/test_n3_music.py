@@ -7,6 +7,7 @@ Octavo is still homemade; for real secrets use AES-GCM-SIV, age, or libsodium.
 from __future__ import annotations
 
 import hashlib
+import io
 import struct
 import sys
 from pathlib import Path
@@ -289,7 +290,11 @@ def main() -> int:
     upeak = wav_peak(u["wav"])
     expect(upeak < 32767, f"ultima WAV peaks at full scale ({upeak})")
     expect(upeak > 2000, f"ultima WAV is nearly silent (peak {upeak})")
-    expect(130 <= u["bpm"] <= 150, f"ultima bpm {u['bpm']} not in 130-150")
+    expect(70 <= u["bpm"] <= 90, f"ultima bpm {u['bpm']} not in 70-90")
+    import wave, io
+    with wave.open(io.BytesIO(u["wav"])) as wf:
+        dur = wf.getnframes() / float(wf.getframerate())
+    expect(18.0 <= dur <= 35.0, f"ultima WAV duration {dur:.1f}s not in 18-35s")
     again_u = n3_music.render(a, style="ultima")
     expect(again_u["wav"] == u["wav"] and again_u["midi"] == u["midi"] and again_u["sid"] == u["sid"],
            "ultima render is not deterministic")

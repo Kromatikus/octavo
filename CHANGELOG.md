@@ -11,9 +11,9 @@ list of every historical revision; those remain in [README.md](README.md).
   melody (notes text unchanged), plus a slow pentatonic bass and a quieter
   harmony line, all derived from the sealed 0x1C blob. Display only — the N3
   cipher, 0x1C format, and vectors are unchanged.
-- N3 Hear gained `--style ultima`: an original 3-voice chiptune texture in the
-  spirit of 1980s Ultima III/IV (bright pulse lead, driving bass, fast
-  arpeggios, 130–150 bpm, modal minor). It does not copy any Ultima tune.
+- N3 Hear gained `--style ultima`: an original 3-voice piece in the calmer
+  title/loading spirit of 1980s Ultima III/IV (gentle pulse lead, slow modal
+  pads, measured bass, 70–90 bpm). It does not copy any Ultima tune.
   Default `--style earworm` is unchanged. The playground Hear blob (N3) button
   offers the choice.
 

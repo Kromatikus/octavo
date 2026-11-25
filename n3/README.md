@@ -75,7 +75,7 @@ Do not reuse the public N2 demo seed or an N2 32/64-byte app key.
 | `REPORT.md` | Working-copy notes for the 004 line (fix3 key setup) |
 | `MIGRATION.md`, `migrate.py` | N2 → N3 migration |
 
-The frozen 004 snapshot has no score, earworm, or MIDI tool. The live tree adds a presentation-only tool, `python/n3_music.py`, which turns a sealed 0x1C blob into a 3-voice WAV, MIDI and SID (melody, bass, and harmony). The default earworm style keeps the 16-note melody mapping unchanged. `--style ultima` is an original chiptune arrangement in the spirit of 1980s Ultima III/IV; it does not use any of that game's tunes. It does not change the N3 cipher, the 0x1C format, or the published vectors.
+The frozen 004 snapshot has no score, earworm, or MIDI tool. The live tree adds a presentation-only tool, `python/n3_music.py`, which turns a sealed 0x1C blob into a 3-voice WAV, MIDI and SID (melody, bass, and harmony). The default earworm style keeps the 16-note melody mapping unchanged. `--style ultima` is an original slow chiptune arrangement in the title/loading spirit of 1980s Ultima III/IV; it does not use any of that game's tunes. It does not change the N3 cipher, the 0x1C format, or the published vectors.
 
 ```bash
 python3 n3/python/n3_music.py --blob sealed.n3 --wav out.wav --midi out.mid --sid out.sid

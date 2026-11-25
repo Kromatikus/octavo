@@ -1197,7 +1197,7 @@ def api_info() -> dict[str, Any]:
             "music_note": (
                 "Hear derives a short 3-voice WAV/MIDI/SID tune (melody, bass, "
                 "harmony) from a sealed 0x1C blob. style=earworm is the default; "
-                "style=ultima is an original Ultima-textured chiptune (not their tunes). "
+                "style=ultima is an original slower Ultima title/loading texture (not their tunes). "
                 "Display only; it does not change the cipher."
             ),
             "music_styles": ["earworm", "ultima"],

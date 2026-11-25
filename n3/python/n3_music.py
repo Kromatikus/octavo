@@ -398,8 +398,7 @@ def voices_from_blob(blob: bytes, *, raw: bool = False) -> Arrangement:
 def _event_text(ev: Event, unit: int = 1) -> str:
     name = midi_name(ev.midi)
     length = ev.length
-    # Ultima events are in sixteenths; show even spans in eighths so the
-    # melody rhythm still reads like the earworm notes_text.
+    # Ultima events are in eighths (quarters and halves). length 2 = quarter ("-").
     if unit == 2 and length % 2 == 0:
         length = length // 2
         unit = 1
@@ -414,26 +413,20 @@ def _event_text(ev: Event, unit: int = 1) -> str:
     return f"{name}x{length}"
 
 
-def _ultima_arp_text(arr: Arrangement) -> str:
-    """One compact token per half-bar, e.g. 'A4-C5-E5 arp'."""
+def _ultima_harmony_text(arr: Arrangement) -> str:
+    """Compact pad listing, one token per bar."""
     n = grid_len(arr)
+    unit = getattr(arr, "unit", 1) or 1
     parts = []
-    for base in range(0, n, 8):
-        end = min(base + 8, n)
-        pits = []
-        for ev in arr.harmony:
-            if ev.start < end and ev.start + ev.length > base:
-                if ev.midi not in pits:
-                    pits.append(ev.midi)
-        if pits:
-            parts.append("-".join(midi_name(p) for p in pits[:4]) + " arp")
+    for ev in arr.harmony:
+        parts.append(_event_text(ev, unit))
     return " ".join(parts)
 
 
 def voices_text(arr: Arrangement) -> str:
-    unit = 2 if getattr(arr, "style", "earworm") == "ultima" else 1
+    unit = getattr(arr, "unit", 1) or 1
     if getattr(arr, "style", "earworm") == "ultima":
-        harm = _ultima_arp_text(arr)
+        harm = _ultima_harmony_text(arr)
     else:
         harm = " ".join(_event_text(ev, unit) for ev in arr.harmony)
     lines = [
@@ -845,26 +838,26 @@ def psid(arr: Arrangement) -> bytes:
 # ---------------------------------------------------------------------------
 # Ultima-style arrangement (original music, display only)
 # ---------------------------------------------------------------------------
-# Texture inspired by 1980s Ultima III/IV chiptune (Kenneth W. Arnold era,
-# Apple II Mockingboard / C64 SID): bright pulse lead, driving 8th-note bass,
-# and fast broken-chord arpeggios, often in a modal minor. The pitches,
-# rhythms, bass patterns and progressions here are generated from the blob.
+# Texture inspired by the calmer *title / loading / intro* music of 1980s
+# Ultima III/IV (Kenneth W. Arnold era, Mockingboard / SID): a gentle pulse
+# lead, slow modal harmony, and a measured bass — original music only.
 # No Ultima melody, bass line, or chord sequence is copied or approximated.
 # ---------------------------------------------------------------------------
 
 STYLES = ("earworm", "ultima")
-ULTIMA_DOMAIN = b"Octavo N3 ultima v1"
+ULTIMA_DOMAIN = b"Octavo N3 ultima v2"
 ULTIMA_MELODY_PROGRAM = 80  # Lead 1 (square)
-ULTIMA_BASS_PROGRAM = 38  # Synth Bass 1
-ULTIMA_ARP_PROGRAM = 81  # Lead 2 (sawtooth)
+ULTIMA_BASS_PROGRAM = 42  # Cello
+ULTIMA_HARM_PROGRAM = 89  # Pad 2 (warm)
+ULTIMA_ARP_PROGRAM = ULTIMA_HARM_PROGRAM  # backward-compatible name
 AEOLIAN = (0, 2, 3, 5, 7, 8, 10)
 DORIAN = (0, 2, 3, 5, 7, 9, 10)
-# Generic fantasy/modal progressions (scale-degree chord names), not from a game.
+# Generic reverent/modal cadences (not from a game): plagal and i-VI-VII-i.
 ULTIMA_PROGRESSIONS = (
-    ("i", "VII", "VI", "VII"),
     ("i", "VI", "VII", "i"),
-    ("i", "III", "VII", "VI"),
-    ("i", "VII", "i", "v"),
+    ("i", "iv", "i", "i"),
+    ("i", "VI", "iv", "i"),
+    ("i", "III", "VI", "i"),
 )
 # Diatonic triads as intervals above the tonic.
 ULTIMA_CHORD = {
@@ -877,17 +870,19 @@ ULTIMA_CHORD = {
     "VII": (10, 2, 5),
 }
 ULTIMA_TONICS = (9, 2, 4, 7)  # A, D, E, G
-BASS_PATTERNS = (
-    (0, 12, 7, 12),
-    (0, 7, 12, 7),
-    (0, 7, 0, 12),
-    (0, 12, 7, 0),
+# Per bar: two half-notes (root/fifth/octave) or one whole-note root.
+BASS_BAR_PATTERNS = (
+    ("root", "fifth"),
+    ("root", "root"),
+    ("root", "octave"),
+    ("fifth", "root"),
 )
-ARP_ORDERS = (
-    (0, 1, 2),
-    (0, 1, 2, 0),
-    (2, 1, 0),
-    (0, 2, 1, 2),
+# Slow harmony: half-note pads (3rd then 5th, or the reverse).
+HARM_BAR_PATTERNS = (
+    ("third", "fifth"),
+    ("fifth", "third"),
+    ("third", "octave"),
+    ("fifth", "fifth"),
 )
 ASL_A = 0x0A
 INC_ABS = 0xEE
@@ -986,9 +981,89 @@ def _safe_chord(
     return planned[0], _chord_pcs(tonic_pc, intervals, planned[0])
 
 
+def _mel_pcs_in(melody, start: int, end: int) -> List[int]:
+    pcs = []
+    for ev in melody:
+        if ev.start < end and ev.start + ev.length > start:
+            pc = ev.midi % 12
+            if pc not in pcs:
+                pcs.append(pc)
+    return pcs
+
+
+def _safe_bass_midi(
+    root: int,
+    fifth: int,
+    target: int,
+    lo: int,
+    hi: int,
+    tonic_pc: int,
+    intervals: Sequence[int],
+    against: Sequence[int],
+    octave: bool = False,
+) -> int:
+    pc = root if not octave else root
+    midi = _place_pc(pc, target + (12 if octave else 0), lo, hi)
+    if octave and midi + 12 <= hi:
+        midi += 12
+    if not any(interval_class(midi, p) == 1 for p in against):
+        return midi
+    for alt_pc, alt_off in ((root, 0), (fifth, 0), (root, 12), (fifth, 12)):
+        alt = _place_pc(alt_pc, target + alt_off, lo, hi)
+        if alt_off >= 12 and alt + 12 <= hi:
+            alt = alt + 12
+        if not any(interval_class(alt, p) == 1 for p in against):
+            return alt
+    for m in range(lo, hi + 1):
+        if ((m % 12) - tonic_pc) % 12 in intervals and not any(
+            interval_class(m, p) == 1 for p in against
+        ):
+            return m
+    return midi
+
+
+def _safe_harm_midi(
+    role: str,
+    pcs: Tuple[int, ...],
+    target: int,
+    mel: Optional[int],
+    bass: Optional[int],
+    tonic_pc: int,
+    intervals: Sequence[int],
+) -> int:
+    root = pcs[0]
+    third = pcs[1] if len(pcs) > 1 else (root + 3) % 12
+    fifth = next((p for p in pcs if interval_class(p, root) == 5), (root + 7) % 12)
+    want = {"third": third, "fifth": fifth, "octave": root, "root": root}[role]
+    off = 12 if role == "octave" else 0
+    chosen = _place_pc(want, target + off, 55, 76)
+    if role == "octave" and chosen + 12 <= 76:
+        chosen += 12
+
+    def ok(m: int) -> bool:
+        return (not clashes_ultima(m, mel)) and (not clashes_ultima(m, bass))
+
+    if ok(chosen):
+        return chosen
+    for pc, extra in ((third, 0), (fifth, 0), (root, 0), (root, 12), (fifth, 12)):
+        m = _place_pc(pc, target + extra, 55, 76)
+        if extra and m + 12 <= 76:
+            m = m + 12
+        if ok(m):
+            return m
+    for m in _mode_pool(tonic_pc, intervals, 55, 76):
+        if ok(m):
+            return m
+    return max(55, min(76, (mel - 5) if mel else 64))
+
+
 def voices_from_blob_ultima(blob: bytes, *, raw: bool = False) -> Arrangement:
-    """Original modal chiptune arrangement. Rhythm comes from the earworm digest;
-    pitches, mode, tempo and patterns come from a separate ultima digest.
+    """Original slow modal arrangement in a title/loading spirit.
+
+    The 16-note rhythm comes from the earworm digest, stretched so a short
+    earworm eighth becomes a quarter and a long note becomes a half. A short
+    plagal or modal cadence is appended. Pitches, mode, tempo and patterns
+    come from a separate ultima digest.
     """
     data = _blob_bytes(blob, raw)
     tune = tune_from_blob(data, raw=True)
@@ -997,121 +1072,135 @@ def voices_from_blob_ultima(blob: bytes, *, raw: bool = False) -> Arrangement:
     mode_iv = AEOLIAN if (udigest[1] & 1) == 0 else DORIAN
     mode_label = "Aeolian" if mode_iv is AEOLIAN else "Dorian"
     tonic_name = PITCH_NAMES[tonic_pc]
-    bpm = 130 + (udigest[2] % 21)
+    bpm = 70 + (udigest[2] % 21)  # 70..90
     family = ULTIMA_PROGRESSIONS[udigest[3] % len(ULTIMA_PROGRESSIONS)]
     table = _mode_table(tonic_pc, mode_iv, udigest[4])
-    bass_pat = BASS_PATTERNS[udigest[5] % len(BASS_PATTERNS)]
-    arp_order = ARP_ORDERS[udigest[6] % len(ARP_ORDERS)]
+    bass_pat = BASS_BAR_PATTERNS[udigest[5] % len(BASS_BAR_PATTERNS)]
+    harm_pat = HARM_BAR_PATTERNS[udigest[6] % len(HARM_BAR_PATTERNS)]
     low_bass = (udigest[7] & 1) == 0
+    plagal_coda = (udigest[8] & 1) == 0  # iv-i vs VII-i
 
-    # Melody: same 16 lengths, remapped onto the mode table.
+    # Melody: earworm lengths stretched (1→quarter, 2→half), then padded to a
+    # bar line and a two-bar cadence.
     melody: List[Event] = []
     t8 = 0
     for idx, length in tune:
-        melody.append(Event(t8 * 2, table[idx % len(table)], length * 2))
-        t8 += length
-    total_eighths = t8
-    total_units = total_eighths * 2
+        dur = length * 2
+        melody.append(Event(t8, table[idx % len(table)], dur))
+        t8 += dur
+    if t8 % 8 != 0:
+        extra = 8 - (t8 % 8)
+        last = melody[-1]
+        melody[-1] = Event(last.start, last.midi, last.length + extra)
+        t8 += extra
+    body_end = t8
 
-    # Chords, half-bar (4 eighths = 8 sixteenths) at a time.
+    # Coda melody: approach, then a held tonic.
+    tonic_mel = _place_pc(tonic_pc, melody[-1].midi if melody else 69, 57, 81)
+    # A scale neighbor below the tonic, if it exists; otherwise the fifth.
+    below = tonic_mel - 1
+    while below >= 55 and ((below % 12) - tonic_pc) % 12 not in mode_iv:
+        below -= 1
+    approach = below if below >= 55 else _place_pc((tonic_pc + 7) % 12, tonic_mel, 55, 81)
+    melody.append(Event(t8, approach, 8))
+    melody.append(Event(t8 + 8, tonic_mel, 8))
+    t8 += 16
+    total_eighths = t8
+    total_units = t8
+    n_bars = (total_eighths + 7) // 8
+
+    # One chord per bar; last two bars are a cadence (iv-i or VII-i).
     chord_at: List[Tuple[str, Tuple[int, ...]]] = []
-    for start8 in range(0, total_eighths, 4):
-        end8 = min(start8 + 4, total_eighths)
-        planned = family[(start8 // 4) % len(family)]
-        against = _pcs_in_span(
-            [Event(ev.start // 2, ev.midi, max(1, ev.length // 2)) for ev in melody],
-            start8,
-            end8,
-        )
-        # against from sixteenths directly:
-        against = []
-        for ev in melody:
-            lo = max(ev.start, start8 * 2)
-            hi = min(ev.start + ev.length, end8 * 2)
-            if lo < hi:
-                pc = ev.midi % 12
-                if pc not in against:
-                    against.append(pc)
+    for bar in range(n_bars):
+        start8 = bar * 8
+        end8 = min(start8 + 8, total_eighths)
+        if bar == n_bars - 2:
+            planned = "iv" if plagal_coda else "VII"
+        elif bar == n_bars - 1:
+            planned = "i"
+        else:
+            planned = family[bar % len(family)]
+        against = _mel_pcs_in(melody, start8, end8)
         name, pcs = _safe_chord(tonic_pc, mode_iv, (planned,), against)
-        for _ in range(start8 * 2, end8 * 2):
+        for _ in range(start8, end8):
             chord_at.append((name, pcs))
     while len(chord_at) < total_units:
         chord_at.append(chord_at[-1] if chord_at else ("i", _chord_pcs(tonic_pc, mode_iv, "i")))
 
-    bass_target = (33 if low_bass else 45)
-    bass_lo, bass_hi = (31, 45) if low_bass else (36, 52)
+    bass_target = 33 if low_bass else 45
+    bass_lo, bass_hi = ((31, 45) if low_bass else (36, 52))
     bass: List[Event] = []
-    for e8 in range(total_eighths):
-        start = e8 * 2
-        name, pcs = chord_at[start]
+    for bar in range(n_bars):
+        start8 = bar * 8
+        end8 = min(start8 + 8, total_eighths)
+        name, pcs = chord_at[start8]
         root = pcs[0]
         fifth = next((p for p in pcs if interval_class(p, root) == 5), (root + 7) % 12)
-        deg = bass_pat[e8 % len(bass_pat)]
-        if deg == 0:
-            pc = root
-        elif deg == 7:
-            pc = fifth
+        # Whole-note root if the pattern repeats the same role and the bar is full.
+        roles = list(bass_pat)
+        if end8 - start8 < 8:
+            roles = roles[:1]
+        if len(roles) == 2 and roles[0] == roles[1] and (end8 - start8) == 8:
+            against = _mel_pcs_in(melody, start8, end8)
+            midi = _safe_bass_midi(
+                root, fifth, bass_target, bass_lo, bass_hi, tonic_pc, mode_iv, against,
+                octave=(roles[0] == "octave"),
+            )
+            bass.append(Event(start8, midi, end8 - start8))
         else:
-            pc = root
-        midi = _place_pc(pc, bass_target + (12 if deg >= 12 else 0), bass_lo, bass_hi)
-        if deg >= 12 and midi + 12 <= bass_hi:
-            midi += 12
-        # Avoid a minor second against any melody sounding in this eighth.
-        mel_pcs = []
-        for ev in melody:
-            if ev.start < start + 2 and ev.start + ev.length > start:
-                pc_m = ev.midi % 12
-                if pc_m not in mel_pcs:
-                    mel_pcs.append(pc_m)
-        if any(interval_class(midi, p) == 1 for p in mel_pcs):
-            found = False
-            for alt_pc, alt_off in ((root, 0), (fifth, 0), (root, 12), (fifth, 12)):
-                alt = _place_pc(alt_pc, bass_target + alt_off, bass_lo, bass_hi)
-                if alt_off and alt + 0 <= bass_hi and alt < 52:
-                    if alt + 12 <= bass_hi and alt_off >= 12:
-                        alt = alt + 12 if (alt + 12) <= bass_hi else alt
-                if not any(interval_class(alt, p) == 1 for p in mel_pcs):
-                    midi = alt
-                    found = True
+            slot = max(1, (end8 - start8) // max(1, len(roles)))
+            # Prefer half notes (4 eighths) on a full bar.
+            if end8 - start8 == 8 and len(roles) == 2:
+                slot = 4
+            t = start8
+            for i, role in enumerate(roles):
+                length = (end8 - t) if i == len(roles) - 1 else min(slot, end8 - t)
+                if length <= 0:
                     break
-            if not found:
-                for m in range(bass_lo, bass_hi + 1):
-                    if ((m % 12) - tonic_pc) % 12 in mode_iv and not any(
-                        interval_class(m, p) == 1 for p in mel_pcs
-                    ):
-                        midi = m
-                        break
-        bass.append(Event(start, midi, 2))
+                against = _mel_pcs_in(melody, t, t + length)
+                midi = _safe_bass_midi(
+                    root, fifth, bass_target, bass_lo, bass_hi, tonic_pc, mode_iv, against,
+                    octave=(role == "octave"),
+                )
+                if role == "fifth":
+                    midi = _safe_bass_midi(
+                        fifth, root, bass_target, bass_lo, bass_hi, tonic_pc, mode_iv, against,
+                        octave=False,
+                    )
+                bass.append(Event(t, midi, length))
+                t += length
 
-    arp_target = 64
+    harm_target = 64
     harmony: List[Event] = []
-    for u in range(total_units):
-        name, pcs = chord_at[u]
-        # Build 3–4 chord tones in mid register.
-        tones = []
-        for i, pc in enumerate(pcs):
-            tones.append(_place_pc(pc, arp_target + (12 if i == 0 else 0), 55, 79))
-        if len(tones) >= 1 and tones[0] + 12 <= 79:
-            oct_up = tones[0] + 12
-            if oct_up not in tones:
-                tones.append(oct_up)
-        order = arp_order
-        chosen = tones[order[u % len(order)] % len(tones)]
-        mel = _sounding(melody, u)
-        if clashes_ultima(chosen, mel):
-            found = False
-            for t in tones + _mode_pool(tonic_pc, mode_iv, 55, 79):
-                if not clashes_ultima(t, mel) and not clashes_ultima(t, _sounding(bass, u)):
-                    chosen = t
-                    found = True
+    for bar in range(n_bars):
+        start8 = bar * 8
+        end8 = min(start8 + 8, total_eighths)
+        name, pcs = chord_at[start8]
+        roles = list(harm_pat)
+        if end8 - start8 < 8:
+            roles = roles[:1]
+        slot = 4 if (end8 - start8) == 8 and len(roles) == 2 else max(1, (end8 - start8) // max(1, len(roles)))
+        t = start8
+        for i, role in enumerate(roles):
+            length = (end8 - t) if i == len(roles) - 1 else min(slot, end8 - t)
+            if length <= 0:
+                break
+            mel = _sounding(melody, t)
+            bnow = _sounding(bass, t)
+            midi = _safe_harm_midi(role, pcs, harm_target, mel, bnow, tonic_pc, mode_iv)
+            # Also check the rest of the half-note span.
+            for u in range(t, t + length):
+                if clashes_ultima(midi, _sounding(melody, u)) or clashes_ultima(midi, _sounding(bass, u)):
+                    midi = _safe_harm_midi(
+                        role, pcs, harm_target, _sounding(melody, u), _sounding(bass, u), tonic_pc, mode_iv
+                    )
                     break
-            if not found:
-                # Skip to a repeated previous safe tone if we must.
-                chosen = tones[0] if not clashes_ultima(tones[0], mel) else (mel + 7 if mel else 60)
-                chosen = max(55, min(79, chosen))
-        harmony.append(Event(u, chosen, 1))
+            harmony.append(Event(t, midi, length))
+            t += length
     harmony = _tie_adjacent(harmony)
+    bass = _tie_adjacent(bass)
 
+    cadence = "iv-i" if plagal_coda else "VII-i"
     return Arrangement(
         list(tune),
         melody,
@@ -1120,9 +1209,9 @@ def voices_from_blob_ultima(blob: bytes, *, raw: bool = False) -> Arrangement:
         total_eighths,
         "ultima",
         bpm,
-        2,
+        1,
         total_units,
-        f"{tonic_name} {mode_label} ({' '.join(family)})",
+        f"{tonic_name} {mode_label} ({' '.join(family)}, coda {cadence})",
     )
 
 
@@ -1132,18 +1221,19 @@ def _pulse(freq: float, t: float, width: float) -> float:
 
 
 def wav_ultima(arr: Arrangement) -> bytes:
-    """Square/PWM lead, triangle bass, pulse arpeggio; staccato envelopes, 130–150 bpm."""
+    """Gentle PWM pulse lead, triangle bass, soft pads; legato, 70-90 bpm."""
     sr = WAV_SR
     bpm = arr.bpm
-    six = max(1, int(round(sr * 15.0 / float(bpm))))
-    total_samples = grid_len(arr) * six
+    # Events are in eighths.
+    eighth = max(1, int(round(sr * 30.0 / float(bpm))))
+    total_samples = grid_len(arr) * eighth
     pcm = [0.0] * total_samples
 
     def add_note(ev: Event, wave: str, amp: float, duty: float, fade: int, vib: bool) -> None:
-        start = ev.start * six
-        dur_full = ev.length * six
+        start = ev.start * eighth
+        dur_full = ev.length * eighth
         dur = max(1, int(dur_full * duty))
-        fade_n = min(fade, max(1, dur // 3))
+        fade_n = min(fade, max(1, dur // 4))
         base_freq = 440.0 * 2.0 ** ((ev.midi - 69.0) / 12.0)
         for i in range(dur):
             idx = start + i
@@ -1153,24 +1243,24 @@ def wav_ultima(arr: Arrangement) -> bytes:
             abs_t = idx / sr
             env = min(min(i, dur - 1 - i) / float(fade_n), 1.0)
             freq = base_freq
-            if vib and dur_full >= 4 * six and tt > 0.12:
-                freq = base_freq * (1.0 + 0.007 * math.sin(2.0 * math.pi * 5.5 * (tt - 0.12)))
+            if vib and dur_full >= 4 * eighth and tt > 0.25:
+                freq = base_freq * (1.0 + 0.004 * math.sin(2.0 * math.pi * 4.5 * (tt - 0.25)))
             if wave == "pwm":
-                width = 0.42 + 0.16 * math.sin(2.0 * math.pi * 3.1 * abs_t)
-                width = min(0.82, max(0.18, width))
+                width = 0.48 + 0.08 * math.sin(2.0 * math.pi * 0.7 * abs_t)
+                width = min(0.62, max(0.34, width))
                 s = _pulse(freq, tt, width)
             elif wave == "pulse":
-                s = _pulse(freq, tt, 0.28)
+                s = _pulse(freq, tt, 0.45)
             else:
                 s = _triangle(freq, tt)
             pcm[idx] += env * amp * s
 
     for ev in arr.melody:
-        add_note(ev, "pwm", 0.24, 0.88, 180, True)
+        add_note(ev, "pwm", 0.22, 0.98, 1200, True)
     for ev in arr.bass:
-        add_note(ev, "tri", 0.10, 0.55, 80, False)
+        add_note(ev, "tri", 0.11, 0.96, 900, False)
     for ev in arr.harmony:
-        add_note(ev, "pulse", 0.12, 0.70, 50, False)
+        add_note(ev, "pulse", 0.11, 0.97, 1000, False)
 
     samples: List[int] = []
     for v in pcm:
@@ -1200,10 +1290,8 @@ def wav_ultima(arr: Arrangement) -> bytes:
 
 
 def midi_ultima(arr: Arrangement, program: int = ULTIMA_MELODY_PROGRAM) -> bytes:
-    """Format-1 MIDI, 3 tracks: square lead, synth bass, arp lead. No drums."""
-    # Temporarily interpret Event lengths as sixteenths by scaling PPQ usage.
-    # _midi_track uses eighth = PPQ//2. We'll write a sixteenth-aware track here.
-    sixteenth = MIDI_PPQ // 4
+    """Format-1 MIDI, 3 tracks: square lead, cello bass, warm pad. No drums."""
+    eighth = MIDI_PPQ // 2
     us = int(round(60_000_000 / float(arr.bpm)))
     us = max(1, min(0xFFFFFF, us))
 
@@ -1217,25 +1305,21 @@ def midi_ultima(arr: Arrangement, program: int = ULTIMA_MELODY_PROGRAM) -> bytes
         trk += bytes([0x00, 0xC0 | (channel & 0x0F), prog & 0x7F])
         t = 0
         for ev in events:
-            _vlq((ev.start - t) * sixteenth, trk)
+            _vlq((ev.start - t) * eighth, trk)
             key = ev.midi & 0x7F
-            # Slight staccato: 70% of the written length, except short 16ths.
-            sound = ev.length if ev.length == 1 else max(1, (ev.length * 7) // 10)
-            rest = ev.length - sound
+            # Mostly legato, a tiny gap so notes don't smear.
+            sound = ev.length if ev.length <= 1 else max(1, (ev.length * 19) // 20)
             trk += bytes([0x90 | (channel & 0x0F), key, velocity & 0x7F])
-            _vlq(sound * sixteenth, trk)
+            _vlq(sound * eighth, trk)
             trk += bytes([0x80 | (channel & 0x0F), key, 0])
-            t = ev.start + sound
-            if rest:
-                # implicit rest until next event via next delay
-                t = ev.start + ev.length
+            t = ev.start + ev.length
         trk += bytes([0x00, 0xFF, 0x2F, 0x00])
         return bytes(trk)
 
     tracks = [
-        track(arr.melody, 0, program & 0x7F, b"Octavo N3 ultima lead", 104, tempo=True),
-        track(arr.bass, 1, ULTIMA_BASS_PROGRAM, b"Octavo N3 ultima bass", 70),
-        track(arr.harmony, 2, ULTIMA_ARP_PROGRAM, b"Octavo N3 ultima arp", 78),
+        track(arr.melody, 0, program & 0x7F, b"Octavo N3 ultima lead", 90, tempo=True),
+        track(arr.bass, 1, ULTIMA_BASS_PROGRAM, b"Octavo N3 ultima bass", 64),
+        track(arr.harmony, 2, ULTIMA_HARM_PROGRAM, b"Octavo N3 ultima pad", 70),
     ]
     m = bytearray()
     m += b"MThd"
@@ -1250,51 +1334,27 @@ def midi_ultima(arr: Arrangement, program: int = ULTIMA_MELODY_PROGRAM) -> bytes
     return bytes(m)
 
 
-def _ultima_frames_per_sixteenth(bpm: int) -> int:
+def _ultima_frames_per_eighth(bpm: int) -> int:
     # PAL CIA play is ~50 Hz in our PSID (flag 0x14).
-    return max(3, int(round(50.0 * 15.0 / float(bpm))))
+    return max(8, int(round(50.0 * 30.0 / float(bpm))))
 
 
 def player_ultima(arr: Arrangement) -> bytes:
-    """C64 load image: PWM pulse lead, triangle bass, frame-rate pulse arpeggio."""
+    """C64 load image: slow PWM pulse lead, triangle bass, pulse pad."""
     n = grid_len(arr)
     if not 0 < n <= 128:
-        raise ValueError("ultima tune must have 1..128 sixteenths")
-    frames = _ultima_frames_per_sixteenth(arr.bpm)
+        raise ValueError("ultima tune must have 1..128 eighths")
+    frames = _ultima_frames_per_eighth(arr.bpm)
     m_pitch, m_on, m_off = _grid(arr.melody, n)
     b_pitch, b_on, b_off = _grid(arr.bass, n)
-    # Three arpeggio chord tones per sixteenth (frame-rate cycle).
-    a0 = [0] * n
-    a1 = [0] * n
-    a2 = [0] * n
-    for ev in arr.harmony:
-        for i in range(ev.length):
-            idx = ev.start + i
-            if 0 <= idx < n:
-                # Fill a working tone; the other two come from nearby events.
-                a0[idx] = ev.midi
-    # Rebuild 3-tone sets from the (possibly tied) harmony line by looking
-    # at the unique pitches in each 8-sixteenth chord span, padded.
-    for base in range(0, n, 8):
-        end = min(base + 8, n)
-        pitches = []
-        for ev in arr.harmony:
-            if ev.start < end and ev.start + ev.length > base:
-                if ev.midi not in pitches:
-                    pitches.append(ev.midi)
-        if not pitches:
-            pitches = [60, 64, 67]
-        while len(pitches) < 3:
-            nxt = pitches[0] + 12
-            pitches.append(nxt if nxt <= 81 else pitches[-1])
-        for idx in range(base, end):
-            a0[idx], a1[idx], a2[idx] = pitches[0], pitches[1], pitches[2]
-    starts = [(m_on[i] << 0) | (b_on[i] << 1) for i in range(n)]
-    releases = [(m_off[i] << 0) | (b_off[i] << 1) for i in range(n)]
+    h_pitch, h_on, h_off = _grid(arr.harmony, n)
+    starts = [(m_on[i] << 0) | (b_on[i] << 1) | (h_on[i] << 2) for i in range(n)]
+    releases = [(m_off[i] << 0) | (b_off[i] << 1) | (h_off[i] << 2) for i in range(n)]
 
     WAVE_U = [PULSE, TRIANGLE, PULSE]
-    ADSR_U = [(0x08, 0x85), (0x06, 0x64), (0x00, 0x86)]
-    PW_U = [0x800, 0, 0x400]
+    # Slow attack, high sustain — more organ/hymn than staccato chip.
+    ADSR_U = [(0x58, 0xA8), (0x48, 0xA8), (0x69, 0xA8)]
+    PW_U = [0x800, 0, 0x600]
 
     a = _Asm(LOAD)
     a.abs(JMP_ABS, "init")
@@ -1323,22 +1383,17 @@ def player_ultima(arr: Arrangement) -> bytes:
     a.abs(STA_ABS, "ucounter")
     a.imm(LDA_IMM, (n - 1) & 0xFF)
     a.abs(STA_ABS, "ustep")
-    a.imm(LDA_IMM, 0)
-    a.abs(STA_ABS, "uarpidx")
     a.imm(LDA_IMM, PW_U[0] & 0xFF)
     a.abs(STA_ABS, "upwlo")
     a.imm(LDA_IMM, (PW_U[0] >> 8) & 0xFF)
     a.abs(STA_ABS, "upwhi")
-    # Start the arpeggio voice (gate stays on; frequency cycles every frame).
-    a.imm(LDA_IMM, WAVE_U[2] | GATE)
-    a.absn(STA_ABS, SID_BASE + 18)
     a.imp(RTS)
 
     a.label("play")
-    # Slight PWM sweep on the lead (12-bit pulse width).
+    # Very slow PWM sweep on the lead (add 3 per frame).
     a.abs(LDA_ABS, "upwlo")
     a.imp(CLC)
-    a.imm(ADC_IMM, 12)
+    a.imm(ADC_IMM, 3)
     a.abs(STA_ABS, "upwlo")
     a.absn(STA_ABS, SID_BASE + 2)
     a.abs(LDA_ABS, "upwhi")
@@ -1366,19 +1421,10 @@ def player_ultima(arr: Arrangement) -> bytes:
     a.absn(STA_ABS, SID_BASE + 7)
     a.abs(LDA_ABX, "ubhi")
     a.absn(STA_ABS, SID_BASE + 8)
-    # Copy this step's 3 arp tones into the working table.
-    a.abs(LDA_ABX, "ua0lo")
-    a.abs(STA_ABS, "ualo0")
-    a.abs(LDA_ABX, "ua0hi")
-    a.abs(STA_ABS, "uahi0")
-    a.abs(LDA_ABX, "ua1lo")
-    a.abs(STA_ABS, "ualo1")
-    a.abs(LDA_ABX, "ua1hi")
-    a.abs(STA_ABS, "uahi1")
-    a.abs(LDA_ABX, "ua2lo")
-    a.abs(STA_ABS, "ualo2")
-    a.abs(LDA_ABX, "ua2hi")
-    a.abs(STA_ABS, "uahi2")
+    a.abs(LDA_ABX, "uhlo")
+    a.absn(STA_ABS, SID_BASE + 14)
+    a.abs(LDA_ABX, "uhhi")
+    a.absn(STA_ABS, SID_BASE + 15)
     a.abs(LDA_ABX, "ustarts")
     a.imm(AND_IMM, 1)
     a.br(0xF0, "unos0")
@@ -1391,48 +1437,43 @@ def player_ultima(arr: Arrangement) -> bytes:
     a.imm(LDA_IMM, WAVE_U[1] | GATE)
     a.absn(STA_ABS, SID_BASE + 11)
     a.label("unos1")
-    a.abs(JMP_ABS, "uarp")
+    a.abs(LDA_ABX, "ustarts")
+    a.imm(AND_IMM, 4)
+    a.br(0xF0, "unos2")
+    a.imm(LDA_IMM, WAVE_U[2] | GATE)
+    a.absn(STA_ABS, SID_BASE + 18)
+    a.label("unos2")
+    a.imp(RTS)
 
     a.label("uheld")
     a.abs(LDA_ABS, "ucounter")
-    # Staccato: release bass ~halfway through a sixteenth, melody 2 frames before end.
-    a.imm(CMP_IMM, max(1, frames // 2))
-    a.br(BNE, "urel2")
-    a.abs(LDX_ABS, "ustep")
-    a.abs(LDA_ABX, "ureleases")
-    a.imm(AND_IMM, 2)
-    a.br(0xF0, "urel2")
-    a.imm(LDA_IMM, WAVE_U[1])
-    a.absn(STA_ABS, SID_BASE + 11)
-    a.label("urel2")
-    a.abs(LDA_ABS, "ucounter")
     a.imm(CMP_IMM, 2)
-    a.br(BNE, "uarp")
+    a.br(BNE, "udone")
     a.abs(LDX_ABS, "ustep")
     a.abs(LDA_ABX, "ureleases")
     a.imm(AND_IMM, 1)
-    a.br(0xF0, "uarp")
+    a.br(0xF0, "unor0")
     a.imm(LDA_IMM, WAVE_U[0])
     a.absn(STA_ABS, SID_BASE + 4)
-
-    a.label("uarp")
-    a.abs(LDX_ABS, "uarpidx")
-    a.imp(INX)
-    a.imm(CPX_IMM, 3)
-    a.br(BNE, "ua1")
-    a.imm(LDX_IMM, 0)
-    a.label("ua1")
-    a.abs(STX_ABS, "uarpidx")
-    a.abs(LDA_ABX, "ualo0")
-    a.absn(STA_ABS, SID_BASE + 14)
-    a.abs(LDA_ABX, "uahi0")
-    a.absn(STA_ABS, SID_BASE + 15)
+    a.label("unor0")
+    a.abs(LDA_ABX, "ureleases")
+    a.imm(AND_IMM, 2)
+    a.br(0xF0, "unor1")
+    a.imm(LDA_IMM, WAVE_U[1])
+    a.absn(STA_ABS, SID_BASE + 11)
+    a.label("unor1")
+    a.abs(LDA_ABX, "ureleases")
+    a.imm(AND_IMM, 4)
+    a.br(0xF0, "udone")
+    a.imm(LDA_IMM, WAVE_U[2])
+    a.absn(STA_ABS, SID_BASE + 18)
+    a.label("udone")
     a.imp(RTS)
 
-    def lo(notes: Sequence[int]) -> List[int]:
+    def lo(notes):
         return [sid_freq(x) & 0xFF for x in notes]
 
-    def hi(notes: Sequence[int]) -> List[int]:
+    def hi(notes):
         return [(sid_freq(x) >> 8) & 0xFF for x in notes]
 
     tables = [
@@ -1440,37 +1481,18 @@ def player_ultima(arr: Arrangement) -> bytes:
         ("umhi", hi(m_pitch)),
         ("ublo", lo(b_pitch)),
         ("ubhi", hi(b_pitch)),
-        ("ua0lo", lo(a0)),
-        ("ua0hi", hi(a0)),
-        ("ua1lo", lo(a1)),
-        ("ua1hi", hi(a1)),
-        ("ua2lo", lo(a2)),
-        ("ua2hi", hi(a2)),
+        ("uhlo", lo(h_pitch)),
+        ("uhhi", hi(h_pitch)),
         ("ustarts", starts),
         ("ureleases", releases),
         ("ucounter", [0]),
         ("ustep", [0]),
-        ("uarpidx", [0]),
         ("upwlo", [0]),
         ("upwhi", [0]),
     ]
     for name, data in tables:
         a.label(name)
         a.bytes_(data)
-    # Working 3-tone arp table: ualo0..2 and uahi0..2 are consecutive, so
-    # LDA_ABX ualo0 with X=0..2 hits all three lows.
-    a.label("ualo0")
-    a.bytes_([0])
-    a.label("ualo1")
-    a.bytes_([0])
-    a.label("ualo2")
-    a.bytes_([0])
-    a.label("uahi0")
-    a.bytes_([0])
-    a.label("uahi1")
-    a.bytes_([0])
-    a.label("uahi2")
-    a.bytes_([0])
     return a.finish()
 
 
