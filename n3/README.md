@@ -32,7 +32,7 @@ cd rust
 ```
 
 Lab-only tools (`n3draft`, `n3bench`, `n3fbbench`, `n3setupprof`, `n3dudect`,
-`n3dudect_tag`, `n3dudect_setup`) are not part of the default build. Build
+`n3dudect_tag`, `n3dudect_setup`, `n3aeadbench`, `n3layerprof`) are not part of the default build. Build
 them with the `lab` feature:
 
 ```bash
@@ -49,7 +49,29 @@ Override the backend with `OCTAVO_N3_BACKEND=avx512gfni|avx2gfni|avx2|portable`
 ```
 
 `n3aead` takes the seed on the command line, which can show up in process
-lists. That is a limitation of this lab tool.
+lists. That is a limitation of this lab tool. It runs big inputs on several
+threads (`N3_THREADS`, default: CPUs, at most 8); output bytes do not depend
+on the thread count.
+
+### n3file (streaming file tool)
+
+`cli/` is a separate crate (`octavo-n3-file`, binary `n3file`) that seals and
+opens big files in a new chunked container, SN3F v1, built on the 0x1C AEAD
+(see `cli/FORMAT.md`). It uses key files (256 hex digits, mode 0600), the same
+weak-seed policy as the N2 `octavo` tool, bounded memory, and writes the opened
+file only after every chunk and the final-chunk flag verify.
+
+```bash
+cd cli && ~/.cargo/bin/cargo build --release
+./target/release/n3file keygen -o my.key
+./target/release/n3file seal -k my.key --ad "label" -o file.n3f file.bin   # -j N, --chunk-size
+./target/release/n3file open -k my.key --ad "label" -o file.bin file.n3f
+~/.cargo/bin/cargo test --release && ./tests/cli_test.sh "$PWD/target/release/n3file" <demo-seed-file>
+```
+
+On a 256 MiB file it ran about 100 MB/s on one thread and 300-370 MB/s on 8
+(N2's `octavo` tool: about the same). N3 is experimental and homemade; this
+tool is for testing it, not for real secrets.
 
 ## Migrating from N2
 
@@ -65,6 +87,7 @@ Do not reuse the public N2 demo seed or an N2 32/64-byte app key.
 | Path | What |
 |---|---|
 | `rust/` | N3 Rust crate, tests, and `n3aead` |
+| `cli/` | `n3file` streaming file tool (SN3F v1), `FORMAT.md`, tests |
 | `python/` | Slow independent Python block-function reference |
 | `python/n3_music.py` | Display-only 3-voice WAV/MIDI/SID earworm from a sealed 0x1C blob; `--style ultima` or `--style castle` for original chiptune textures |
 | `spec/N3_SPEC.md` | N3 specification |

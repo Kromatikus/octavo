@@ -20,6 +20,12 @@ behind `--features lab`), files under `rust/` also no longer match the
 frozen 004 checksums. The cipher, 0x1C format, and test vectors are
 unchanged.
 
+`rust/` has since moved further from the frozen 004 checksums: multithreaded
+`n3aead`, a faster bow and Karatsuba-style chord and cross kernels (generated
+by `tools/gen_kar_z.py` and `tools/gen_kar_xy.py`), and two more lab benches.
+Output is byte-identical to the earlier build. `cli/` (`n3file`) is new and is
+not in the freeze list.
+
 Every other file that is present should still match its listed hash:
 
 ```
