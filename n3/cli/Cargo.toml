@@ -1,0 +1,19 @@
+[package]
+name = "octavo-n3-file"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "n3file: streaming file container (SN3F v1) over the experimental N3 0x1C AEAD. Homemade; for real secrets use AES-GCM-SIV, age, or libsodium."
+
+[[bin]]
+name = "n3file"
+path = "src/main.rs"
+
+[dependencies]
+octavo-n3-draft3 = { path = "../rust" }
+clap = { version = "4.5", features = ["derive"] }
+zeroize = { version = "1.8", features = ["alloc"] }
+getrandom = "0.2"
+sha2 = "0.10"
+libc = "0.2"
+
