@@ -42,5 +42,12 @@ full 128-byte tag-cipher block are wiped after use. `Cipher`, `Aead` (0x1C), and
 implement `zeroize::Zeroize` and wipe expanded key material on Drop. Encrypt/decrypt output is
 unchanged.
 
+The `polyval` crate's autodetect wrapper can leave a copy of the per-nonce key H and the
+POLYVAL output S in dead stack frames after `finalize` (the crate's Drop never sees that copy).
+`tag_of`, the sequential and combined POLYVAL paths, and each worker call a 16 KiB `inline(never)`
+volatile stack scrub (`write_volatile` + `Zeroize` + `compiler_fence(SeqCst)` + `black_box`) so
+those copies are overwritten. Output bytes are unchanged. A 192 KiB dead-stack scan after
+`tag_of` (the method from `/workspace/attacks_n3_polyval2`) should see 0 hits for H and S.
+
 Needs its own attack round on 0x1E before any trust (0x1D was attacked; this is the fix plus a
 new format byte).

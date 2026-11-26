@@ -303,3 +303,86 @@ fn pv_cross_format_unrelated() {
     assert_eq!(old.open(b"ad", &q), Err(AeadError::AuthFailed));
     assert_ne!(&bo[22..54], &bp[22..54]);
 }
+
+/// Same method as attacks_n3_polyval2 `attack_z3_stack_residue`: scan 192 KiB of
+/// uninitialized stack below this frame for leftover H / S / S^nonce after tag_of.
+/// Patterns are computed on another thread so they do not seed the scanned stack.
+/// With the 16 KiB scrub this should be 0/30 for H and S (was 30/30 without it).
+#[inline(never)]
+fn scan_dead_stack(pats: &[[u8; 16]]) -> Vec<usize> {
+    const N: usize = 192 * 1024;
+    let buf = core::mem::MaybeUninit::<[u8; N]>::uninit();
+    let p = buf.as_ptr() as *const u8;
+    let mut hits = vec![0usize; pats.len()];
+    let mut i = 0;
+    while i + 16 <= N {
+        let w: [u8; 16] = core::array::from_fn(|k| unsafe { core::ptr::read_volatile(p.add(i + k)) });
+        for (j, pt) in pats.iter().enumerate() {
+            if &w == pt {
+                hits[j] += 1;
+            }
+        }
+        i += 1;
+    }
+    hits
+}
+
+fn seq_polyval_test(key: &[u8; 16], ad: &[u8], m: &[u8]) -> [u8; 16] {
+    let mut p = Polyval::new(key.into());
+    p.update_padded(ad);
+    p.update_padded(m);
+    let mut len = [0u8; 16];
+    len[..8].copy_from_slice(&((ad.len() as u64) * 8).to_le_bytes());
+    len[8..].copy_from_slice(&((m.len() as u64) * 8).to_le_bytes());
+    p.update_padded(&len);
+    p.finalize().into()
+}
+
+#[test]
+fn pv_stack_residue_after_tag_of() {
+    let mut r = Rng(0x23);
+    let sd: [u8; SEED_LEN] = r.bytes(SEED_LEN).try_into().unwrap();
+    let mut tot_before = [0usize; 3];
+    let mut tot_after = [0usize; 3];
+    let trials = 30;
+    for _ in 0..trials {
+        let nonce: [u8; 16] = r.bytes(16).try_into().unwrap();
+        let ml = 64 + (r.next() as usize % 2000);
+        let m = r.bytes(ml);
+        let ad = r.bytes(9);
+        let (h, s, sn) = std::thread::scope(|sc| {
+            sc.spawn(|| {
+                let a = AeadPv::new(&sd).with_threads(1);
+                let h = a.auth_key_pub(&nonce);
+                let s = seq_polyval_test(&h, &ad, &m);
+                let sn = core::array::from_fn(|i| s[i] ^ nonce[i]);
+                (h, s, sn)
+            })
+            .join()
+            .unwrap()
+        });
+        let (b, af) = std::thread::scope(|sc| {
+            sc.spawn(|| {
+                let a = AeadPv::new(&sd).with_threads(1);
+                let before = scan_dead_stack(&[h, s, sn]);
+                let _ = a.tag_of_pub(&ad, &nonce, &m);
+                let after = scan_dead_stack(&[h, s, sn]);
+                (before, after)
+            })
+            .join()
+            .unwrap()
+        });
+        for k in 0..3 {
+            tot_before[k] += b[k];
+            tot_after[k] += af[k];
+        }
+    }
+    println!(
+        "dead-stack residue after tag_of (192 KiB, 30 trials): H={}, S={}, S^nonce={} (baseline before: {:?})",
+        tot_after[0], tot_after[1], tot_after[2], tot_before
+    );
+    assert_eq!(tot_before, [0, 0, 0], "baseline already dirty; harness invalid");
+    assert_eq!(tot_after[0], 0, "H residue after tag_of: {}", tot_after[0]);
+    assert_eq!(tot_after[1], 0, "S residue after tag_of: {}", tot_after[1]);
+    assert_eq!(tot_after[2], 0, "S^nonce residue after tag_of: {}", tot_after[2]);
+}
