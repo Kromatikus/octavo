@@ -17,6 +17,7 @@ mod key_ct;
 mod benes_soft;
 mod fallback;
 pub mod aead;
+pub mod aead_pv;
 
 #[cfg(target_arch = "x86_64")]
 use crate::gfni::GfniKey;
@@ -903,6 +904,8 @@ mod branch;
 mod fallback_tests;
 #[cfg(test)]
 mod aead_tests;
+#[cfg(test)]
+mod aead_pv_tests;
 
 #[cfg(test)]
 mod tests {
