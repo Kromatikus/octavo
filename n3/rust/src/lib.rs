@@ -6,6 +6,7 @@
 //! Homemade; for real secrets use AES-GCM-SIV, age, or libsodium.
 
 use sha2::{Digest, Sha256};
+use zeroize::Zeroize;
 
 mod affine;
 mod gf;
@@ -36,6 +37,27 @@ pub const SPONGE_PREFIX: &[u8] = b"SN3C/";
 /// Distinct format marker for this key schedule. Not interchangeable with
 /// draft-3's 0x16 / 0x17 / 0x19. Absorbed into the sponge after the prefix.
 pub const FORMAT_BYTE: u8 = 0x1B;
+
+/// Volatile overwrite of secret bytes, then a compiler fence. Used by Drop wipes
+/// and AEAD helpers. Length is public.
+pub(crate) fn wipe_bytes(b: &mut [u8]) {
+    for x in b.iter_mut() {
+        unsafe { core::ptr::write_volatile(x, 0) };
+    }
+    core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
+}
+
+/// Wipe a `Copy`-style value as raw bytes (padding included).
+pub(crate) fn wipe_val<T: Sized>(v: &mut T) {
+    let n = core::mem::size_of::<T>();
+    unsafe {
+        let p = v as *mut T as *mut u8;
+        for i in 0..n {
+            core::ptr::write_volatile(p.add(i), 0);
+        }
+    }
+    core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
+}
 
 /// True when this CPU can run the AVX-512 GFNI data path.
 pub fn gfni_available() -> bool {
@@ -469,6 +491,16 @@ impl Sponge {
     }
 }
 
+impl Drop for Sponge {
+    fn drop(&mut self) {
+        wipe_bytes(&mut self.seed);
+        wipe_bytes(&mut self.nonce);
+        wipe_bytes(&mut self.buf);
+        self.ctr = 0;
+        self.domain = 0;
+    }
+}
+
 struct Round {
     rk: [u8; BLOCK_LEN],
     s: [u8; 256],
@@ -494,6 +526,32 @@ pub struct Cipher {
 }
 
 impl Cipher {
+
+    /// Wipe expanded key material. Output of encrypt/decrypt is unchanged while
+    /// the object is still in use; this is only for Drop (and tests).
+    pub(crate) fn zeroize_secret(&mut self) {
+        for r in &mut self.rounds {
+            wipe_bytes(&mut r.rk);
+            wipe_bytes(&mut r.s);
+            wipe_bytes(&mut r.si);
+            wipe_bytes(&mut r.s2);
+            wipe_bytes(&mut r.si2);
+            wipe_bytes(&mut r.sm);
+            wipe_bytes(&mut r.sim);
+            wipe_bytes(&mut r.bridge);
+            wipe_val(&mut r.ks);
+            wipe_val(&mut r.ks2);
+            wipe_val(&mut r.ksm);
+        }
+        wipe_bytes(&mut self.white);
+        #[cfg(target_arch = "x86_64")]
+        if let Some(g) = self.gfni.as_mut() {
+            g.zeroize_secret();
+        }
+        if let Some(f) = self.fb.as_mut() {
+            f.zeroize_secret();
+        }
+    }
     /// Key setup with the auto-selected backend (`Backend::detect()`).
     pub fn new(seed: &[u8; SEED_LEN], nonce: &[u8; NONCE_LEN]) -> Self {
         Self::with_backend(seed, nonce, Backend::detect()).expect("detected backend is supported")
@@ -897,6 +955,19 @@ pub fn run_layer_profile_only() {
         gfni::run_layer_profile(key);
     }
 }
+
+impl Zeroize for Cipher {
+    fn zeroize(&mut self) {
+        self.zeroize_secret();
+    }
+}
+
+impl Drop for Cipher {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
 
 #[cfg(test)]
 mod branch;

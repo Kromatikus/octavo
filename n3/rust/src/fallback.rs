@@ -216,6 +216,13 @@ fn public_tables() -> &'static PublicTables {
 }
 
 impl FbKey {
+
+    pub(crate) fn zeroize_secret(&mut self) {
+        for r in &mut self.rounds {
+            crate::wipe_val(r);
+        }
+        crate::wipe_val(&mut self.white);
+    }
     pub(crate) fn new(field: &Field, rounds: &[Round], white: &[u8; BLOCK_LEN]) -> Box<FbKey> {
         let mut rs = Vec::with_capacity(NR);
         for (r, rd) in rounds.iter().enumerate() {

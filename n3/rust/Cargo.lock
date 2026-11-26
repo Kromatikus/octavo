@@ -68,6 +68,7 @@ version = "0.1.0"
 dependencies = [
  "polyval",
  "sha2",
+ "zeroize",
 ]
 
 [[package]]
@@ -86,6 +87,7 @@ dependencies = [
  "cpufeatures",
  "opaque-debug",
  "universal-hash",
+ "zeroize",
 ]
 
 [[package]]
@@ -126,3 +128,9 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
+
+[[package]]
+name = "zeroize"
+version = "1.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85ccff8a4805aba1eaa4cd4afcd49f7557dd2cf5fd79ffc37f8959466effc5aa"

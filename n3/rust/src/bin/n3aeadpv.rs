@@ -1,5 +1,5 @@
-//! EXPERIMENTAL lab CLI for the SN3C/ 0x1D POLYVAL-SIV AEAD (not the 0x1C AEAD, not SN3F).
-//! Homemade, un-attacked composition; for real secrets use AES-GCM-SIV, age, or libsodium.
+//! EXPERIMENTAL lab CLI for the SN3C/ 0x1E POLYVAL-SIV AEAD (not the 0x1C AEAD, not SN3F).
+//! Homemade composition; 0x1E is the post-attack revision of the unreleased 0x1D cut; for real secrets use AES-GCM-SIV, age, or libsodium.
 //! usage: n3aeadpv seal <seed_hex(256)> <nonce_hex(32)> <ad_hex|-> < plaintext > blob
 //!        n3aeadpv open <seed_hex(256)> <ad_hex|-> < blob > plaintext
 use octavo_n3_draft3::aead_pv::AeadPv;
@@ -28,7 +28,7 @@ fn main() {
             let ad = hex(&a[3]).unwrap_or_else(|e| die(2, &e));
             AeadPv::new(&seed_of(&a[2])).open(&ad, &input).unwrap_or_else(|e| die(1, &e.to_string()))
         }
-        _ => die(2, "usage: n3aeadpv seal <seed_hex(256)> <nonce_hex(32)> <ad_hex|-> | n3aeadpv open <seed_hex(256)> <ad_hex|->  (EXPERIMENTAL SN3C/ 0x1D POLYVAL-SIV)"),
+        _ => die(2, "usage: n3aeadpv seal <seed_hex(256)> <nonce_hex(32)> <ad_hex|-> | n3aeadpv open <seed_hex(256)> <ad_hex|->  (EXPERIMENTAL SN3C/ 0x1E POLYVAL-SIV)"),
     };
     if std::io::stdout().write_all(&out).is_err() { std::process::exit(3); }
 }

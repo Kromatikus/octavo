@@ -40,6 +40,7 @@
 
 use crate::{Backend, Cipher, BLOCK_LEN, NONCE_LEN, SEED_LEN, SPONGE_PREFIX};
 use sha2::{Digest, Sha256};
+use zeroize::Zeroize;
 
 /// AEAD format byte for this working copy. Distinct from the block-cipher FORMAT_BYTE (0x1B).
 pub const AEAD_FORMAT: u8 = 0x1C;
@@ -564,6 +565,24 @@ impl<'a> PmacAcc<'a> {
         wipe(&mut self.buf);
         wipe(&mut last);
         out
+    }
+}
+
+impl Zeroize for Aead {
+    fn zeroize(&mut self) {
+        for b in &mut self.lpow {
+            crate::wipe_bytes(b);
+        }
+        crate::wipe_bytes(&mut self.k_full);
+        crate::wipe_bytes(&mut self.k_part);
+        self.mac.zeroize();
+        self.enc.zeroize();
+    }
+}
+
+impl Drop for Aead {
+    fn drop(&mut self) {
+        self.zeroize();
     }
 }
 

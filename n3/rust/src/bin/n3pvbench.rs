@@ -1,4 +1,4 @@
-//! Lab bench: 0x1C PMAC-SIV vs EXPERIMENTAL 0x1D POLYVAL-SIV vs raw N3 cipher, in memory.
+//! Lab bench: 0x1C PMAC-SIV vs EXPERIMENTAL 0x1E POLYVAL-SIV vs raw N3 cipher, in memory.
 //! Variants are interleaved per trial; each trial averages REPS runs; the median of TRIALS is shown.
 //! usage: n3pvbench [mib=16] [trials=3] [reps=3]
 use octavo_n3_draft3::aead::Aead;
@@ -57,7 +57,7 @@ fn main() {
             r[3].push(time(reps, || { black_box(pv.open(b"", black_box(&pv_blob)).unwrap()); }));
             r[4].push(time(reps, || { raw(&cipher, black_box(&mut buf), th); }));
         }
-        let names = ["0x1C PMAC-SIV seal", "0x1D POLYVAL-SIV seal", "0x1C PMAC-SIV open", "0x1D POLYVAL-SIV open", "raw N3 cipher (enc blocks)"];
+        let names = ["0x1C PMAC-SIV seal", "0x1E POLYVAL-SIV seal", "0x1C PMAC-SIV open", "0x1E POLYVAL-SIV open", "raw N3 cipher (enc blocks)"];
         for (i, nm) in names.iter().enumerate() {
             println!("{:<28} {:>3}T {:>10.1}", nm, th, n as f64 / 1e6 / median(&mut r[i]));
         }

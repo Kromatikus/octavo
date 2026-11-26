@@ -1,6 +1,6 @@
-//! Dudect-style timing test for N3 AEAD seal/open (0x1C PMAC-SIV or EXPERIMENTAL 0x1D POLYVAL-SIV),
+//! Dudect-style timing test for N3 AEAD seal/open (0x1C PMAC-SIV or EXPERIMENTAL 0x1E POLYVAL-SIV),
 //! including the threaded CTR path. |t| > 4.5 = evidence of a leak.
-//! usage: n3dudect_pv <seal|open> [seconds] [threads] [msg_bytes] [1c|1d]
+//! usage: n3dudect_pv <seal|open> [seconds] [threads] [msg_bytes] [1c|1d|1e]
 //! Class 0 = fixed message; class 1 = random message of the same length.
 //! Homemade; for real secrets use AES-GCM-SIV, age, or libsodium.
 
@@ -73,8 +73,8 @@ fn main() {
     let threads: usize = args.get(3).and_then(|s| s.parse().ok()).unwrap_or(1);
     let msg_len: usize = args.get(4).and_then(|s| s.parse().ok()).unwrap_or(262144);
     let variant = args.get(5).map(|s| s.as_str()).unwrap_or("1d").to_string();
-    if variant != "1c" && variant != "1d" {
-        eprintln!("variant must be 1c or 1d");
+    if variant != "1c" && variant != "1d" && variant != "1e" {
+        eprintln!("variant must be 1c, 1d, or 1e (1d/1e = POLYVAL-SIV)");
         std::process::exit(2);
     }
     if mode != "seal" && mode != "open" {
@@ -89,7 +89,7 @@ fn main() {
     let backend = Backend::detect();
     let old = Aead::with_backend(&seed, backend).expect("backend").with_threads(threads);
     let pv = AeadPv::with_backend(&seed, backend).expect("backend").with_threads(threads);
-    let is_pv = variant == "1d";
+    let is_pv = variant == "1d" || variant == "1e";
     struct Dyn<'a> { old: &'a Aead, pv: &'a AeadPv, is_pv: bool }
     impl Dyn<'_> {
         fn seal(&self, n: &[u8; 16], ad: &[u8], m: &[u8]) -> Result<Vec<u8>, octavo_n3_draft3::aead::AeadError> {

@@ -1,4 +1,4 @@
-//! Tests for the EXPERIMENTAL 0x1D POLYVAL-SIV AEAD. Homemade; for real secrets use AES-GCM-SIV, age, or libsodium.
+//! Tests for the EXPERIMENTAL 0x1E POLYVAL-SIV AEAD. Homemade; for real secrets use AES-GCM-SIV, age, or libsodium.
 use crate::aead::{Aead, AeadError, OVERHEAD};
 use crate::aead_pv::*;
 use crate::SEED_LEN;
@@ -175,7 +175,7 @@ fn pv_separate_from_0x1c() {
     let bo = old.seal(&N1, b"ad", &m).unwrap();
     let bp = pv.seal(&N1, b"ad", &m).unwrap();
     assert_eq!(bo[5], 0x1C);
-    assert_eq!(bp[5], 0x1D);
+    assert_eq!(bp[5], 0x1E);
     assert_eq!(old.open(b"ad", &bp), Err(AeadError::BadFormat));
     assert_eq!(pv.open(b"ad", &bo), Err(AeadError::BadFormat));
     assert_ne!(&bo[22..54], &bp[22..54]);
@@ -192,6 +192,114 @@ fn pv_kat_stable() {
         h.update(a.seal(&N1, b"kat-ad", &m).unwrap());
     }
     let d: String = h.finalize().iter().map(|b| format!("{b:02x}")).collect();
-    assert_eq!(d, KAT_DIGEST, "0x1D construction changed");
+    assert_eq!(d, KAT_DIGEST, "0x1E construction changed");
 }
-const KAT_DIGEST: &str = "9b338b2a9d8b275a390821205ca50ef6de4494e0e39a9f69cd6226d5a1af48d4";
+const KAT_DIGEST: &str = "47a507efeb2078e748380c1909784d0638645ddd534a01a0ac561017c65e28fc";
+
+#[test]
+fn pv_ctr_binds_nonce() {
+    let tag = [0x5Au8; 32];
+    let n1 = *b"nonce-AAAAAAAAAA";
+    let n2 = *b"nonce-BBBBBBBBBB";
+    let b1 = AeadPv::ctr_block(&tag, &n1, 0);
+    let b2 = AeadPv::ctr_block(&tag, &n2, 0);
+    let b1i = AeadPv::ctr_block(&tag, &n1, 1);
+    assert_eq!(&b1[..32], &tag);
+    assert_eq!(&b1[32..40], b"SN3V/CTR");
+    assert_eq!(&b1[40..56], &n1);
+    assert_eq!(&b1[120..], &0u64.to_le_bytes());
+    assert_eq!(&b1i[120..], &1u64.to_le_bytes());
+    assert_eq!(&b1i[40..56], &n1);
+    assert_ne!(b1, b2, "same tag, different nonce must not share a counter block");
+    // equal tags under different nonces therefore cannot share a keystream
+    assert_ne!(&b1[40..56], &b2[40..56]);
+}
+
+#[test]
+fn pv_rejects_unreleased_0x1d_and_0x1c() {
+    let a = AeadPv::new(&seed(7));
+    let b = a.seal(&N1, b"ad", b"hello").unwrap();
+    assert_eq!(b[5], PV_FORMAT);
+    let mut d = b.clone();
+    d[5] = 0x1D;
+    assert_eq!(a.open(b"ad", &d), Err(AeadError::BadFormat));
+    let mut c = b.clone();
+    c[5] = 0x1C;
+    assert_eq!(a.open(b"ad", &c), Err(AeadError::BadFormat));
+}
+
+/// Condensed forgery / robustness battery from the 0x1D attack report, re-run on 0x1E.
+#[test]
+fn pv_forgery_and_hostile_inputs() {
+    let a = AeadPv::new(&seed(7));
+    // every AD/M split of a 16-byte string, plus zero-extension, must give distinct tags
+    let raw = b"0123456789abcdef";
+    let mut tags = std::collections::HashSet::new();
+    for i in 0..=raw.len() {
+        let b = a.seal(&N1, &raw[..i], &raw[i..]).unwrap();
+        assert!(tags.insert(b[22..54].to_vec()), "tag collision at split {i}");
+    }
+    for k in 0..=32 {
+        let b1 = a.seal(&N1, b"ad", &vec![0u8; k]).unwrap();
+        let b2 = a.seal(&N1, b"ad", &vec![0u8; k + 1]).unwrap();
+        assert_ne!(&b1[22..54], &b2[22..54], "zero-extend tag collision at {k}");
+    }
+    let good = a.seal(&N1, b"ad", b"payload-0123456789").unwrap();
+    // length-extend ciphertext with zeros, every truncation, zero tag, nonce/tag splice
+    for k in 1..=64 {
+        let mut e = good.clone();
+        e.extend(std::iter::repeat(0u8).take(k));
+        assert_eq!(a.open(b"ad", &e), Err(AeadError::AuthFailed), "ext {k}");
+    }
+    for n in 0..good.len() {
+        let err = a.open(b"ad", &good[..n]);
+        assert!(err.is_err(), "trunc {n}");
+        if n >= OVERHEAD {
+            assert_eq!(err, Err(AeadError::AuthFailed), "trunc-auth {n}");
+        }
+    }
+    let mut zt = good.clone();
+    for x in &mut zt[22..54] { *x = 0; }
+    assert_eq!(a.open(b"ad", &zt), Err(AeadError::AuthFailed));
+    let other = a.seal(&N2, b"ad", b"payload-0123456789").unwrap();
+    let mut splice = good.clone();
+    splice[6..22].copy_from_slice(&other[6..22]); // nonce
+    assert_eq!(a.open(b"ad", &splice), Err(AeadError::AuthFailed));
+    let mut splice = good.clone();
+    splice[22..54].copy_from_slice(&other[22..54]); // tag
+    assert_eq!(a.open(b"ad", &splice), Err(AeadError::AuthFailed));
+    let mut splice = good.clone();
+    splice[OVERHEAD..].copy_from_slice(&other[OVERHEAD..]); // ct
+    assert_eq!(a.open(b"ad", &splice), Err(AeadError::AuthFailed));
+    // 2,000 hostile blobs: no panic, none accepted
+    let mut r = Rng(0xA77);
+    for i in 0..2000 {
+        let n = (r.next() as usize) % 80;
+        let mut blob = r.bytes(n);
+        if i % 7 == 0 && n >= 6 {
+            blob[..5].copy_from_slice(b"SN3C/");
+            blob[5] = PV_FORMAT;
+        }
+        let _ = a.open(b"ad", &blob);
+    }
+    assert_eq!(a.seal(&N1, b"", &vec![0u8; crate::aead::MAX_MSG_LEN + 1]), Err(AeadError::TooLong));
+}
+
+#[test]
+fn pv_cross_format_unrelated() {
+    let m = Rng(9).bytes(500);
+    let old = Aead::new(&seed(7));
+    let pv = AeadPv::new(&seed(7));
+    let bo = old.seal(&N1, b"ad", &m).unwrap();
+    let bp = pv.seal(&N1, b"ad", &m).unwrap();
+    assert_eq!(old.open(b"ad", &bp), Err(AeadError::BadFormat));
+    assert_eq!(pv.open(b"ad", &bo), Err(AeadError::BadFormat));
+    // patch header so parse succeeds: still AuthFailed
+    let mut p = bo.clone();
+    p[5] = PV_FORMAT;
+    assert_eq!(pv.open(b"ad", &p), Err(AeadError::AuthFailed));
+    let mut q = bp.clone();
+    q[5] = 0x1C;
+    assert_eq!(old.open(b"ad", &q), Err(AeadError::AuthFailed));
+    assert_ne!(&bo[22..54], &bp[22..54]);
+}

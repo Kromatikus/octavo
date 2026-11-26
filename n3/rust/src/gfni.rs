@@ -74,6 +74,18 @@ fn invert64(p: &[u8; 64]) -> [u8; 64] {
 }
 
 impl GfniKey {
+    pub(crate) fn zeroize_secret(&mut self) {
+        let n = core::mem::size_of_val(&*self.rounds);
+        unsafe {
+            let p = self.rounds.as_mut_ptr() as *mut u8;
+            for i in 0..n {
+                core::ptr::write_volatile(p.add(i), 0);
+            }
+        }
+        crate::wipe_bytes(&mut self.white);
+        core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
+    }
+
     pub fn new(field: &Field, rounds: &[Round], white: &[u8; BLOCK_LEN]) -> Option<Box<GfniKey>> {
         if !available() {
             return None;

@@ -187,6 +187,7 @@ version = "0.1.0"
 dependencies = [
  "polyval",
  "sha2",
+ "zeroize",
 ]
 
 [[package]]
@@ -223,6 +224,7 @@ dependencies = [
  "cpufeatures",
  "opaque-debug",
  "universal-hash",
+ "zeroize",
 ]
 
 [[package]]

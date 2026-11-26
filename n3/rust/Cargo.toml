@@ -13,7 +13,8 @@ lab = []
 
 [dependencies]
 sha2 = "0.10"
-polyval = "0.6"
+polyval = { version = "0.6", features = ["zeroize"] }
+zeroize = { version = "1", default-features = false }
 
 [[bin]]
 name = "n3aead"

@@ -1,13 +1,13 @@
-//! EXPERIMENTAL SN3C/ AEAD, lab format 0x1D: "N3-POLYVAL-SIV". A nonce-misuse-resistant
+//! EXPERIMENTAL SN3C/ AEAD, lab format 0x1E: "N3-POLYVAL-SIV". A nonce-misuse-resistant
 //! SIV mode over the 1024-bit N3 block cipher whose tag comes from POLYVAL (RFC 8452) instead
-//! of a full-cipher PMAC pass. Homemade composition, NOT reviewed, not attacked yet. For real
+//! of a full-cipher PMAC pass. Homemade composition, Attacked once (see /workspace/attacks_n3_polyval1/REPORT.md); this revision binds the nonce into each CTR block and closes the zeroization gaps from that report. Still homemade, not for real secrets. For real
 //! secrets use AES-GCM-SIV, age, or libsodium.
 //!
 //! The 0x1C AEAD (`crate::aead`) and SN3F are unchanged; this is a separate lab mode.
 //!
 //! Construction (mirrors RFC 8452 AES-GCM-SIV, adapted to a 128-byte block):
 //! * Master keys: from the 128-byte seed, three 128-byte subkeys via the same SHA-256-expand
-//!   KDF as 0x1C but with format byte 0x1D and labels 'A' (auth-key derivation cipher),
+//!   KDF as 0x1C but with format byte 0x1E and labels 'A' (auth-key derivation cipher),
 //!   'T' (tag cipher), 'E' (CTR cipher). Each keys an N3 instance with a fixed distinct cipher
 //!   nonce ("SN3C/PV-AK", "SN3C/PV-TG", "SN3C/PV-EN"). Three key setups per master key, once.
 //! * Per-nonce auth key (RFC 8452 §4 analogue): one N3 block
@@ -20,29 +20,35 @@
 //! * Tag/SIV: T_blk = E_tag( S(16) || "SN3V/TAG" || 0^104 );  tag = T_blk[0..32] (32 bytes, same
 //!   API as 0x1C). Security is ~128-bit (the hash output is 128 bits), the 32-byte tag is an
 //!   IV/tag expansion, not 256 bits of forgery resistance.
-//! * Encryption: CTR with E_enc; counter block i = tag(32) || "SN3V/CTR" || 0^80 || u64le(i)
-//!   (bytes 120..128). Keystream XOR message, no padding. Threaded like 0x1C (whole batches).
-//! * Blob: "SN3C/" || 0x1D || nonce(16) || tag(32) || ciphertext. Overhead 54 bytes.
-//! * Open: strict parse (0x1C and everything else gives BadFormat), CTR-decrypt, recompute POLYVAL
-//!   and the tag, constant-time compare, wipe plaintext and return only `AuthFailed` on mismatch.
+//! * Encryption: CTR with E_enc; counter block i =
+//!   tag(32) || "SN3V/CTR" || nonce(16) || 0^64 || u64le(i)  (nonce at bytes 40..56, counter at 120..128).
+//!   Keystream XOR message, no padding. Threaded like 0x1C (whole batches). Binding the nonce means a
+//!   tag collision across different nonces no longer reuses the keystream (the 0x1D lab cut did).
+//! * Blob: "SN3C/" || 0x1E || nonce(16) || tag(32) || ciphertext. Overhead 54 bytes.
+//!   0x1D was an unreleased first lab cut and is rejected as BadFormat, as is 0x1C.
+//! * Open: strict parse, CTR-decrypt, recompute POLYVAL and the tag, constant-time compare, wipe
+//!   plaintext and return only `AuthFailed` on mismatch.
 //!
 //! Security shape (GCM-SIV-like, not proven here): forging a ciphertext for a fixed (key, nonce)
 //! needs a POLYVAL collision/forgery, probability about (blocks)/2^128 per attempt. Nonce reuse
-//! reveals only whether two (AD, M) pairs under that nonce are identical. Because the tag is the
-//! CTR IV, two different messages with colliding POLYVAL output would share a keystream (~2^-128
-//! per pair under a repeated nonce). POLYVAL is ~2 GB/s here (RustCrypto `polyval`), far cheaper
-//! than the cipher pass. Both layers are threaded for messages >= 256 KiB: CTR by whole batches,
-//! POLYVAL by splitting the message into segments recombined with powers of the key (the result
-//! is bit-identical to the sequential hash, see `polyval`).
+//! reveals only whether two (AD, M) pairs under that nonce are identical. A same-nonce tag collision
+//! (two different messages under one nonce whose POLYVAL^nonce values match, ~ q_n^2*L/2^129) would
+//! still share a keystream and leak m1^m2. A tag collision across *different* nonces no longer
+//! reuses a keystream, because the nonce sits in every counter block. POLYVAL is ~2 GB/s here
+//! (RustCrypto `polyval` with its `zeroize` feature). Both layers are threaded for messages >=
+//! 256 KiB: CTR by whole batches, POLYVAL by splitting the message into segments recombined with
+//! powers of the key (the result is bit-identical to the sequential hash, see `polyval`).
 
 use crate::aead::{ct_eq, default_threads, AeadError, AEAD_NONCE_LEN, HEADER_LEN, MAX_MSG_LEN, OVERHEAD, TAG_LEN};
 use crate::{Backend, Cipher, BLOCK_LEN, NONCE_LEN, SEED_LEN, SPONGE_PREFIX};
 use polyval::universal_hash::{KeyInit, UniversalHash};
 use polyval::Polyval;
 use sha2::{Digest, Sha256};
+use zeroize::Zeroize;
 
-/// Experimental format byte, distinct from the 0x1B cipher and the 0x1C PMAC-SIV AEAD.
-pub const PV_FORMAT: u8 = 0x1D;
+/// Experimental format byte, distinct from the 0x1B cipher, the 0x1C PMAC-SIV AEAD,
+/// and the unreleased 0x1D lab cut (POLYVAL-SIV without nonce-in-CTR).
+pub const PV_FORMAT: u8 = 0x1E;
 const CTR_DOMAIN: &[u8; 8] = b"SN3V/CTR";
 const AK_DOMAIN: &[u8; 8] = b"SN3V/AK\0";
 const TAG_DOMAIN: &[u8; 8] = b"SN3V/TAG";
@@ -76,7 +82,7 @@ fn wipe(b: &mut [u8]) {
     core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
 }
 
-/// Parsed view of a 0x1D blob (no authentication yet).
+/// Parsed view of a 0x1E blob (no authentication yet).
 pub fn parse_blob(blob: &[u8]) -> Result<([u8; AEAD_NONCE_LEN], [u8; TAG_LEN], &[u8]), AeadError> {
     if blob.len() < OVERHEAD {
         return Err(AeadError::TooShort);
@@ -118,10 +124,14 @@ fn dot_pow(h: &[u8; 16], mut k: u64) -> [u8; 16] {
         }
         k >>= 1;
         if k > 0 {
-            base = dot(&base, &base);
+            let nxt = dot(&base, &base);
+            wipe(&mut base);
+            base = nxt;
         }
     }
-    acc.unwrap()
+    let out = acc.unwrap();
+    wipe(&mut base);
+    out
 }
 
 fn polyval_seg(key: &[u8; 16], data: &[u8]) -> [u8; 16] {
@@ -137,7 +147,7 @@ fn len_block(ad: usize, msg: usize) -> [u8; 16] {
     len
 }
 
-/// EXPERIMENTAL POLYVAL-SIV AEAD over N3 (format 0x1D).
+/// EXPERIMENTAL POLYVAL-SIV AEAD over N3 (format 0x1E).
 pub struct AeadPv {
     ak: Cipher,
     tg: Cipher,
@@ -227,11 +237,15 @@ impl AeadPv {
         let mut after = 0u64;
         let mut out = [0u8; 16];
         for (sum, (_, nb)) in sums.iter().zip(segs.iter()).rev() {
-            let term = if after == 0 { *sum } else { dot(sum, &dot_pow(key, after)) };
+            let mut term = if after == 0 { *sum } else { dot(sum, &dot_pow(key, after)) };
             for (o, x) in out.iter_mut().zip(term.iter()) {
                 *o ^= *x;
             }
+            wipe(&mut term);
             after += *nb;
+        }
+        for sum in sums.iter_mut() {
+            wipe(sum);
         }
         wipe(&mut tail);
         out
@@ -255,32 +269,35 @@ impl AeadPv {
         tb[..16].copy_from_slice(&s);
         tb[16..24].copy_from_slice(TAG_DOMAIN);
         wipe(&mut s);
-        let out = self.tg.encrypt_block(&tb);
+        let mut out = self.tg.encrypt_block(&tb);
         wipe(&mut tb);
         let mut tag = [0u8; TAG_LEN];
         tag.copy_from_slice(&out[..TAG_LEN]);
+        wipe(&mut out);
+        wipe(&mut blk);
         tag
     }
 
-    fn ctr_xor(&self, tag: &[u8; TAG_LEN], data: &mut [u8]) {
+    fn ctr_xor(&self, nonce: &[u8; AEAD_NONCE_LEN], tag: &[u8; TAG_LEN], data: &mut [u8]) {
         let t = self.eff_threads(data.len());
         if t <= 1 {
-            return self.ctr_xor_from(tag, data, 0);
+            return self.ctr_xor_from(nonce, tag, data, 0);
         }
         let nbatches = (data.len() + BATCH * BLOCK_LEN - 1) / (BATCH * BLOCK_LEN);
         let chunk_len = ((nbatches + t - 1) / t) * (BATCH * BLOCK_LEN);
         std::thread::scope(|s| {
             for (k, ch) in data.chunks_mut(chunk_len).enumerate() {
                 let first = ((k * chunk_len) / BLOCK_LEN) as u64;
-                s.spawn(move || self.ctr_xor_from(tag, ch, first));
+                s.spawn(move || self.ctr_xor_from(nonce, tag, ch, first));
             }
         });
     }
 
-    fn ctr_xor_from(&self, tag: &[u8; TAG_LEN], data: &mut [u8], first: u64) {
+    fn ctr_xor_from(&self, nonce: &[u8; AEAD_NONCE_LEN], tag: &[u8; TAG_LEN], data: &mut [u8], first: u64) {
         let mut base = [0u8; BLOCK_LEN];
         base[..TAG_LEN].copy_from_slice(tag);
         base[TAG_LEN..TAG_LEN + 8].copy_from_slice(CTR_DOMAIN);
+        base[TAG_LEN + 8..TAG_LEN + 8 + AEAD_NONCE_LEN].copy_from_slice(nonce);
         let mut ks = vec![[0u8; BLOCK_LEN]; BATCH];
         let mut ctr: u64 = first;
         for chunk in data.chunks_mut(BATCH * BLOCK_LEN) {
@@ -298,6 +315,7 @@ impl AeadPv {
         for b in ks.iter_mut() {
             wipe(b);
         }
+        wipe(&mut base);
     }
 
     /// Encrypt and authenticate. Nonce reuse is tolerated (only equality of identical
@@ -313,7 +331,7 @@ impl AeadPv {
         out.extend_from_slice(nonce);
         out.extend_from_slice(&tag);
         out.extend_from_slice(msg);
-        self.ctr_xor(&tag, &mut out[OVERHEAD..]);
+        self.ctr_xor(nonce, &tag, &mut out[OVERHEAD..]);
         Ok(out)
     }
 
@@ -321,7 +339,7 @@ impl AeadPv {
     pub fn open(&self, ad: &[u8], blob: &[u8]) -> Result<Vec<u8>, AeadError> {
         let (nonce, tag, ct) = parse_blob(blob)?;
         let mut pt = ct.to_vec();
-        self.ctr_xor(&tag, &mut pt);
+        self.ctr_xor(&nonce, &tag, &mut pt);
         let v = self.tag_of(ad, &nonce, &pt);
         if ct_eq(&v, &tag) {
             Ok(pt)
@@ -329,5 +347,32 @@ impl AeadPv {
             wipe(&mut pt);
             Err(AeadError::AuthFailed)
         }
+    }
+}
+
+impl Zeroize for AeadPv {
+    fn zeroize(&mut self) {
+        self.ak.zeroize();
+        self.tg.zeroize();
+        self.enc.zeroize();
+    }
+}
+
+impl Drop for AeadPv {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
+#[cfg(test)]
+impl AeadPv {
+    /// Counter block i = tag(32) || "SN3V/CTR" || nonce(16) || 0^64 || u64le(i).
+    pub(crate) fn ctr_block(tag: &[u8; TAG_LEN], nonce: &[u8; AEAD_NONCE_LEN], i: u64) -> Block {
+        let mut b = [0u8; BLOCK_LEN];
+        b[..TAG_LEN].copy_from_slice(tag);
+        b[TAG_LEN..TAG_LEN + 8].copy_from_slice(CTR_DOMAIN);
+        b[TAG_LEN + 8..TAG_LEN + 8 + AEAD_NONCE_LEN].copy_from_slice(nonce);
+        b[BLOCK_LEN - 8..].copy_from_slice(&i.to_le_bytes());
+        b
     }
 }
