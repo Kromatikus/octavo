@@ -553,34 +553,59 @@ unsafe fn bow_cols(cols: &mut [__m128i; 8], c: &Consts, inverse: bool) {
     }
 }
 
+// bow1 variant 1: byte rotate with VPMULTISHIFTQB. For a byte x and rotate r in 1..=7,
+// rotl8(x, r) is bits [8-r, 16-r) of the doubled byte (x << 8 | x). Doubling each byte costs one
+// VPSHUFB (even bytes, odd bytes), and the shift + extract is one multishift per parity (the odd
+// pass merges under a byte mask), replacing the old and/srl/sllv/srl/blend. No branches, no
+// secret-indexed loads: the control byte is BASE - r where r comes from arithmetic on the data.
+
+/// GFNI matrix: per-byte logical shift right by `k` (no cross-byte leak, one instruction).
+const fn shr_qword(k: u32) -> u64 {
+    let mut q = 0u64;
+    let mut i = 0;
+    while i < 8 {
+        if i + k < 8 {
+            q |= (1u64 << (i + k)) << (8 * (7 - i));
+        }
+        i += 1;
+    }
+    q
+}
+const SHR3: u64 = shr_qword(3);
+const SHR6: u64 = shr_qword(6);
+
+/// Rotate amounts minus one (m1 = p % 7, m2 = (p >> 3) % 7), each in 0..=6.
+/// 8 == 1 (mod 7), so with octal digits d0 = p&7, d1 = (p>>3)&7, d2 = p>>6 (0..3):
+///   m2 = (d1 + d2) % 7, m1 = (d0 + m2) % 7. Each reduction is one fold, min(x, x - 7), since
+///   d1 + d2 <= 10 and d0 + m2 <= 13. Pure arithmetic, no tables, no branches.
 #[inline]
 #[target_feature(enable = "gfni,avx512f,avx512bw,avx512vl,avx512vbmi,ssse3,avx2")]
 unsafe fn bow_amounts512(view: __m512i) -> (__m512i, __m512i) {
     let seven = _mm512_set1_epi8(7);
-    let one = _mm512_set1_epi8(1);
     let d0 = _mm512_and_si512(view, seven);
-    let d1 = _mm512_and_si512(_mm512_srli_epi16::<3>(view), seven);
-    let d2 = _mm512_and_si512(_mm512_srli_epi16::<6>(view), _mm512_set1_epi8(3));
+    let d1 = _mm512_and_si512(aff512(view, SHR3), seven);
+    let d2 = aff512(view, SHR6);
     let w = _mm512_add_epi8(d1, d2);
-    let mut s = _mm512_add_epi8(w, d0);
-    s = _mm512_min_epu8(s, _mm512_sub_epi8(s, seven));
-    s = _mm512_min_epu8(s, _mm512_sub_epi8(s, seven));
-    let w = _mm512_min_epu8(w, _mm512_sub_epi8(w, seven));
-    (_mm512_add_epi8(s, one), _mm512_add_epi8(w, one))
+    let m2 = _mm512_min_epu8(w, _mm512_sub_epi8(w, seven));
+    let s = _mm512_add_epi8(d0, m2);
+    let m1 = _mm512_min_epu8(s, _mm512_sub_epi8(s, seven));
+    (m1, m2)
 }
 
+/// Rotate each byte of `x` left by (m + 1), m from `bow_amounts512`.
 #[inline]
 #[target_feature(enable = "gfni,avx512f,avx512bw,avx512vl,avx512vbmi,ssse3,avx2")]
-unsafe fn vrot512(x: __m512i, r: __m512i) -> __m512i {
+unsafe fn vrot512(x: __m512i, m: __m512i) -> __m512i {
     const DUP_E: [u8; 16] = [0, 0, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 12, 12, 14, 14];
     const DUP_O: [u8; 16] = [1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11, 11, 13, 13, 15, 15];
+    // per byte b of each qword: even b -> 8b + 8, odd b -> 8b; minus one so that ctrl = BASE1 - m.
+    const BASE1: [u8; 16] = [7, 7, 23, 23, 39, 39, 55, 55, 7, 7, 23, 23, 39, 39, 55, 55];
     let de = _mm512_broadcast_i32x4(_mm_loadu_si128(DUP_E.as_ptr() as *const _));
     let dov = _mm512_broadcast_i32x4(_mm_loadu_si128(DUP_O.as_ptr() as *const _));
-    let re = _mm512_and_si512(r, _mm512_set1_epi16(0x00ff));
-    let ro = _mm512_srli_epi16::<8>(r);
-    let se = _mm512_sllv_epi16(_mm512_shuffle_epi8(x, de), re);
-    let so = _mm512_sllv_epi16(_mm512_shuffle_epi8(x, dov), ro);
-    _mm512_mask_blend_epi8(0xAAAA_AAAA_AAAA_AAAA, _mm512_srli_epi16::<8>(se), so)
+    let base = _mm512_broadcast_i32x4(_mm_loadu_si128(BASE1.as_ptr() as *const _));
+    let ctrl = _mm512_sub_epi8(base, m);
+    let ev = _mm512_multishift_epi64_epi8(ctrl, _mm512_shuffle_epi8(x, de));
+    _mm512_mask_multishift_epi64_epi8(ev, 0xAAAA_AAAA_AAAA_AAAA, ctrl, _mm512_shuffle_epi8(x, dov))
 }
 
 #[inline]
@@ -1179,6 +1204,9 @@ mod transpose_tests {
         }
     }
 }
+
+#[cfg(feature = "lab")]
+include!("gfni_profile.rs");
 
 /// fallback1 test hook: AVX-512 router with hardware PEXT and with the
 /// branch-free public-mask PEXT.

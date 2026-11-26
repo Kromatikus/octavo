@@ -57,3 +57,8 @@ required-features = ["lab"]
 name = "n3aeadbench"
 path = "src/bin/n3aeadbench.rs"
 required-features = ["lab"]
+
+[[bin]]
+name = "n3layerprof"
+path = "src/bin/n3layerprof.rs"
+required-features = ["lab"]

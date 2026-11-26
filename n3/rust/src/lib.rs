@@ -884,6 +884,19 @@ fn bow(g: &mut [u8; BLOCK_LEN], inverse: bool) {
     }
 }
 
+
+#[cfg(feature = "lab")]
+pub fn run_layer_profile_only() {
+    let seed: [u8; SEED_LEN] = core::array::from_fn(|i| (i as u8).wrapping_mul(17).wrapping_add(0xA5));
+    let nonce: [u8; NONCE_LEN] = core::array::from_fn(|i| i as u8 + 1);
+    let c = Cipher::with_backend(&seed, &nonce, Backend::detect()).expect("backend");
+    println!("backend={}", c.backend().name());
+    #[cfg(target_arch = "x86_64")]
+    if let Some(ref key) = c.gfni {
+        gfni::run_layer_profile(key);
+    }
+}
+
 #[cfg(test)]
 mod branch;
 #[cfg(test)]
