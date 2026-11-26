@@ -329,3 +329,117 @@ fn aead_kat_matches_file() {
     }
     assert!(n >= 4);
 }
+
+// ---- multithreading (threads must never change the bytes) ----
+
+fn aead_t(threads: usize) -> Aead {
+    Aead::new(&seed(7)).with_threads(threads).with_par_min(0)
+}
+
+#[test]
+fn threads_1_2_8_give_identical_blobs() {
+    let a1 = aead_t(1);
+    let a2 = aead_t(2);
+    let a8 = aead_t(8);
+    let mut r = Rng(77);
+    // Includes sizes below 2 batches (single-thread fallback), exact batch multiples,
+    // odd sizes, and sizes where the transcript ends exactly on / just past a block edge.
+    let sizes = [
+        0usize, 1, 54, 73, 74, 127, 128, 129, 8191, 8192, 8193, 2 * 8192, 3 * 8192 + 1,
+        64 * 128 * 2 + 5, 9 * 8192 + 4093, 20 * 8192 - 1, 300_000, 1_048_576, 1_048_576 + 77,
+    ];
+    for &len in &sizes {
+        for ad_len in [0usize, 5, 74, 130] {
+            let m = r.bytes(len);
+            let ad = r.bytes(ad_len);
+            let b1 = a1.seal(&N1, &ad, &m).unwrap();
+            let b2 = a2.seal(&N1, &ad, &m).unwrap();
+            let b8 = a8.seal(&N1, &ad, &m).unwrap();
+            assert_eq!(b1, b2, "1T vs 2T len={len} ad={ad_len}");
+            assert_eq!(b1, b8, "1T vs 8T len={len} ad={ad_len}");
+            // cross-open under every thread count
+            assert_eq!(a8.open(&ad, &b1).unwrap(), m);
+            assert_eq!(a2.open(&ad, &b8).unwrap(), m);
+            assert_eq!(a1.open(&ad, &b2).unwrap(), m);
+        }
+    }
+}
+
+#[test]
+fn threads_tamper_still_rejected_and_nothing_released() {
+    let a = aead_t(8);
+    let mut r = Rng(5);
+    let m = r.bytes(40 * 8192 + 11);
+    let mut b = a.seal(&N1, b"ad", &m).unwrap();
+    for &pos in &[OVERHEAD, OVERHEAD + 8192, b.len() - 1, 6, 30] {
+        b[pos] ^= 1;
+        assert_eq!(a.open(b"ad", &b), Err(AeadError::AuthFailed), "pos={pos}");
+        b[pos] ^= 1;
+    }
+    assert_eq!(a.open(b"ae", &b), Err(AeadError::AuthFailed));
+    assert_eq!(a.open(b"ad", &b).unwrap(), m);
+}
+
+#[test]
+fn threads_match_known_answer_file() {
+    // Parallel path must reproduce the single-thread blob for the committed KAT inputs too.
+    let a1 = aead_t(1);
+    let a8 = aead_t(8);
+    let mut r = Rng(1234);
+    let m = r.bytes(100_003);
+    assert_eq!(a1.seal(&N1, b"", &m).unwrap(), a8.seal(&N1, b"", &m).unwrap());
+}
+
+#[test]
+fn delta_at_matches_incremental_offsets() {
+    let a = aead_t(1);
+    let mut d = a.lpow_ref()[1];
+    for i in 0u64..5000 {
+        assert_eq!(a.delta_at_pub(i), d, "i={i}");
+        let tz = (i + 2).trailing_zeros() as usize + 1;
+        for (x, y) in d.iter_mut().zip(a.lpow_ref()[tz].iter()) {
+            *x ^= *y;
+        }
+    }
+}
+
+/// Seal with the new library at 1/8 threads and compare to the ORIGINAL n3aead binary (if built);
+/// then have the original open our blobs.
+#[test]
+fn threads_cross_check_with_original_binary() {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+    let orig = "/workspace/octavo_n3_cleanup1/repo/n3/rust/target/release/n3aead";
+    if !std::path::Path::new(orig).exists() {
+        eprintln!("original n3aead not found; skipping");
+        return;
+    }
+    let sd = seed(7);
+    let seed_hex: String = sd.iter().map(|b| format!("{b:02x}")).collect();
+    let nonce_hex: String = N1.iter().map(|b| format!("{b:02x}")).collect();
+    let run = |args: &[&str], input: &[u8]| -> Vec<u8> {
+        let mut c = Command::new(orig).args(args).stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
+        let mut si = c.stdin.take().unwrap();
+        let inp = input.to_vec();
+        let h = std::thread::spawn(move || {
+            let _ = si.write_all(&inp);
+        });
+        let out = c.wait_with_output().unwrap();
+        h.join().unwrap();
+        assert!(out.status.success(), "orig failed: {:?}", out.status);
+        out.stdout
+    };
+    let mut r = Rng(99);
+    for &len in &[0usize, 1, 127, 8192 + 3, 300_000 + 13, 1_048_576 + 77] {
+        let m = r.bytes(len);
+        let orig_blob = run(&["seal", &seed_hex, &nonce_hex, "-"], &m);
+        for th in [1usize, 2, 8] {
+            let a = aead_t(th);
+            let mine = a.seal(&N1, &[], &m).unwrap();
+            assert_eq!(mine, orig_blob, "threads={th} len={len}");
+            assert_eq!(a.open(&[], &orig_blob).unwrap(), m);
+        }
+        let opened = run(&["open", &seed_hex, "-"], &aead_t(8).seal(&N1, &[], &m).unwrap());
+        assert_eq!(opened, m);
+    }
+}

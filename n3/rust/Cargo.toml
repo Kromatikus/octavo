@@ -52,3 +52,8 @@ required-features = ["lab"]
 name = "n3dudect_setup"
 path = "src/bin/n3dudect_setup.rs"
 required-features = ["lab"]
+
+[[bin]]
+name = "n3aeadbench"
+path = "src/bin/n3aeadbench.rs"
+required-features = ["lab"]

@@ -166,6 +166,28 @@ pub struct Aead {
     lpow: [Block; LPOW],
     k_full: Block,
     k_part: Block,
+    /// Worker threads for the independent PMAC / CTR block batches (1 = single-threaded).
+    threads: usize,
+    /// Messages shorter than this stay single-threaded.
+    par_min: usize,
+}
+
+/// Messages below this size stay single-threaded (thread start-up would cost more than it saves).
+const PAR_MIN_DEFAULT: usize = 256 * 1024;
+/// Default and maximum worker count when `N3_THREADS` is unset.
+const MAX_DEFAULT_THREADS: usize = 8;
+
+/// Thread count: `N3_THREADS` (a positive integer) if set, else the number of CPUs, at most 8.
+/// The count never changes the output bytes.
+pub fn default_threads() -> usize {
+    if let Ok(v) = std::env::var("N3_THREADS") {
+        if let Ok(n) = v.trim().parse::<usize>() {
+            if n >= 1 {
+                return n.min(256);
+            }
+        }
+    }
+    std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1).min(MAX_DEFAULT_THREADS)
 }
 
 impl Aead {
@@ -188,15 +210,44 @@ impl Aead {
         }
         let k_full = xor_blocks(&lpow[0], &lpow[1]); // 3L
         let k_part = xor_blocks(&lpow[0], &lpow[2]); // 5L
-        Ok(Aead { mac, enc, lpow, k_full, k_part })
+        Ok(Aead { mac, enc, lpow, k_full, k_part, threads: default_threads(), par_min: PAR_MIN_DEFAULT })
     }
 
     pub fn backend(&self) -> Backend {
         self.mac.backend()
     }
 
+    /// Set the worker-thread count (1 = single-threaded). Output bytes do not depend on it.
+    pub fn with_threads(mut self, n: usize) -> Self {
+        self.threads = n.max(1);
+        self
+    }
+
+    pub fn threads(&self) -> usize {
+        self.threads
+    }
+
+    /// Override the small-message cutoff (tests and benches only).
+    #[doc(hidden)]
+    pub fn with_par_min(mut self, bytes: usize) -> Self {
+        self.par_min = bytes;
+        self
+    }
+
+    /// Threads actually used for `len` bytes: 1 for small inputs, never more than one per batch.
+    fn eff_threads(&self, len: usize) -> usize {
+        if self.threads <= 1 || len < self.par_min {
+            return 1;
+        }
+        self.threads.min(len / (BATCH * BLOCK_LEN)).max(1)
+    }
+
     /// PMAC over the length-prefixed transcript of (header, AD, nonce, message).
     fn pmac_transcript(&self, ad: &[u8], nonce: &[u8; AEAD_NONCE_LEN], msg: &[u8]) -> Block {
+        let t = self.eff_threads(msg.len());
+        if t > 1 {
+            return self.pmac_transcript_par(ad, nonce, msg, t);
+        }
         let total = 8 + HEADER_LEN + 8 + ad.len() + 8 + AEAD_NONCE_LEN + 8 + msg.len();
         let mut acc = PmacAcc::new(self, total);
         acc.feed(&(HEADER_LEN as u64).to_le_bytes());
@@ -212,11 +263,28 @@ impl Aead {
     }
 
     fn ctr_xor(&self, tag: &[u8; TAG_LEN], data: &mut [u8]) {
+        let t = self.eff_threads(data.len());
+        if t <= 1 {
+            return self.ctr_xor_from(tag, data, 0);
+        }
+        // Each worker gets whole batches, so its first counter is (offset / 128).
+        let nbatches = (data.len() + BATCH * BLOCK_LEN - 1) / (BATCH * BLOCK_LEN);
+        let chunk_len = ((nbatches + t - 1) / t) * (BATCH * BLOCK_LEN);
+        std::thread::scope(|s| {
+            for (k, ch) in data.chunks_mut(chunk_len).enumerate() {
+                let first = ((k * chunk_len) / BLOCK_LEN) as u64;
+                s.spawn(move || self.ctr_xor_from(tag, ch, first));
+            }
+        });
+    }
+
+    /// CTR keystream XOR where `data[0]` is counter block `first`.
+    fn ctr_xor_from(&self, tag: &[u8; TAG_LEN], data: &mut [u8], first: u64) {
         let mut base = [0u8; BLOCK_LEN];
         base[..TAG_LEN].copy_from_slice(tag);
         base[TAG_LEN..TAG_LEN + 8].copy_from_slice(CTR_DOMAIN);
         let mut ks = vec![[0u8; BLOCK_LEN]; BATCH];
-        let mut ctr: u64 = 0;
+        let mut ctr: u64 = first;
         for chunk in data.chunks_mut(BATCH * BLOCK_LEN) {
             let nb = (chunk.len() + BLOCK_LEN - 1) / BLOCK_LEN;
             for b in ks.iter_mut().take(nb) {
@@ -232,6 +300,106 @@ impl Aead {
         for b in ks.iter_mut() {
             wipe(b);
         }
+    }
+
+    /// Gray-code offset Δ_i = XOR over set bits b of gray(i+1) of L[b+1] (closed form).
+    fn delta_at(&self, i: u64) -> Block {
+        let n = i + 1;
+        let mut g = n ^ (n >> 1);
+        let mut d = [0u8; BLOCK_LEN];
+        while g != 0 {
+            let b = g.trailing_zeros() as usize;
+            xor_into(&mut d, &self.lpow[b + 1]);
+            g &= g - 1;
+        }
+        d
+    }
+
+    /// Multithreaded PMAC. Same transcript and same math as `PmacAcc`: the middle blocks are
+    /// independent (Σ ^= E(M_i ⊕ Δ_i)), so each worker takes a run of whole 64-block batches and
+    /// the partial sums are XORed (order does not matter). The final block is done once, here.
+    fn pmac_transcript_par(&self, ad: &[u8], nonce: &[u8; AEAD_NONCE_LEN], msg: &[u8], t: usize) -> Block {
+        let mut prefix = Vec::with_capacity(8 + HEADER_LEN + 8 + ad.len() + 8 + AEAD_NONCE_LEN + 8);
+        prefix.extend_from_slice(&(HEADER_LEN as u64).to_le_bytes());
+        prefix.extend_from_slice(SPONGE_PREFIX);
+        prefix.push(AEAD_FORMAT);
+        prefix.extend_from_slice(&(ad.len() as u64).to_le_bytes());
+        prefix.extend_from_slice(ad);
+        prefix.extend_from_slice(&(AEAD_NONCE_LEN as u64).to_le_bytes());
+        prefix.extend_from_slice(nonce);
+        prefix.extend_from_slice(&(msg.len() as u64).to_le_bytes());
+        let total = prefix.len() + msg.len();
+        let nblocks = (total + BLOCK_LEN - 1) / BLOCK_LEN; // >= 1
+        let n_mid = (nblocks - 1) as u64;
+        let nbatches = (n_mid + BATCH as u64 - 1) / BATCH as u64;
+        let t = (t as u64).min(nbatches.max(1));
+        let per = (nbatches + t - 1) / t.max(1);
+
+        let prefix_ref = &prefix[..];
+        let work = |lo_batch: u64, hi_batch: u64| -> Block {
+            let mut sigma = [0u8; BLOCK_LEN];
+            let mut batch = [[0u8; BLOCK_LEN]; BATCH];
+            let lo = lo_batch * BATCH as u64;
+            let hi = (hi_batch * BATCH as u64).min(n_mid);
+            if lo >= hi {
+                return sigma;
+            }
+            let mut delta = self.delta_at(lo);
+            let mut i = lo;
+            while i < hi {
+                let n = ((hi - i) as usize).min(BATCH);
+                for k in 0..n {
+                    let idx = i + k as u64;
+                    let copied = fill_transcript(prefix_ref, msg, idx as usize * BLOCK_LEN, &mut batch[k]);
+                    debug_assert_eq!(copied, BLOCK_LEN);
+                    xor_into(&mut batch[k], &delta);
+                    // Δ_{idx+1} = Δ_idx ⊕ L[ntz(idx+2)+1]
+                    let tz = (idx + 2).trailing_zeros() as usize + 1;
+                    xor_into(&mut delta, &self.lpow[tz]);
+                }
+                self.mac.encrypt_blocks(&mut batch[..n]);
+                for b in batch.iter_mut().take(n) {
+                    xor_into(&mut sigma, b);
+                    wipe(b);
+                }
+                i += n as u64;
+            }
+            sigma
+        };
+
+        let mut sigma = [0u8; BLOCK_LEN];
+        std::thread::scope(|s| {
+            let work = &work;
+            let handles: Vec<_> = (1..t)
+                .map(|k| s.spawn(move || work(k * per, (k + 1) * per)))
+                .collect();
+            let first = work(0, per);
+            xor_into(&mut sigma, &first);
+            for h in handles {
+                let part = h.join().expect("pmac worker panicked");
+                xor_into(&mut sigma, &part);
+            }
+        });
+
+        // Final block, identical to PmacAcc::finish.
+        let last_idx = (nblocks - 1) as u64;
+        let mut last = [0u8; BLOCK_LEN];
+        let filled = fill_transcript(&prefix, msg, last_idx as usize * BLOCK_LEN, &mut last);
+        debug_assert!(filled > 0);
+        let delta = self.delta_at(last_idx);
+        if filled == BLOCK_LEN {
+            xor_into(&mut last, &delta);
+            xor_into(&mut last, &self.k_full);
+        } else {
+            last[filled] = 0x80;
+            xor_into(&mut last, &delta);
+            xor_into(&mut last, &self.k_part);
+        }
+        xor_into(&mut sigma, &last);
+        let out = self.mac.encrypt_block(&sigma);
+        wipe(&mut sigma);
+        wipe(&mut last);
+        out
     }
 
     /// Encrypt and authenticate. Nonce reuse is tolerated (only equality of identical
@@ -273,6 +441,28 @@ impl Aead {
         let v = self.pmac_transcript(ad, nonce, pt);
         ct_eq(&v[..TAG_LEN], tag)
     }
+}
+
+/// Copy transcript bytes [start, start+out.len()) of `prefix || msg` into `out`; returns how many
+/// bytes existed (the rest of `out` is left untouched). Public lengths only.
+fn fill_transcript(prefix: &[u8], msg: &[u8], start: usize, out: &mut [u8]) -> usize {
+    let total = prefix.len() + msg.len();
+    let mut pos = start;
+    let mut o = 0;
+    while o < out.len() && pos < total {
+        let n;
+        if pos < prefix.len() {
+            n = (prefix.len() - pos).min(out.len() - o);
+            out[o..o + n].copy_from_slice(&prefix[pos..pos + n]);
+        } else {
+            let m = pos - prefix.len();
+            n = (msg.len() - m).min(out.len() - o);
+            out[o..o + n].copy_from_slice(&msg[m..m + n]);
+        }
+        pos += n;
+        o += n;
+    }
+    o
 }
 
 /// Streaming PMAC accumulator. Encrypts every completed non-final block through
@@ -419,6 +609,9 @@ pub(crate) fn gray_delta_pub(lpow: &[Block; LPOW], k: u64) -> Block {
 impl Aead {
     pub(crate) fn lpow_ref(&self) -> &[Block; LPOW] {
         &self.lpow
+    }
+    pub(crate) fn delta_at_pub(&self, i: u64) -> Block {
+        self.delta_at(i)
     }
     pub(crate) fn k_full_ref(&self) -> &Block {
         &self.k_full
